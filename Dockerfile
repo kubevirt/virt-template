@@ -7,14 +7,14 @@ WORKDIR /workspace
 # Copy the Go Modules manifests
 COPY go.mod go.mod
 COPY go.sum go.sum
-# cache deps before building and copying source so that we don't need to re-download as much
-# and so that source changes don't invalidate our downloaded layer
-RUN go mod download
+COPY go.work go.work
+COPY go.work.sum go.work.sum
 
 # Copy the go source
 COPY cmd/main.go cmd/main.go
 COPY api/ api/
 COPY internal/ internal/
+COPY vendor/ vendor/
 
 # Build
 # the GOARCH has no default value to allow the binary to be built according to the host where the command
