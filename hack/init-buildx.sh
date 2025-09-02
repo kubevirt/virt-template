@@ -2,6 +2,8 @@
 
 # Taken from https://github.com/kubevirt/cluster-network-addons-operator/blob/main/hack/init-buildx.sh
 
+set -ex
+
 check_buildx() {
   export DOCKER_CLI_EXPERIMENTAL=enabled
 

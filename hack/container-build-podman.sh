@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -ex
+
 if [ -z "${BUILD_ARCH}" ] || [ -z "${PLATFORMS}" ] || [ -z "${IMG}" ] || [ -z "${CONTAINERFILE}" ]; then
     echo "Error: BUILD_ARCH, PLATFORMS, IMG and CONTAINERFILE must be set."
     exit 1
