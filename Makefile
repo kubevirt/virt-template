@@ -23,7 +23,7 @@ SHELL = /usr/bin/env bash -o pipefail
 .SHELLFLAGS = -ec
 
 .PHONY: all
-all: build
+all: fmt vet vendor lint manifests generate check-uncommitted
 
 ##@ General
 
@@ -66,6 +66,10 @@ vendor: ## Update vendored modules
 	go mod tidy
 	go work sync
 	go work vendor
+
+.PHONY: check-uncommitted
+check-uncommitted: ## Check for uncommitted changes.
+	./hack/check-uncommitted.sh
 
 .PHONY: test
 test: manifests generate fmt vet setup-envtest ## Run tests.
