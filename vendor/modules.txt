@@ -1014,6 +1014,10 @@ k8s.io/utils/net
 k8s.io/utils/path
 k8s.io/utils/ptr
 k8s.io/utils/trace
+# kubevirt.io/qe-tools v0.1.8
+## explicit; go 1.16
+kubevirt.io/qe-tools/pkg/ginkgo-reporters
+kubevirt.io/qe-tools/pkg/polarion-xml
 # kubevirt.io/virt-template/api v0.0.0-00010101000000-000000000000 => ./api
 ## explicit; go 1.24.0
 # sigs.k8s.io/apiserver-network-proxy/konnectivity-client v0.31.2
