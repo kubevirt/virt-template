@@ -6,6 +6,8 @@
 *.dylib
 bin/
 dist/
+_cluster-up/
+_kubevirt/
 
 # Test binary, built with `go test -c`
 *.test

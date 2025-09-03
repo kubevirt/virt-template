@@ -1,10 +1,7 @@
 IMG_TAG ?= latest
+IMG_REGISTRY ?= quay.io/kubevirt
 IMG_PLATFORMS ?= linux/amd64,linux/arm64,linux/s390x
-IMG_BUILD_ARCH := $(shell uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/')
-DOCKER_BUILDER ?= virt-template-docker-builder
-
-IMG_REPOSITORY_CONTROLLER ?= quay.io/kubevirt/virt-template-controller
-IMG_CONTROLLER ?= ${IMG_REPOSITORY_CONTROLLER}:${IMG_TAG}
+IMG_CONTROLLER ?= ${IMG_REGISTRY}/virt-template-controller:${IMG_TAG}
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -44,21 +41,28 @@ help: ## Display this help.
 
 ##@ Development
 
+CONTROLLER_GEN_PATHS ?= "{./api/...,./cmd/...,./internal/...}"
+
 .PHONY: manifests
 manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
-	$(CONTROLLER_GEN) rbac:roleName=manager-role crd webhook paths="./..." output:crd:artifacts:config=config/crd/bases
+	$(CONTROLLER_GEN) rbac:roleName=manager-role crd webhook paths=$(CONTROLLER_GEN_PATHS) output:crd:artifacts:config=config/crd/bases
 
 .PHONY: generate
 generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
-	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
+	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths=$(CONTROLLER_GEN_PATHS)
 
 .PHONY: fmt
-fmt: ## Run gofumpt against code.
+fmt: gofumpt ## Run gofumpt against code.
 	$(GOFUMPT) -w -extra .
 
 .PHONY: vet
 vet: ## Run go vet against code.
 	go vet ./...
+
+.PHONY: lint
+lint: golangci-lint ## Run golangci-lint linter and lint.sh script
+	$(GOLANGCI_LINT) run
+	./hack/lint.sh
 
 .PHONY: vendor
 vendor: ## Update vendored modules
@@ -73,41 +77,45 @@ check-uncommitted: ## Check for uncommitted changes.
 
 .PHONY: test
 test: manifests generate fmt vet setup-envtest ## Run tests.
-	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test $$(go list ./... | grep -v /e2e) -coverprofile cover.out
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test $$(go list ./... | grep -v /tests) -coverprofile cover.out
 
-# TODO(user): To use a different vendor for e2e tests, modify the setup under 'tests/e2e'.
-# The default setup assumes Kind is pre-installed and builds/loads the Manager Docker image locally.
-# CertManager is installed by default; skip with:
-# - CERT_MANAGER_INSTALL_SKIP=true
-KIND_CLUSTER ?= virt-template-test-e2e
+.PHONY: functest
+functest: manifests generate fmt vet ## Run the functional tests.
+	go test -v -timeout 0 ./tests/... -ginkgo.v -ginkgo.randomize-all $(FUNCTEST_EXTRA_ARGS)
 
-.PHONY: setup-test-e2e
-setup-test-e2e: ## Set up a Kind cluster for e2e tests if it does not exist
-	@command -v $(KIND) >/dev/null 2>&1 || { \
-		echo "Kind is not installed. Please install Kind manually."; \
-		exit 1; \
-	}
-	@case "$$($(KIND) get clusters)" in \
-		*"$(KIND_CLUSTER)"*) \
-			echo "Kind cluster '$(KIND_CLUSTER)' already exists. Skipping creation." ;; \
-		*) \
-			echo "Creating Kind cluster '$(KIND_CLUSTER)'..."; \
-			$(KIND) create cluster --name $(KIND_CLUSTER) ;; \
-	esac
+.PHONY: cluster-up
+cluster-up: cmctl ## Start a kubevirtci cluster running a stable version of KubeVirt.
+	hack/kubevirtci.sh up
 
-.PHONY: test-e2e
-test-e2e: setup-test-e2e manifests generate fmt vet ## Run the e2e tests. Expected an isolated environment using Kind.
-	KIND=$(KIND) KIND_CLUSTER=$(KIND_CLUSTER) go test -tags=e2e ./test/e2e/ -v -ginkgo.v
-	$(MAKE) cleanup-test-e2e
+.PHONY: cluster-down
+cluster-down: ## Stop the kubevirtci cluster running a stable version of KubeVirt.
+	hack/kubevirtci.sh down
 
-.PHONY: cleanup-test-e2e
-cleanup-test-e2e: ## Tear down the Kind cluster used for e2e tests
-	@$(KIND) delete cluster --name $(KIND_CLUSTER)
+.PHONY: cluster-sync
+cluster-sync: ## Install virt-template to the kubevirtci cluster running a stable version of KubeVirt.
+	$(MAKE) container-build container-push IMG_REGISTRY=$$(./hack/kubevirtci.sh registry) IMG_PLATFORMS=linux/$(IMG_BUILD_ARCH) TLS_VERIFY=false
+	KUBECONFIG=$$(./hack/kubevirtci.sh kubeconfig) $(MAKE) undeploy uninstall install deploy IMG_REGISTRY=registry:5000 IGNORE_NOT_FOUND=true
 
-.PHONY: lint
-lint: golangci-lint ## Run golangci-lint linter and lint.sh script
-	$(GOLANGCI_LINT) run
-	./hack/lint.sh
+.PHONY: cluster-functest
+cluster-functest: ## Run the functional tests on the kubevirtci cluster running a stable version of KubeVirt.
+	cd tests && KUBECONFIG=$$(../hack/kubevirtci.sh kubeconfig) go test -v -timeout 0 ./tests/... -ginkgo.v -ginkgo.randomize-all $(FUNCTEST_EXTRA_ARGS)
+
+.PHONY: kubevirt-up
+kubevirt-up: cmctl ## Start a kubevirtci cluster running a git version of KubeVirt.
+	hack/kubevirt.sh up
+
+.PHONY: kubevirt-down
+kubevirt-down: ## Stop the kubevirtci cluster running a git version of KubeVirt.
+	hack/kubevirt.sh down
+
+.PHONY: kubevirt-sync
+kubevirt-sync: ## Install virt-template to the kubevirtci cluster running a git version of KubeVirt.
+	$(MAKE) container-build container-push IMG_REGISTRY=$$(./hack/kubevirt.sh registry) IMG_PLATFORMS=linux/$(IMG_BUILD_ARCH) TLS_VERIFY=false
+	KUBECONFIG=$$(./hack/kubevirt.sh kubeconfig) $(MAKE) undeploy uninstall install deploy IMG_REGISTRY=registry:5000 IGNORE_NOT_FOUND=true
+
+.PHONY: kubevirt-functest
+kubevirt-functest: ## Run the functional tests on the kubevirtci cluster running a git version of KubeVirt.
+	cd tests && KUBECONFIG=$$(../hack/kubevirt.sh kubeconfig) go test -v -timeout 0 ./tests/... -ginkgo.v -ginkgo.randomize-all $(FUNCTEST_EXTRA_ARGS)
 
 ##@ Build
 
@@ -126,6 +134,9 @@ container-build: container-build-controller ## Build container images.
 container-build-controller: ## Build container image with the controller.
 	$(call container-build-with-tool,$(CONTAINER_TOOL),$(IMG_CONTROLLER),Dockerfile)
 
+IMG_BUILD_ARCH := $(shell uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/')
+DOCKER_BUILDER ?= virt-template-docker-builder
+
 # Generic function to build container images
 # Usage: $(call container-build-with-tool,<tool>,<image>,<containerfile>)
 define container-build-with-tool
@@ -135,10 +146,14 @@ define container-build-with-tool
 	./hack/container-build-$(1).sh
 endef
 
+ifndef TLS_VERIFY
+  TLS_VERIFY = true
+endif
+
 .PHONY: container-push
 container-push: ## Push container images.
 ifeq ($(CONTAINER_TOOL),podman)
-	podman manifest push ${IMG_CONTROLLER} ${IMG_CONTROLLER}
+	podman manifest push --tls-verify=$(TLS_VERIFY) ${IMG_CONTROLLER} ${IMG_CONTROLLER}
 endif
 
 .PHONY: build-installer
@@ -149,26 +164,32 @@ build-installer: manifests generate kustomize ## Generate a consolidated YAML wi
 
 ##@ Deployment
 
-ifndef ignore-not-found
-  ignore-not-found = false
+ifndef IGNORE_NOT_FOUND
+  IGNORE_NOT_FOUND = false
 endif
 
 .PHONY: install
-install: manifests kustomize ## Install CRDs into the K8s cluster specified in ~/.kube/config.
+install: manifests kustomize ## Install CRDs into the K8s cluster.
 	$(KUSTOMIZE) build config/crd | $(KUBECTL) apply -f -
 
 .PHONY: uninstall
-uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
-	$(KUSTOMIZE) build config/crd | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
+uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster. Call with ignore-not-found=true to ignore resource not found errors during deletion.
+	$(KUSTOMIZE) build config/crd | $(KUBECTL) delete --ignore-not-found=$(IGNORE_NOT_FOUND) -f -
 
 .PHONY: deploy
-deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in ~/.kube/config.
+deploy: manifests kustomize deploy-cert-manager ## Deploy controller to the K8s cluster.
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG_CONTROLLER}
 	$(KUSTOMIZE) build config/default | $(KUBECTL) apply -f -
 
 .PHONY: undeploy
-undeploy: kustomize ## Undeploy controller from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
-	$(KUSTOMIZE) build config/default | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
+undeploy: kustomize ## Undeploy controller from the K8s cluster. Call with ignore-not-found=true to ignore resource not found errors during deletion.
+	$(KUSTOMIZE) build config/default | $(KUBECTL) delete --ignore-not-found=$(IGNORE_NOT_FOUND) -f -
+
+CERT_MANAGER_VERSION ?= v1.18.2
+.PHONE: deploy-cert-manager
+deploy-cert-manager: kubectl cmctl
+	$(KUBECTL) apply -f "https://github.com/cert-manager/cert-manager/releases/download/$(CERT_MANAGER_VERSION)/cert-manager.yaml"
+	$(CMCTL) check api --wait=5m
 
 ##@ Dependencies
 
@@ -179,12 +200,12 @@ $(LOCALBIN):
 
 ## Tool Binaries
 KUBECTL ?= kubectl
-KIND ?= kind
 KUSTOMIZE ?= $(LOCALBIN)/kustomize
 CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen
 ENVTEST ?= $(LOCALBIN)/setup-envtest
-GOLANGCI_LINT = $(LOCALBIN)/golangci-lint
-GOFUMPT = $(LOCALBIN)/gofumpt
+GOLANGCI_LINT ?= $(LOCALBIN)/golangci-lint
+GOFUMPT ?= $(LOCALBIN)/gofumpt
+CMCTL ?= $(LOCALBIN)/cmctl
 
 ## Tool Versions
 KUSTOMIZE_VERSION ?= v5.6.0
@@ -195,6 +216,7 @@ ENVTEST_VERSION ?= $(shell go list -m -f "{{ .Version }}" sigs.k8s.io/controller
 ENVTEST_K8S_VERSION ?= $(shell go list -m -f "{{ .Version }}" k8s.io/api | awk -F'[v.]' '{printf "1.%d", $$3}')
 GOLANGCI_LINT_VERSION ?= v2.4.0
 GOFUMPT_VERSION ?= v0.8.0
+CMCTL_VERSION ?= v2.3.0
 
 .PHONY: kustomize
 kustomize: $(KUSTOMIZE) ## Download kustomize locally if necessary.
@@ -228,6 +250,11 @@ $(GOLANGCI_LINT): $(LOCALBIN)
 gofumpt: $(GOFUMPT) ## Download gofumpt locally if necessary.
 $(GOFUMPT): $(LOCALBIN)
 	$(call go-install-tool,$(GOFUMPT),mvdan.cc/gofumpt,$(GOFUMPT_VERSION))
+
+.PHONY: cmctl
+cmctl: $(CMCTL) ## Download cmctl locally if necessary.
+$(CMCTL): $(LOCALBIN)
+	$(call go-install-tool,$(CMCTL),github.com/cert-manager/cmctl/v2,$(CMCTL_VERSION))
 
 # go-install-tool will 'go install' any package with custom target and name of binary, if it doesn't exist
 # $1 - target path with name of binary
