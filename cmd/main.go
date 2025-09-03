@@ -37,6 +37,7 @@ import (
 
 	templatev1alpha1 "kubevirt.io/virt-template/api/v1alpha1"
 	"kubevirt.io/virt-template/internal/controller"
+	webhookv1alpha1 "kubevirt.io/virt-template/internal/webhook/v1alpha1"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -186,6 +187,12 @@ func main() {
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "VirtualMachineTemplate")
 		os.Exit(1)
+	}
+	if os.Getenv("ENABLE_WEBHOOKS") != "false" {
+		if err := webhookv1alpha1.SetupVirtualMachineTemplateWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "VirtualMachineTemplate")
+			os.Exit(1)
+		}
 	}
 	// +kubebuilder:scaffold:builder
 
