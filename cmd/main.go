@@ -25,9 +25,6 @@ import (
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
-	"k8s.io/apimachinery/pkg/runtime"
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
@@ -35,26 +32,14 @@ import (
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
-	templatev1alpha1 "kubevirt.io/virt-template/api/v1alpha1"
 	"kubevirt.io/virt-template/internal/controller"
+	"kubevirt.io/virt-template/internal/scheme"
 	webhookv1alpha1 "kubevirt.io/virt-template/internal/webhook/v1alpha1"
 	// +kubebuilder:scaffold:imports
 )
 
-func initScheme() *runtime.Scheme {
-	scheme := runtime.NewScheme()
-
-	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
-
-	utilruntime.Must(templatev1alpha1.AddToScheme(scheme))
-	// +kubebuilder:scaffold:scheme
-
-	return scheme
-}
-
 //nolint:funlen
 func main() {
-	scheme := initScheme()
 	setupLog := ctrl.Log.WithName("setup")
 
 	var metricsAddr string
@@ -158,7 +143,7 @@ func main() {
 	}
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
-		Scheme:                 scheme,
+		Scheme:                 scheme.New(),
 		Metrics:                metricsServerOptions,
 		WebhookServer:          webhookServer,
 		HealthProbeBindAddress: probeAddr,
