@@ -8,6 +8,7 @@ bin/
 dist/
 _cluster-up/
 _kubevirt/
+_out/
 
 # Test binary, built with `go test -c`
 *.test

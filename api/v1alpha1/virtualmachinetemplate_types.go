@@ -60,6 +60,7 @@ type VirtualMachineTemplateStatus struct {
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
+// +genclient
 
 // VirtualMachineTemplate is the Schema for the virtualmachinetemplates API
 type VirtualMachineTemplate struct {

@@ -48,8 +48,9 @@ manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and Cust
 	$(CONTROLLER_GEN) rbac:roleName=manager-role crd webhook paths=$(CONTROLLER_GEN_PATHS) output:crd:artifacts:config=config/crd/bases
 
 .PHONY: generate
-generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
+generate: controller-gen openapi-gen client-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths=$(CONTROLLER_GEN_PATHS)
+	./hack/generate.sh
 
 .PHONY: fmt
 fmt: gofumpt ## Run gofumpt against code.
@@ -67,6 +68,7 @@ lint: golangci-lint ## Run golangci-lint linter and lint.sh script
 .PHONY: vendor
 vendor: ## Update vendored modules
 	cd api && go mod tidy
+	cd staging/src/kubevirt.io/virt-template/client-go && go mod tidy
 	go mod tidy
 	go work sync
 	go work vendor
@@ -93,7 +95,7 @@ cluster-down: ## Stop the kubevirtci cluster running a stable version of KubeVir
 	hack/kubevirtci.sh down
 
 .PHONY: cluster-sync
-cluster-sync: ## Install virt-template to the kubevirtci cluster running a stable version of KubeVirt.
+cluster-sync: generate ## Install virt-template to the kubevirtci cluster running a stable version of KubeVirt.
 	$(MAKE) container-build container-push IMG_REGISTRY=$$(./hack/kubevirtci.sh registry) IMG_PLATFORMS=linux/$(IMG_BUILD_ARCH) TLS_VERIFY=false
 	KUBECONFIG=$$(./hack/kubevirtci.sh kubeconfig) $(MAKE) undeploy uninstall install deploy IMG_REGISTRY=registry:5000 IGNORE_NOT_FOUND=true
 
@@ -111,7 +113,7 @@ kubevirt-down: ## Stop the kubevirtci cluster running a git version of KubeVirt.
 	hack/kubevirt.sh down
 
 .PHONY: kubevirt-sync
-kubevirt-sync: ## Install virt-template to the kubevirtci cluster running a git version of KubeVirt.
+kubevirt-sync: generate ## Install virt-template to the kubevirtci cluster running a git version of KubeVirt.
 	$(MAKE) container-build container-push IMG_REGISTRY=$$(./hack/kubevirt.sh registry) IMG_PLATFORMS=linux/$(IMG_BUILD_ARCH) TLS_VERIFY=false
 	KUBECONFIG=$$(./hack/kubevirt.sh kubeconfig) $(MAKE) undeploy uninstall install deploy IMG_REGISTRY=registry:5000 IGNORE_NOT_FOUND=true
 
@@ -204,6 +206,8 @@ $(LOCALBIN):
 KUBECTL ?= kubectl
 KUSTOMIZE ?= $(LOCALBIN)/kustomize
 CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen
+OPENAPI_GEN ?= $(LOCALBIN)/openapi-gen
+CLIENT_GEN ?= $(LOCALBIN)/client-gen
 ENVTEST ?= $(LOCALBIN)/setup-envtest
 GOLANGCI_LINT ?= $(LOCALBIN)/golangci-lint
 GOFUMPT ?= $(LOCALBIN)/gofumpt
@@ -212,6 +216,8 @@ CMCTL ?= $(LOCALBIN)/cmctl
 ## Tool Versions
 KUSTOMIZE_VERSION ?= v5.6.0
 CONTROLLER_TOOLS_VERSION ?= v0.18.0
+KUBE_OPENAPI_VERSION ?= v0.0.0-20250905195725-d35305924705
+CODE_GENERATOR_VERSION ?= v0.34.0
 #ENVTEST_VERSION is the version of controller-runtime release branch to fetch the envtest setup script (i.e. release-0.20)
 ENVTEST_VERSION ?= $(shell go list -m -f "{{ .Version }}" sigs.k8s.io/controller-runtime | awk -F'[v.]' '{printf "release-%d.%d", $$2, $$3}')
 #ENVTEST_K8S_VERSION is the version of Kubernetes to use for setting up ENVTEST binaries (i.e. 1.31)
@@ -229,6 +235,16 @@ $(KUSTOMIZE): $(LOCALBIN)
 controller-gen: $(CONTROLLER_GEN) ## Download controller-gen locally if necessary.
 $(CONTROLLER_GEN): $(LOCALBIN)
 	$(call go-install-tool,$(CONTROLLER_GEN),sigs.k8s.io/controller-tools/cmd/controller-gen,$(CONTROLLER_TOOLS_VERSION))
+
+.PHONY: openapi-gen
+openapi-gen: $(OPENAPI_GEN) ## Download openapi-gen locally if necessary.
+$(OPENAPI_GEN): $(LOCALBIN)
+	$(call go-install-tool,$(OPENAPI_GEN),k8s.io/kube-openapi/cmd/openapi-gen,$(KUBE_OPENAPI_VERSION))
+
+.PHONY: client-gen
+client-gen: $(CLIENT_GEN) ## Download client-gen locally if necessary.
+$(CLIENT_GEN): $(LOCALBIN)
+	$(call go-install-tool,$(CLIENT_GEN),k8s.io/code-generator/cmd/client-gen,$(CODE_GENERATOR_VERSION))
 
 .PHONY: setup-envtest
 setup-envtest: envtest ## Download the binaries required for ENVTEST in the local bin directory.

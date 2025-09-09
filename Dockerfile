@@ -16,6 +16,7 @@ COPY go.work.sum go.work.sum
 COPY cmd/main.go cmd/main.go
 COPY api/ api/
 COPY internal/ internal/
+COPY staging/ staging/
 COPY vendor/ vendor/
 
 # Build
