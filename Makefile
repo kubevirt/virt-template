@@ -86,6 +86,7 @@ functest: manifests generate fmt vet ## Run the functional tests.
 .PHONY: cluster-up
 cluster-up: cmctl ## Start a kubevirtci cluster running a stable version of KubeVirt.
 	hack/kubevirtci.sh up
+	KUBECONFIG=$$(./hack/kubevirtci.sh kubeconfig) $(MAKE) deploy-cert-manager
 
 .PHONY: cluster-down
 cluster-down: ## Stop the kubevirtci cluster running a stable version of KubeVirt.
@@ -103,6 +104,7 @@ cluster-functest: ## Run the functional tests on the kubevirtci cluster running 
 .PHONY: kubevirt-up
 kubevirt-up: cmctl ## Start a kubevirtci cluster running a git version of KubeVirt.
 	hack/kubevirt.sh up
+	KUBECONFIG=$$(./hack/kubevirt.sh kubeconfig) $(MAKE) deploy-cert-manager
 
 .PHONY: kubevirt-down
 kubevirt-down: ## Stop the kubevirtci cluster running a git version of KubeVirt.
@@ -177,7 +179,7 @@ uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster. Call with
 	$(KUSTOMIZE) build config/crd | $(KUBECTL) delete --ignore-not-found=$(IGNORE_NOT_FOUND) -f -
 
 .PHONY: deploy
-deploy: manifests kustomize deploy-cert-manager ## Deploy controller to the K8s cluster.
+deploy: manifests kustomize ## Deploy controller to the K8s cluster.
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG_CONTROLLER}
 	$(KUSTOMIZE) build config/default | $(KUBECTL) apply -f -
 
@@ -187,7 +189,7 @@ undeploy: kustomize ## Undeploy controller from the K8s cluster. Call with ignor
 
 CERT_MANAGER_VERSION ?= v1.18.2
 .PHONE: deploy-cert-manager
-deploy-cert-manager: kubectl cmctl
+deploy-cert-manager: cmctl
 	$(KUBECTL) apply -f "https://github.com/cert-manager/cert-manager/releases/download/$(CERT_MANAGER_VERSION)/cert-manager.yaml"
 	$(CMCTL) check api --wait=5m
 
