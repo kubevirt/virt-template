@@ -20,13 +20,14 @@ COPY vendor/ vendor/
 
 # Build
 RUN --mount=type=cache,id="virt-template",target="/root/.cache/go-build" \
-    CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} go build -o manager cmd/main.go
+    mkdir -p bin && \
+    CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} go build -o bin/manager cmd/main.go
 
 # Use distroless as minimal base image to package the manager binary
 # Refer to https://github.com/GoogleContainerTools/distroless for more details
 FROM --platform=linux/${TARGETARCH} gcr.io/distroless/static:nonroot
 WORKDIR /
-COPY --from=builder /workspace/manager .
+COPY --from=builder /workspace/bin/manager .
 USER 65532:65532
 
 ENTRYPOINT ["/manager"]
