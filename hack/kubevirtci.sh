@@ -5,7 +5,7 @@ set -ex
 export KUBEVIRT_MEMORY_SIZE="${KUBEVIRT_MEMORY_SIZE:-16G}"
 export KUBEVIRT_DEPLOY_CDI="true"
 export KUBEVIRT_STORAGE="${KUBEVIRT_STORAGE:-rook-ceph-default}"
-export KUBEVIRT_VERSION=${KUBEVIRT_VERSION:-main}
+export KUBEVIRT_VERSION=${KUBEVIRT_VERSION:-$(curl -L https://storage.googleapis.com/kubevirt-prow/devel/release/kubevirt/kubevirt/stable.txt)}
 export KUBEVIRTCI_TAG=${KUBEVIRTCI_TAG:-$(curl -sfL https://raw.githubusercontent.com/kubevirt/kubevirt/"${KUBEVIRT_VERSION}"/kubevirtci/cluster-up/version.txt)}
 
 _base_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
@@ -29,11 +29,6 @@ function kubevirtci::up() {
 
   echo "adding kubevirtci registry to cdi-insecure-registries"
   ${_kubectl} patch cdis/cdi --type merge -p '{"spec": {"config": {"insecureRegistries": ["registry:5000"]}}}'
-
-  # Treat main as stable version
-  if [ "$KUBEVIRT_VERSION" = "main" ]; then
-    KUBEVIRT_VERSION=$(curl -L https://storage.googleapis.com/kubevirt-prow/devel/release/kubevirt/kubevirt/stable.txt)
-  fi
 
   echo "installing kubevirt..."
   ${_kubectl} apply -f "https://github.com/kubevirt/kubevirt/releases/download/${KUBEVIRT_VERSION}/kubevirt-operator.yaml"
