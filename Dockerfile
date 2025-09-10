@@ -19,7 +19,8 @@ COPY internal/ internal/
 COPY vendor/ vendor/
 
 # Build
-RUN CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} go build -a -o manager cmd/main.go
+RUN --mount=type=cache,id="virt-template",target="/root/.cache/go-build" \
+    CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} go build -o manager cmd/main.go
 
 # Use distroless as minimal base image to package the manager binary
 # Refer to https://github.com/GoogleContainerTools/distroless for more details
