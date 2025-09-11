@@ -2,6 +2,7 @@ IMG_TAG ?= latest
 IMG_REGISTRY ?= quay.io/kubevirt
 IMG_PLATFORMS ?= linux/amd64,linux/arm64,linux/s390x
 IMG_CONTROLLER ?= ${IMG_REGISTRY}/virt-template-controller:${IMG_TAG}
+IMG_APISERVER ?= ${IMG_REGISTRY}/virt-template-apiserver:${IMG_TAG}
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -41,7 +42,7 @@ help: ## Display this help.
 
 ##@ Development
 
-CONTROLLER_GEN_PATHS ?= "{./api/...,./cmd/...,./internal/...}"
+CONTROLLER_GEN_PATHS ?= "{./api/...,./internal/controller/...,./internal/webhook/...}"
 
 .PHONY: manifests
 manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
@@ -130,16 +131,29 @@ kubevirt-functest: ## Run the functional tests on the kubevirtci cluster running
 build: manifests generate fmt vet ## Build manager binary.
 	go build -o bin/manager cmd/main.go
 
+.PHONY: build-apiserver
+build-apiserver: manifests generate fmt vet ## Build apiserver binary.
+	go build -o bin/apiserver cmd/apiserver/main.go
+
 .PHONY: run
 run: manifests generate fmt vet ## Run a controller from your host.
 	go run ./cmd/main.go
 
+.PHONY: run-apiserver
+run-apiserver: manifests generate fmt vet ## Run an apiserver from your host.
+	go run ./cmd/apiserver/main.go
+
 .PHONY: container-build
-container-build: container-build-controller ## Build container images.
+container-build: container-build-controller container-build-apiserver ## Build container images.
 
 .PHONY: container-build-controller
 container-build-controller: ## Build container image with the controller.
 	$(call container-build-with-tool,$(CONTAINER_TOOL),$(IMG_CONTROLLER),Dockerfile)
+
+.PHONY: container-build-apiserver
+container-build-apiserver: ## Build container image with the controller.
+	./hack/save-version.sh
+	$(call container-build-with-tool,$(CONTAINER_TOOL),$(IMG_APISERVER),apiserver.Dockerfile)
 
 IMG_BUILD_ARCH := $(shell uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/')
 DOCKER_BUILDER ?= virt-template-docker-builder
@@ -161,6 +175,7 @@ endif
 container-push: ## Push container images.
 ifeq ($(CONTAINER_TOOL),podman)
 	podman manifest push --tls-verify=$(TLS_VERIFY) ${IMG_CONTROLLER} ${IMG_CONTROLLER}
+	podman manifest push --tls-verify=$(TLS_VERIFY) ${IMG_APISERVER} ${IMG_APISERVER}
 endif
 
 .PHONY: build-installer
