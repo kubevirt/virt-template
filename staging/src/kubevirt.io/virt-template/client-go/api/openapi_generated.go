@@ -665,6 +665,9 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"kubevirt.io/containerized-data-importer-api/pkg/apis/core/v1beta1.VolumeUploadSourceList":   schema_pkg_apis_core_v1beta1_VolumeUploadSourceList(ref),
 		"kubevirt.io/containerized-data-importer-api/pkg/apis/core/v1beta1.VolumeUploadSourceSpec":   schema_pkg_apis_core_v1beta1_VolumeUploadSourceSpec(ref),
 		"kubevirt.io/containerized-data-importer-api/pkg/apis/core/v1beta1.VolumeUploadSourceStatus": schema_pkg_apis_core_v1beta1_VolumeUploadSourceStatus(ref),
+		"kubevirt.io/virt-template/api/subresourcesv1alpha1.ProcessOptions":                          schema_kubevirtio_virt_template_api_subresourcesv1alpha1_ProcessOptions(ref),
+		"kubevirt.io/virt-template/api/subresourcesv1alpha1.ProcessedVirtualMachineTemplate":         schema_kubevirtio_virt_template_api_subresourcesv1alpha1_ProcessedVirtualMachineTemplate(ref),
+		"kubevirt.io/virt-template/api/subresourcesv1alpha1.VirtualMachineTemplate":                  schema_kubevirtio_virt_template_api_subresourcesv1alpha1_VirtualMachineTemplate(ref),
 		"kubevirt.io/virt-template/api/v1alpha1.VirtualMachineTemplate":                              schema_kubevirtio_virt_template_api_v1alpha1_VirtualMachineTemplate(ref),
 		"kubevirt.io/virt-template/api/v1alpha1.VirtualMachineTemplateList":                          schema_kubevirtio_virt_template_api_v1alpha1_VirtualMachineTemplateList(ref),
 		"kubevirt.io/virt-template/api/v1alpha1.VirtualMachineTemplateSpec":                          schema_kubevirtio_virt_template_api_v1alpha1_VirtualMachineTemplateSpec(ref),
@@ -31943,6 +31946,122 @@ func schema_pkg_apis_core_v1beta1_VolumeUploadSourceStatus(ref common.ReferenceC
 				Type:        []string{"object"},
 			},
 		},
+	}
+}
+
+func schema_kubevirtio_virt_template_api_subresourcesv1alpha1_ProcessOptions(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ProcessOptions are the options used when processing a VirtualMachineTemplate.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
+						},
+					},
+					"foo": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+	}
+}
+
+func schema_kubevirtio_virt_template_api_subresourcesv1alpha1_ProcessedVirtualMachineTemplate(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ProcessedVirtualMachineTemplate is the object served by the /process subresource. It's not a standalone resource but represents a process action on the parent VirtualMachineTemplate resource.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
+						},
+					},
+					"virtualMachine": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("kubevirt.io/api/core/v1.VirtualMachine"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta", "kubevirt.io/api/core/v1.VirtualMachine"},
+	}
+}
+
+func schema_kubevirtio_virt_template_api_subresourcesv1alpha1_VirtualMachineTemplate(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "VirtualMachineTemplate is a dummy object to satisfy the k8s.io/apiserver conventions. A subresource cannot be served without a storage for its parent resource.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
 	}
 }
 

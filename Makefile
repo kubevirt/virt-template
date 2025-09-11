@@ -46,6 +46,9 @@ CONTROLLER_GEN_PATHS ?= "{./api/...,./cmd/...,./internal/...}"
 .PHONY: manifests
 manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
 	$(CONTROLLER_GEN) rbac:roleName=manager-role crd webhook paths=$(CONTROLLER_GEN_PATHS) output:crd:artifacts:config=config/crd/bases
+	@# These are created by controller-gen because the subresource objects needed to be marked as root objects,
+	@# so all DeepCopy implementations are generated but we don't need them as CRDs.
+	rm config/crd/bases/subresources.template.kubevirt.io_*.yaml
 
 .PHONY: generate
 generate: controller-gen openapi-gen client-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
