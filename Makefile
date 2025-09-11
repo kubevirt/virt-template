@@ -101,7 +101,7 @@ cluster-sync: generate ## Install virt-template to the kubevirtci cluster runnin
 
 .PHONY: cluster-functest
 cluster-functest: ## Run the functional tests on the kubevirtci cluster running a stable version of KubeVirt.
-	cd tests && KUBECONFIG=$$(../hack/kubevirtci.sh kubeconfig) go test -v -timeout 0 ./tests/... -ginkgo.v -ginkgo.randomize-all $(FUNCTEST_EXTRA_ARGS)
+	cd tests && KUBECONFIG=$$(./hack/kubevirtci.sh kubeconfig) go test -v -timeout 0 ./tests/... -ginkgo.v -ginkgo.randomize-all $(FUNCTEST_EXTRA_ARGS)
 
 .PHONY: kubevirt-up
 kubevirt-up: cmctl ## Start a kubevirtci cluster running a git version of KubeVirt.
@@ -119,7 +119,7 @@ kubevirt-sync: generate ## Install virt-template to the kubevirtci cluster runni
 
 .PHONY: kubevirt-functest
 kubevirt-functest: ## Run the functional tests on the kubevirtci cluster running a git version of KubeVirt.
-	cd tests && KUBECONFIG=$$(../hack/kubevirt.sh kubeconfig) go test -v -timeout 0 ./tests/... -ginkgo.v -ginkgo.randomize-all $(FUNCTEST_EXTRA_ARGS)
+	cd tests && KUBECONFIG=$$(./hack/kubevirt.sh kubeconfig) go test -v -timeout 0 ./tests/... -ginkgo.v -ginkgo.randomize-all $(FUNCTEST_EXTRA_ARGS)
 
 ##@ Build
 
