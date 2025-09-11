@@ -43,10 +43,12 @@ help: ## Display this help.
 ##@ Development
 
 CONTROLLER_GEN_PATHS ?= "{./api/...,./internal/controller/...,./internal/webhook/...}"
+CONTROLLER_GEN_PATHS_APISERVER ?= "{./internal/apiserver/storage/...}"
 
 .PHONY: manifests
 manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
 	$(CONTROLLER_GEN) rbac:roleName=manager-role crd webhook paths=$(CONTROLLER_GEN_PATHS) output:crd:artifacts:config=config/crd/bases
+	$(CONTROLLER_GEN) rbac:roleName=apiserver-role,fileName=role_apiserver.yaml paths=$(CONTROLLER_GEN_PATHS_APISERVER)
 	@# These are created by controller-gen because the subresource objects needed to be marked as root objects,
 	@# so all DeepCopy implementations are generated but we don't need them as CRDs.
 	rm config/crd/bases/subresources.template.kubevirt.io_*.yaml
@@ -182,6 +184,7 @@ endif
 build-installer: manifests generate kustomize ## Generate a consolidated YAML with CRDs and deployment.
 	mkdir -p dist
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG_CONTROLLER}
+	cd config/apiserver && $(KUSTOMIZE) edit set image apiserver=${IMG_APISERVER}
 	$(KUSTOMIZE) build config/default > dist/install.yaml
 
 ##@ Deployment
@@ -201,6 +204,7 @@ uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster. Call with
 .PHONY: deploy
 deploy: manifests kustomize ## Deploy controller to the K8s cluster.
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG_CONTROLLER}
+	cd config/apiserver && $(KUSTOMIZE) edit set image apiserver=${IMG_APISERVER}
 	$(KUSTOMIZE) build config/default | $(KUBECTL) apply -f -
 
 .PHONY: undeploy

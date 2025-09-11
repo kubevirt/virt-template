@@ -25,3 +25,9 @@ resources:
 - virtualmachinetemplate_admin_role.yaml
 - virtualmachinetemplate_editor_role.yaml
 - virtualmachinetemplate_viewer_role.yaml
+# RBAC for the virt-template-api server
+- service_account_apiserver.yaml
+- role_apiserver.yaml
+- role_binding_apiserver.yaml
+- role_binding_apiserver_auth_delegator.yaml
+- role_binding_apiserver_auth_reader.yaml

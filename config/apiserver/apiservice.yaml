@@ -1,0 +1,12 @@
+apiVersion: apiregistration.k8s.io/v1
+kind: APIService
+metadata:
+  name: v1alpha1.subresources.template.kubevirt.io
+spec:
+  group: subresources.template.kubevirt.io
+  groupPriorityMinimum: 1000
+  versionPriority: 15
+  service:
+    name: virt-template-api-service
+    namespace: system
+  version: v1alpha1

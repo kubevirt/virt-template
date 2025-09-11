@@ -1,0 +1,26 @@
+# This patch ensures the api certificates are properly mounted in the api container.
+# It configures the necessary arguments, volumes, volume mounts, and container ports.
+
+# Add the --tls-cert-file and --tls-private-key-file arguments for configuring the api server certificate
+- op: add
+  path: /spec/template/spec/containers/0/args/-
+  value: --tls-cert-file=/tmp/k8s-api-server/api-cert/tls.crt
+- op: add
+  path: /spec/template/spec/containers/0/args/-
+  value: --tls-private-key-file=/tmp/k8s-api-server/api-cert/tls.key
+
+# Add the volumeMount for the api certificates
+- op: add
+  path: /spec/template/spec/containers/0/volumeMounts/-
+  value:
+    mountPath: /tmp/k8s-api-server/api-cert
+    name: api-cert
+    readOnly: true
+
+# Add the volume configuration for the api certificates
+- op: add
+  path: /spec/template/spec/volumes/-
+  value:
+    name: api-cert
+    secret:
+      secretName: virt-template-api-server-cert

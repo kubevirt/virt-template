@@ -1,0 +1,5 @@
+resources:
+- apiserver.yaml
+- apiservice.yaml
+- service.yaml
+apiVersion: kustomize.config.k8s.io/v1beta1
