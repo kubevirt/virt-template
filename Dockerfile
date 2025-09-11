@@ -2,7 +2,6 @@
 ARG BUILD_ARCH=amd64
 FROM --platform=linux/${BUILD_ARCH} golang:1.24 AS builder
 
-ARG TARGETOS
 ARG TARGETARCH
 
 WORKDIR /workspace
@@ -22,7 +21,7 @@ COPY vendor/ vendor/
 # Build
 RUN --mount=type=cache,id="virt-template",target="/root/.cache/go-build" \
     mkdir -p bin && \
-    CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} go build -o bin/manager cmd/main.go
+    CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH} go build -o bin/manager cmd/main.go
 
 # Use distroless as minimal base image to package the manager binary
 # Refer to https://github.com/GoogleContainerTools/distroless for more details
