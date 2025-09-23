@@ -668,6 +668,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"kubevirt.io/virt-template/api/subresourcesv1alpha1.ProcessOptions":                          schema_kubevirtio_virt_template_api_subresourcesv1alpha1_ProcessOptions(ref),
 		"kubevirt.io/virt-template/api/subresourcesv1alpha1.ProcessedVirtualMachineTemplate":         schema_kubevirtio_virt_template_api_subresourcesv1alpha1_ProcessedVirtualMachineTemplate(ref),
 		"kubevirt.io/virt-template/api/subresourcesv1alpha1.VirtualMachineTemplate":                  schema_kubevirtio_virt_template_api_subresourcesv1alpha1_VirtualMachineTemplate(ref),
+		"kubevirt.io/virt-template/api/v1alpha1.Parameter":                                           schema_kubevirtio_virt_template_api_v1alpha1_Parameter(ref),
 		"kubevirt.io/virt-template/api/v1alpha1.VirtualMachineTemplate":                              schema_kubevirtio_virt_template_api_v1alpha1_VirtualMachineTemplate(ref),
 		"kubevirt.io/virt-template/api/v1alpha1.VirtualMachineTemplateList":                          schema_kubevirtio_virt_template_api_v1alpha1_VirtualMachineTemplateList(ref),
 		"kubevirt.io/virt-template/api/v1alpha1.VirtualMachineTemplateSpec":                          schema_kubevirtio_virt_template_api_v1alpha1_VirtualMachineTemplateSpec(ref),
@@ -31976,10 +31977,20 @@ func schema_kubevirtio_virt_template_api_subresourcesv1alpha1_ProcessOptions(ref
 							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
 						},
 					},
-					"foo": {
+					"parameters": {
 						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
+							Description: "Parameters is an optional map of key value pairs used during processing of the template. Optional.",
+							Type:        []string{"object"},
+							AdditionalProperties: &spec.SchemaOrBool{
+								Allows: true,
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
 						},
 					},
 				},
@@ -31994,7 +32005,7 @@ func schema_kubevirtio_virt_template_api_subresourcesv1alpha1_ProcessedVirtualMa
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "ProcessedVirtualMachineTemplate is the object served by the /process subresource. It's not a standalone resource but represents a process action on the parent VirtualMachineTemplate resource.",
+				Description: "ProcessedVirtualMachineTemplate is the object served by the /process and /create subresources. It's not a standalone resource but represents a process or create action on the parent VirtualMachineTemplate resource.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"kind": {
@@ -32017,16 +32028,31 @@ func schema_kubevirtio_virt_template_api_subresourcesv1alpha1_ProcessedVirtualMa
 							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
 						},
 					},
+					"templateRef": {
+						SchemaProps: spec.SchemaProps{
+							Description: "TemplateRef contains a reference to the template that was processed. Optional.",
+							Ref:         ref("k8s.io/api/core/v1.ObjectReference"),
+						},
+					},
 					"virtualMachine": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("kubevirt.io/api/core/v1.VirtualMachine"),
+							Description: "VirtualMachine is a VirtualMachine that was created from processing a template. Required.",
+							Ref:         ref("kubevirt.io/api/core/v1.VirtualMachine"),
+						},
+					},
+					"message": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Message is an optional instructional message the should inform the user how to utilize the newly created VirtualMachine. Optional.",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 				},
+				Required: []string{"virtualMachine"},
 			},
 		},
 		Dependencies: []string{
-			"k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta", "kubevirt.io/api/core/v1.VirtualMachine"},
+			"k8s.io/api/core/v1.ObjectReference", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta", "kubevirt.io/api/core/v1.VirtualMachine"},
 	}
 }
 
@@ -32065,6 +32091,70 @@ func schema_kubevirtio_virt_template_api_subresourcesv1alpha1_VirtualMachineTemp
 	}
 }
 
+func schema_kubevirtio_virt_template_api_v1alpha1_Parameter(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "Parameter defines a name/value combination that is to be substituted during processing of the template.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Name is the name of the parameter. It can be referenced in the template VirtualMachine using ${PARAMETER_NAME}. Required.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"displayName": {
+						SchemaProps: spec.SchemaProps{
+							Description: "DisplayName is an alternative name that can be shown in a UI instead of the parameter's name. Optional.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"description": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Description is the description of the parameter. Optional.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"value": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Value holds the value of the Parameter. If specified, a generator will be ignored. The value replaces all occurrences of the ${PARAMETER_NAME} expression during processing of the template. Optional.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"generate": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Generate specifies the generator to be used to generate a Value for this parameter. The From field can be used to provide input to this generator If empty, no generator is being used, leaving the result Value untouched. Optional.\n\nThe only supported generator is \"expression\", which accepts a From value with a regex-like syntax, which should follow the form of \"[a-zA-Z0-9]{length}\". The expression defines the range and length of the resulting random characters.\n\nThe following character classes are supported in the range:\n\nrange | characters ------------------------------------------------------------- \"\\w\"  | abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_ \"\\d\"  | 0123456789 \"\\a\"  | abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ \"\\A\"  | !\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~\n\nGenerated examples:\n\nexpression       | generated value ---------------------------------- \"test[0-9]{1}x\"  | \"test7x\" \"[0-1]{8}\"       | \"01001100\" \"0x[A-F0-9]{4}\"  | \"0xB3AF\" \"[a-zA-Z0-9]{8}\" | \"hW4yQU5i\"",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"from": {
+						SchemaProps: spec.SchemaProps{
+							Description: "From is used as input for the generator specified in Generate. Optional.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"required": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Indicates that the parameter must have a Value or valid Generate and From values. Defaults to false. Optional.",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+				},
+				Required: []string{"name"},
+			},
+		},
+	}
+}
+
 func schema_kubevirtio_virt_template_api_v1alpha1_VirtualMachineTemplate(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -32088,21 +32178,20 @@ func schema_kubevirtio_virt_template_api_v1alpha1_VirtualMachineTemplate(ref com
 					},
 					"metadata": {
 						SchemaProps: spec.SchemaProps{
-							Description: "metadata is a standard object metadata",
-							Default:     map[string]interface{}{},
-							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
 						},
 					},
 					"spec": {
 						SchemaProps: spec.SchemaProps{
-							Description: "spec defines the desired state of VirtualMachineTemplate",
+							Description: "Spec defines the desired state of the template",
 							Default:     map[string]interface{}{},
 							Ref:         ref("kubevirt.io/virt-template/api/v1alpha1.VirtualMachineTemplateSpec"),
 						},
 					},
 					"status": {
 						SchemaProps: spec.SchemaProps{
-							Description: "status defines the observed state of VirtualMachineTemplate",
+							Description: "Status defines the observed state of the template",
 							Default:     map[string]interface{}{},
 							Ref:         ref("kubevirt.io/virt-template/api/v1alpha1.VirtualMachineTemplateStatus"),
 						},
@@ -32172,16 +32261,39 @@ func schema_kubevirtio_virt_template_api_v1alpha1_VirtualMachineTemplateSpec(ref
 				Description: "VirtualMachineTemplateSpec defines the desired state of VirtualMachineTemplate",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
-					"foo": {
+					"virtualMachine": {
 						SchemaProps: spec.SchemaProps{
-							Description: "foo is an example field of VirtualMachineTemplate. Edit virtualmachinetemplate_types.go to remove/update",
+							Description: "VirtualMachine is the template VirtualMachine to include in this template. If a namespace value is hardcoded, it will be removed during processing of the template. If the namespace value however contains a ${PARAMETER_REFERENCE}, the resolved value after parameter substitution will be respected and the VirtualMachine will be created in that namespace.",
+							Ref:         ref("k8s.io/apimachinery/pkg/runtime.RawExtension"),
+						},
+					},
+					"parameters": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Parameters is an optional list of Parameters used during processing of the template.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("kubevirt.io/virt-template/api/v1alpha1.Parameter"),
+									},
+								},
+							},
+						},
+					},
+					"message": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Message is an optional instructional message for this template. This field should inform the user how to utilize the newly created VirtualMachine.",
 							Type:        []string{"string"},
 							Format:      "",
 						},
 					},
 				},
+				Required: []string{"virtualMachine"},
 			},
 		},
+		Dependencies: []string{
+			"k8s.io/apimachinery/pkg/runtime.RawExtension", "kubevirt.io/virt-template/api/v1alpha1.Parameter"},
 	}
 }
 
@@ -32202,7 +32314,7 @@ func schema_kubevirtio_virt_template_api_v1alpha1_VirtualMachineTemplateStatus(r
 							},
 						},
 						SchemaProps: spec.SchemaProps{
-							Description: "conditions represent the current state of the VirtualMachineTemplate resource. Each condition has a unique type and reflects the status of a specific aspect of the resource.\n\nStandard condition types include: - \"Available\": the resource is fully functional - \"Progressing\": the resource is being created or updated - \"Degraded\": the resource failed to reach or maintain its desired state\n\nThe status of each condition is one of True, False, or Unknown.",
+							Description: "Conditions represent the current state of the template. Each condition has a unique type and reflects the status of a specific aspect of the resource.\n\nCondition types include: - \"Ready\": the template is ready to be processed\n\nThe status of each condition is one of True, False, or Unknown.",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{

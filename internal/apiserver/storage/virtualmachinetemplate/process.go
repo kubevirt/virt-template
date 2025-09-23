@@ -63,7 +63,7 @@ func (p *ProcessREST) Connect(ctx context.Context, id string, _ runtime.Object, 
 			&subresourcesv1alpha1.ProcessedVirtualMachineTemplate{
 				VirtualMachine: &virtv1.VirtualMachine{
 					ObjectMeta: metav1.ObjectMeta{
-						Name: processOptions.Foo,
+						Name: "something",
 					},
 				},
 			},

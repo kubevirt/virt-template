@@ -38,25 +38,93 @@ spec:
           metadata:
             type: object
           spec:
-            description: spec defines the desired state of VirtualMachineTemplate
+            description: Spec defines the desired state of the template
             properties:
-              foo:
-                description: foo is an example field of VirtualMachineTemplate. Edit
-                  virtualmachinetemplate_types.go to remove/update
+              message:
+                description: |-
+                  Message is an optional instructional message for this template.
+                  This field should inform the user how to utilize the newly created VirtualMachine.
                 type: string
+              parameters:
+                description: Parameters is an optional list of Parameters used during
+                  processing of the template.
+                items:
+                  description: |-
+                    Parameter defines a name/value combination that is to be substituted during
+                    processing of the template.
+                  properties:
+                    description:
+                      description: Description is the description of the parameter.
+                        Optional.
+                      type: string
+                    displayName:
+                      description: |-
+                        DisplayName is an alternative name that can be shown in a UI
+                        instead of the parameter's name. Optional.
+                      type: string
+                    from:
+                      description: From is used as input for the generator specified
+                        in Generate. Optional.
+                      pattern: \[([a-zA-Z0-9\-\\]+)\](\{(\w+)\})
+                      type: string
+                    generate:
+                      description: |-
+                        Generate specifies the generator to be used to generate a Value for this
+                        parameter. The From field can be used to provide input to this generator
+                        If empty, no generator is being used, leaving the result Value untouched. Optional.
+
+                        The only supported generator is "expression", which accepts a From
+                        value with a regex-like syntax, which should follow the form of "[a-zA-Z0-9]{length}".
+                        The expression defines the range and length of the resulting random characters.
+
+                        The following character classes are supported in the range:
+
+                        range | characters
+                      enum:
+                      - expression
+                      type: string
+                    name:
+                      description: |-
+                        Name is the name of the parameter. It can be referenced in
+                        the template VirtualMachine using ${PARAMETER_NAME}. Required.
+                      type: string
+                    required:
+                      description: |-
+                        Indicates that the parameter must have a Value or valid Generate and From values.
+                        Defaults to false. Optional.
+                      type: boolean
+                    value:
+                      description: |-
+                        Value holds the value of the Parameter. If specified, a generator will be
+                        ignored. The value replaces all occurrences of the ${PARAMETER_NAME}
+                        expression during processing of the template. Optional.
+                      type: string
+                  required:
+                  - name
+                  type: object
+                type: array
+              virtualMachine:
+                description: |-
+                  VirtualMachine is the template VirtualMachine to include in this template.
+                  If a namespace value is hardcoded, it will be removed during processing of the
+                  template. If the namespace value however contains a ${PARAMETER_REFERENCE},
+                  the resolved value after parameter substitution will be respected and the
+                  VirtualMachine will be created in that namespace.
+                type: object
+                x-kubernetes-preserve-unknown-fields: true
+            required:
+            - virtualMachine
             type: object
           status:
-            description: status defines the observed state of VirtualMachineTemplate
+            description: Status defines the observed state of the template
             properties:
               conditions:
                 description: |-
-                  conditions represent the current state of the VirtualMachineTemplate resource.
+                  Conditions represent the current state of the template.
                   Each condition has a unique type and reflects the status of a specific aspect of the resource.
 
-                  Standard condition types include:
-                  - "Available": the resource is fully functional
-                  - "Progressing": the resource is being created or updated
-                  - "Degraded": the resource failed to reach or maintain its desired state
+                  Condition types include:
+                  - "Ready": the template is ready to be processed
 
                   The status of each condition is one of True, False, or Unknown.
                 items:

@@ -17,6 +17,7 @@ limitations under the License.
 package subresourcesv1alpha1
 
 import (
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	virtv1 "kubevirt.io/api/core/v1"
@@ -28,7 +29,26 @@ import (
 // A subresource cannot be served without a storage for its parent resource.
 type VirtualMachineTemplate struct {
 	metav1.TypeMeta   `json:",inline"`
-	metav1.ObjectMeta `json:"metadata,omitempty,omitzero"`
+	metav1.ObjectMeta `json:"metadata,omitempty,omitzero" protobuf:"bytes,1,opt,name=metadata"`
+}
+
+// +kubebuilder:object:root=true
+
+// ProcessedVirtualMachineTemplate is the object served by the /process and /create subresources.
+// It's not a standalone resource but represents a process or create action on the parent VirtualMachineTemplate resource.
+type ProcessedVirtualMachineTemplate struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty,omitzero" protobuf:"bytes,1,opt,name=metadata"`
+
+	// TemplateRef contains a reference to the template that was processed. Optional.
+	TemplateRef *corev1.ObjectReference `json:"templateRef,omitempty,omitzero" protobuf:"bytes,2,opt,name=templateRef"`
+
+	// VirtualMachine is a VirtualMachine that was created from processing a template. Required.
+	VirtualMachine *virtv1.VirtualMachine `json:"virtualMachine" protobuf:"bytes,3,name=virtualMachine"`
+
+	// Message is an optional instructional message the should inform the user how to
+	// utilize the newly created VirtualMachine. Optional.
+	Message string `json:"message,omitempty,omitzero" protobuf:"bytes,4,opt,name=message"`
 }
 
 // +kubebuilder:object:root=true
@@ -36,20 +56,10 @@ type VirtualMachineTemplate struct {
 // ProcessOptions are the options used when processing a VirtualMachineTemplate.
 type ProcessOptions struct {
 	metav1.TypeMeta   `json:",inline"`
-	metav1.ObjectMeta `json:"metadata,omitempty,omitzero"`
+	metav1.ObjectMeta `json:"metadata,omitempty,omitzero" protobuf:"bytes,1,opt,name=metadata"`
 
-	Foo string `json:"foo,omitempty"`
-}
-
-// +kubebuilder:object:root=true
-
-// ProcessedVirtualMachineTemplate is the object served by the /process subresource.
-// It's not a standalone resource but represents a process action on the parent VirtualMachineTemplate resource.
-type ProcessedVirtualMachineTemplate struct {
-	metav1.TypeMeta   `json:",inline"`
-	metav1.ObjectMeta `json:"metadata,omitempty,omitzero"`
-
-	VirtualMachine *virtv1.VirtualMachine `json:"virtualMachine,omitempty"`
+	// Parameters is an optional map of key value pairs used during processing of the template. Optional.
+	Parameters map[string]string `json:"parameters,omitempty" protobuf:"bytes,2,opt,name=parameters"`
 }
 
 func init() {
