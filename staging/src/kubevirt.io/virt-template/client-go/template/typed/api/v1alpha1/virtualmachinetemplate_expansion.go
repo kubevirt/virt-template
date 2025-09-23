@@ -31,6 +31,7 @@ const subresourceURLFmt = "/apis/%s/%s"
 
 type VirtualMachineTemplateExpansion interface {
 	Process(ctx context.Context, name string, options subresourcesv1alpha1.ProcessOptions) (*subresourcesv1alpha1.ProcessedVirtualMachineTemplate, error)
+	CreateVirtualMachine(ctx context.Context, name string, options subresourcesv1alpha1.ProcessOptions) (*subresourcesv1alpha1.ProcessedVirtualMachineTemplate, error)
 }
 
 func (c *virtualMachineTemplates) Process(ctx context.Context, name string, options subresourcesv1alpha1.ProcessOptions) (*subresourcesv1alpha1.ProcessedVirtualMachineTemplate, error) {
@@ -42,6 +43,21 @@ func (c *virtualMachineTemplates) Process(ctx context.Context, name string, opti
 		Resource(templateapi.PluralResourceName).
 		Name(name).
 		SubResource("process").
+		Body(&options).
+		Do(ctx).
+		Into(result)
+	return result, err
+}
+
+func (c *virtualMachineTemplates) CreateVirtualMachine(ctx context.Context, name string, options subresourcesv1alpha1.ProcessOptions) (*subresourcesv1alpha1.ProcessedVirtualMachineTemplate, error) {
+	result := &subresourcesv1alpha1.ProcessedVirtualMachineTemplate{}
+	err := c.GetClient().
+		Post().
+		AbsPath(fmt.Sprintf(subresourceURLFmt, subresourcesv1alpha1.GroupVersion.Group, subresourcesv1alpha1.GroupVersion.Version)).
+		Namespace(c.GetNamespace()).
+		Resource(templateapi.PluralResourceName).
+		Name(name).
+		SubResource("create").
 		Body(&options).
 		Do(ctx).
 		Into(result)

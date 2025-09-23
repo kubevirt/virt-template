@@ -13,6 +13,7 @@ import (
 	"k8s.io/klog/v2"
 
 	virtv1 "kubevirt.io/api/core/v1"
+	"kubevirt.io/client-go/kubecli"
 
 	"kubevirt.io/virt-template/api/subresourcesv1alpha1"
 	"kubevirt.io/virt-template/client-go/template"
@@ -20,37 +21,43 @@ import (
 
 // +kubebuilder:rbac:groups=template.kubevirt.io,resources=virtualmachinetemplates,verbs=get
 // +kubebuilder:rbac:groups=template.kubevirt.io,resources=virtualmachinetemplates/status,verbs=get
+// +kubebuilder:rbac:groups=kubevirt.io,resources=virtualmachines,verbs=create
 
-type ProcessREST struct {
-	client template.Interface
+type CreateREST struct {
+	templateClient template.Interface
+	virtClient     kubecli.KubevirtClient
 }
 
-func NewProcessREST(client template.Interface) *ProcessREST {
-	return &ProcessREST{
-		client: client,
+func NewCreateREST(
+	templateClient template.Interface,
+	virtClient kubecli.KubevirtClient,
+) *CreateREST {
+	return &CreateREST{
+		templateClient: templateClient,
+		virtClient:     virtClient,
 	}
 }
 
 var (
-	_ = rest.Storage(&ProcessREST{})
-	_ = rest.Connecter(&ProcessREST{})
+	_ = rest.Storage(&CreateREST{})
+	_ = rest.Connecter(&CreateREST{})
 )
 
-func (p *ProcessREST) New() runtime.Object {
+func (c *CreateREST) New() runtime.Object {
 	return &subresourcesv1alpha1.ProcessedVirtualMachineTemplate{}
 }
 
-func (p *ProcessREST) Destroy() {}
+func (c *CreateREST) Destroy() {}
 
 //nolint:dupl
-func (p *ProcessREST) Connect(ctx context.Context, id string, _ runtime.Object, r rest.Responder) (http.Handler, error) {
+func (c *CreateREST) Connect(ctx context.Context, id string, _ runtime.Object, r rest.Responder) (http.Handler, error) {
 	ns, ok := request.NamespaceFrom(ctx)
 	if !ok {
 		return nil, fmt.Errorf("missing namespace")
 	}
 
 	return http.HandlerFunc(func(_ http.ResponseWriter, req *http.Request) {
-		klog.Infof("POST /process for VirtualMachineTemplate %s/%s", ns, id)
+		klog.Infof("POST /create for VirtualMachineTemplate %s/%s", ns, id)
 
 		const jsonBufferSize = 1024
 		processOptions := &subresourcesv1alpha1.ProcessOptions{}
@@ -72,10 +79,10 @@ func (p *ProcessREST) Connect(ctx context.Context, id string, _ runtime.Object, 
 	}), nil
 }
 
-func (p *ProcessREST) NewConnectOptions() (options runtime.Object, include bool, path string) {
+func (c *CreateREST) NewConnectOptions() (options runtime.Object, include bool, path string) {
 	return nil, false, ""
 }
 
-func (p *ProcessREST) ConnectMethods() []string {
+func (c *CreateREST) ConnectMethods() []string {
 	return []string{http.MethodPost}
 }

@@ -5,6 +5,12 @@ metadata:
   name: apiserver-role
 rules:
 - apiGroups:
+  - kubevirt.io
+  resources:
+  - virtualmachines
+  verbs:
+  - create
+- apiGroups:
   - template.kubevirt.io
   resources:
   - virtualmachinetemplates

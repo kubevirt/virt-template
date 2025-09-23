@@ -41,6 +41,7 @@ func main() {
 		subresourcesv1alpha1.GroupVersion: {
 			templateapi.PluralResourceName:              virtualmachinetemplate.NewDummyREST(),
 			templateapi.PluralResourceName + "/process": virtualmachinetemplate.NewProcessREST(client),
+			templateapi.PluralResourceName + "/create":  virtualmachinetemplate.NewCreateREST(client, virtClient),
 		},
 	}
 
