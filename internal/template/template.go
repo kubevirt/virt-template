@@ -1,0 +1,135 @@
+package template
+
+import (
+	"fmt"
+	"reflect"
+	"regexp"
+	"strings"
+
+	"k8s.io/apimachinery/pkg/api/meta"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/validation/field"
+
+	"kubevirt.io/virt-template/api/v1alpha1"
+
+	"kubevirt.io/virt-template/internal/template/generator"
+)
+
+var (
+	// match expressions in the form of ${KEY}
+	stringParamExpr = regexp.MustCompile(`\$\{([a-zA-Z0-9_]+)\}`)
+	// match expressions in the form of ${{KEY}}
+	nonStringParamExpr = regexp.MustCompile(`^\$\{\{([a-zA-Z0-9_]+)\}\}$`)
+)
+
+// generateParameterValues generates values for each parameter that has
+// the Generate field specified and where its Value is empty.
+// Returned errors relate to the template that is being processed,
+// therefore field paths start with 'spec'.
+func generateParameterValues(
+	parameters []v1alpha1.Parameter, generators map[string]generator.Generator,
+) (map[string]v1alpha1.Parameter, error) {
+	visited := make(map[string]struct{})
+	params := make(map[string]v1alpha1.Parameter)
+	for i, param := range parameters {
+		path := field.NewPath("spec", "parameters").Index(i)
+
+		if param.Name == "" {
+			return nil, field.Invalid(path.Child("name"), param.Name, "parameter name is empty")
+		}
+		if _, found := visited[param.Name]; found {
+			return nil, field.Duplicate(path.Child("name"), param.Name)
+		}
+		visited[param.Name] = struct{}{}
+
+		newParam := param.DeepCopy()
+		if newParam.Value == "" && newParam.Generate != "" {
+			g, ok := generators[newParam.Generate]
+			if !ok {
+				return nil, field.Invalid(
+					path.Child("generate"), newParam.Generate,
+					fmt.Sprintf("unknown generator name '%v' for parameter '%s'", newParam.Generate, newParam.Name),
+				)
+			}
+			if newParam.From == "" {
+				return nil, field.Invalid(
+					path.Child("from"), newParam.From,
+					fmt.Sprintf("from cannot be empty for parameter '%s' using generator '%s'", newParam.Name, newParam.Generate),
+				)
+			}
+
+			var err error
+			newParam.Value, err = g.GenerateValue(newParam.From)
+			if err != nil {
+				return nil, field.Invalid(path.Child("from"), newParam.From, err.Error())
+			}
+		}
+
+		if newParam.Value == "" && newParam.Required {
+			return nil, field.Required(path.Child("value"),
+				fmt.Sprintf("parameter '%s' is required and a value must be specified", param.Name),
+			)
+		}
+
+		params[newParam.Name] = *newParam
+	}
+
+	return params, nil
+}
+
+// removeHardcodedNamespace removes the namespace from an object if it is
+// not empty and not parametrized.
+func removeHardcodedNamespace(obj runtime.Object) error {
+	objMeta, err := meta.Accessor(obj)
+	if err != nil {
+		return err
+	}
+
+	if objMeta.GetNamespace() != "" && !stringParamExpr.MatchString(objMeta.GetNamespace()) {
+		objMeta.SetNamespace("")
+	}
+
+	return nil
+}
+
+// substituteAllParameters recursively visits all string values of an object and substitutes parameters.
+func substituteAllParameters(obj runtime.Object, params map[string]v1alpha1.Parameter) error {
+	return visitValue(reflect.ValueOf(obj), func(in string) (string, bool, error) {
+		return substituteParameters(in, params)
+	})
+}
+
+// substituteParameters replaces parameters in a string with values from the provided map.
+// It returns the substituted value (if any substitution applied) and a boolean
+// indicating if the resulting value should be treated as a string(true) or a non-string
+// value(false).
+func substituteParameters(in string, params map[string]v1alpha1.Parameter) (out string, asString bool, err error) {
+	// First check if the value matches the "${{KEY}}" substitution syntax, which
+	// means replace and drop the quotes because the parameter value is to be used
+	// as a non-string value. If we hit a match here, we're done because the
+	// "${{KEY}}" syntax is exact match only, it cannot be used in a value like
+	// "FOO_${{KEY}}_BAR", no substitution will be performed if it is used in that way.
+	if match := nonStringParamExpr.FindStringSubmatch(in); len(match) > 1 {
+		if param, found := params[match[1]]; found {
+			return strings.Replace(in, match[0], param.Value, 1), false, nil
+		} else {
+			return "", false, fmt.Errorf("found parameter '%s' but it was not defined", match[1])
+		}
+	}
+
+	// If we didn't do a non-string substitution above, do normal string substitution
+	// on the value here if it contains a "${KEY}" reference. This substitution does
+	// allow multiple matches and prefix/postfix, e.g. "FOO_${KEY1}_${KEY2}_BAR".
+	out = in
+	for _, match := range stringParamExpr.FindAllStringSubmatch(out, -1) {
+		if len(match) > 1 {
+			if param, found := params[match[1]]; found {
+				out = strings.Replace(out, match[0], param.Value, 1)
+			} else {
+				return "", false, fmt.Errorf("found parameter '%s' but it was not defined", match[1])
+			}
+		}
+	}
+
+	return out, true, nil
+}
