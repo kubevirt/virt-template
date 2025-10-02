@@ -5,18 +5,19 @@ import (
 	"fmt"
 	"net/http"
 
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/apiserver/pkg/endpoints/request"
 	"k8s.io/apiserver/pkg/registry/rest"
 	"k8s.io/klog/v2"
 
-	virtv1 "kubevirt.io/api/core/v1"
 	"kubevirt.io/client-go/kubecli"
 
 	"kubevirt.io/virt-template/api/subresourcesv1alpha1"
-	"kubevirt.io/virt-template/client-go/template"
+	templateclient "kubevirt.io/virt-template/client-go/template"
+
+	"kubevirt.io/virt-template/internal/template"
 )
 
 // +kubebuilder:rbac:groups=template.kubevirt.io,resources=virtualmachinetemplates,verbs=get
@@ -24,17 +25,19 @@ import (
 // +kubebuilder:rbac:groups=kubevirt.io,resources=virtualmachines,verbs=create
 
 type CreateREST struct {
-	templateClient template.Interface
-	virtClient     kubecli.KubevirtClient
+	client     templateclient.Interface
+	virtClient kubecli.KubevirtClient
+	processor  processor
 }
 
 func NewCreateREST(
-	templateClient template.Interface,
+	client templateclient.Interface,
 	virtClient kubecli.KubevirtClient,
 ) *CreateREST {
 	return &CreateREST{
-		templateClient: templateClient,
-		virtClient:     virtClient,
+		client:     client,
+		virtClient: virtClient,
+		processor:  template.NewDefaultProcessor(),
 	}
 }
 
@@ -49,7 +52,6 @@ func (c *CreateREST) New() runtime.Object {
 
 func (c *CreateREST) Destroy() {}
 
-//nolint:dupl
 func (c *CreateREST) Connect(ctx context.Context, id string, _ runtime.Object, r rest.Responder) (http.Handler, error) {
 	ns, ok := request.NamespaceFrom(ctx)
 	if !ok {
@@ -57,11 +59,34 @@ func (c *CreateREST) Connect(ctx context.Context, id string, _ runtime.Object, r
 	}
 
 	return http.HandlerFunc(func(_ http.ResponseWriter, req *http.Request) {
-		klog.Infof("POST /create for VirtualMachineTemplate %s/%s", ns, id)
+		klog.V(debugLogLevel).Infof("POST /create for VirtualMachineTemplate %s/%s", ns, id)
 
-		const jsonBufferSize = 1024
-		processOptions := &subresourcesv1alpha1.ProcessOptions{}
-		if err := yaml.NewYAMLOrJSONDecoder(req.Body, jsonBufferSize).Decode(processOptions); err != nil {
+		tpl, err := c.client.TemplateV1alpha1().VirtualMachineTemplates(ns).Get(ctx, id, metav1.GetOptions{})
+		if err != nil {
+			r.Error(err)
+			return
+		}
+
+		opts, err := decodeProcessOptions(req.Body)
+		if err != nil {
+			r.Error(err)
+			return
+		}
+
+		tpl.Spec.Parameters, err = template.MergeParameters(tpl.Spec.Parameters, opts.Parameters)
+		if err != nil {
+			r.Error(err)
+			return
+		}
+
+		vm, msg, err := c.processor.Process(tpl)
+		if err != nil {
+			r.Error(err)
+			return
+		}
+
+		vm, err = c.virtClient.VirtualMachine(ns).Create(ctx, vm, metav1.CreateOptions{})
+		if err != nil {
 			r.Error(err)
 			return
 		}
@@ -69,11 +94,12 @@ func (c *CreateREST) Connect(ctx context.Context, id string, _ runtime.Object, r
 		r.Object(
 			http.StatusOK,
 			&subresourcesv1alpha1.ProcessedVirtualMachineTemplate{
-				VirtualMachine: &virtv1.VirtualMachine{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "something",
-					},
+				TemplateRef: &corev1.ObjectReference{
+					Namespace: ns,
+					Name:      id,
 				},
+				VirtualMachine: vm,
+				Message:        msg,
 			},
 		)
 	}), nil

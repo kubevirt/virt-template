@@ -1,0 +1,6 @@
+{
+  "parameters": [
+    {"name": "NAME", "value": "test-vm"},
+    {"name": "INSTANCETYPE", "value": "u1.medium"}
+  ]
+}

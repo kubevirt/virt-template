@@ -6,4 +6,18 @@ metadata:
     app.kubernetes.io/managed-by: kustomize
   name: virtualmachinetemplate-sample
 spec:
-# TODO(user): Add fields here
+  parameters:
+    - name: NAME
+    - name: INSTANCETYPE
+  virtualMachine:
+    apiVersion: kubevirt.io/v1
+    kind: VirtualMachine
+    metadata:
+      name: ${NAME}
+    spec:
+      running: false
+      instancetype:
+        name: ${INSTANCETYPE}
+      template:
+        spec:
+          domain: {}

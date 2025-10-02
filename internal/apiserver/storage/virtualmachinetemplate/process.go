@@ -3,8 +3,10 @@ package virtualmachinetemplate
 import (
 	"context"
 	"fmt"
+	"io"
 	"net/http"
 
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/yaml"
@@ -15,19 +17,34 @@ import (
 	virtv1 "kubevirt.io/api/core/v1"
 
 	"kubevirt.io/virt-template/api/subresourcesv1alpha1"
-	"kubevirt.io/virt-template/client-go/template"
+	"kubevirt.io/virt-template/api/v1alpha1"
+	templateclient "kubevirt.io/virt-template/client-go/template"
+
+	"kubevirt.io/virt-template/internal/template"
 )
 
 // +kubebuilder:rbac:groups=template.kubevirt.io,resources=virtualmachinetemplates,verbs=get
 // +kubebuilder:rbac:groups=template.kubevirt.io,resources=virtualmachinetemplates/status,verbs=get
 
+const (
+	// jsonBufferSize determines how far into the stream the decoder will look for JSON
+	jsonBufferSize = 1024
+	// debugLogLevel is the klog verbosity level for debug messages
+	debugLogLevel = 5
+)
+
+type processor interface {
+	Process(tpl *v1alpha1.VirtualMachineTemplate) (*virtv1.VirtualMachine, string, error)
+}
 type ProcessREST struct {
-	client template.Interface
+	client    templateclient.Interface
+	processor processor
 }
 
-func NewProcessREST(client template.Interface) *ProcessREST {
+func NewProcessREST(client templateclient.Interface) *ProcessREST {
 	return &ProcessREST{
-		client: client,
+		client:    client,
+		processor: template.NewDefaultProcessor(),
 	}
 }
 
@@ -42,7 +59,6 @@ func (p *ProcessREST) New() runtime.Object {
 
 func (p *ProcessREST) Destroy() {}
 
-//nolint:dupl
 func (p *ProcessREST) Connect(ctx context.Context, id string, _ runtime.Object, r rest.Responder) (http.Handler, error) {
 	ns, ok := request.NamespaceFrom(ctx)
 	if !ok {
@@ -50,11 +66,28 @@ func (p *ProcessREST) Connect(ctx context.Context, id string, _ runtime.Object, 
 	}
 
 	return http.HandlerFunc(func(_ http.ResponseWriter, req *http.Request) {
-		klog.Infof("POST /process for VirtualMachineTemplate %s/%s", ns, id)
+		klog.V(debugLogLevel).Infof("POST /process for VirtualMachineTemplate %s/%s", ns, id)
 
-		const jsonBufferSize = 1024
-		processOptions := &subresourcesv1alpha1.ProcessOptions{}
-		if err := yaml.NewYAMLOrJSONDecoder(req.Body, jsonBufferSize).Decode(processOptions); err != nil {
+		tpl, err := p.client.TemplateV1alpha1().VirtualMachineTemplates(ns).Get(ctx, id, metav1.GetOptions{})
+		if err != nil {
+			r.Error(err)
+			return
+		}
+
+		opts, err := decodeProcessOptions(req.Body)
+		if err != nil {
+			r.Error(err)
+			return
+		}
+
+		tpl.Spec.Parameters, err = template.MergeParameters(tpl.Spec.Parameters, opts.Parameters)
+		if err != nil {
+			r.Error(err)
+			return
+		}
+
+		vm, msg, err := p.processor.Process(tpl)
+		if err != nil {
 			r.Error(err)
 			return
 		}
@@ -62,11 +95,12 @@ func (p *ProcessREST) Connect(ctx context.Context, id string, _ runtime.Object, 
 		r.Object(
 			http.StatusOK,
 			&subresourcesv1alpha1.ProcessedVirtualMachineTemplate{
-				VirtualMachine: &virtv1.VirtualMachine{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "something",
-					},
+				TemplateRef: &corev1.ObjectReference{
+					Namespace: ns,
+					Name:      id,
 				},
+				VirtualMachine: vm,
+				Message:        msg,
 			},
 		)
 	}), nil
@@ -78,4 +112,12 @@ func (p *ProcessREST) NewConnectOptions() (options runtime.Object, include bool,
 
 func (p *ProcessREST) ConnectMethods() []string {
 	return []string{http.MethodPost}
+}
+
+func decodeProcessOptions(body io.Reader) (*subresourcesv1alpha1.ProcessOptions, error) {
+	opts := &subresourcesv1alpha1.ProcessOptions{}
+	if err := yaml.NewYAMLOrJSONDecoder(body, jsonBufferSize).Decode(opts); err != nil {
+		return nil, err
+	}
+	return opts, nil
 }
