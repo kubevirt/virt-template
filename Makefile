@@ -104,6 +104,7 @@ cluster-down: ## Stop the kubevirtci cluster running a stable version of KubeVir
 cluster-sync: generate ## Install virt-template to the kubevirtci cluster running a stable version of KubeVirt.
 	$(MAKE) container-build container-push IMG_REGISTRY=$$(./hack/kubevirtci.sh registry) IMG_PLATFORMS=linux/$(IMG_BUILD_ARCH) TLS_VERIFY=false
 	KUBECONFIG=$$(./hack/kubevirtci.sh kubeconfig) $(MAKE) undeploy uninstall install deploy IMG_REGISTRY=registry:5000 IGNORE_NOT_FOUND=true
+	KUBECONFIG=$$(./hack/kubevirtci.sh kubeconfig) hack/wait.sh
 
 .PHONY: cluster-functest
 cluster-functest: ## Run the functional tests on the kubevirtci cluster running a stable version of KubeVirt.
@@ -122,6 +123,7 @@ kubevirt-down: ## Stop the kubevirtci cluster running a git version of KubeVirt.
 kubevirt-sync: generate ## Install virt-template to the kubevirtci cluster running a git version of KubeVirt.
 	$(MAKE) container-build container-push IMG_REGISTRY=$$(./hack/kubevirt.sh registry) IMG_PLATFORMS=linux/$(IMG_BUILD_ARCH) TLS_VERIFY=false
 	KUBECONFIG=$$(./hack/kubevirt.sh kubeconfig) $(MAKE) undeploy uninstall install deploy IMG_REGISTRY=registry:5000 IGNORE_NOT_FOUND=true
+	KUBECONFIG=$$(./hack/kubevirt.sh kubeconfig) hack/wait.sh
 
 .PHONY: kubevirt-functest
 kubevirt-functest: ## Run the functional tests on the kubevirtci cluster running a git version of KubeVirt.
