@@ -137,6 +137,10 @@ build: manifests generate fmt vet ## Build manager binary.
 build-apiserver: manifests generate fmt vet ## Build apiserver binary.
 	go build -o bin/apiserver cmd/apiserver/main.go
 
+.PHONY: build-virttemplatectl
+build-virttemplatectl: manifests generate fmt vet ## Build virttemplatectl binary.
+	CGO_ENABLED=0 go build -o bin/virttemplatectl cmd/virttemplatectl/main.go
+
 .PHONY: run
 run: manifests generate fmt vet ## Run a controller from your host.
 	go run ./cmd/main.go
