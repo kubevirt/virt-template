@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e
+
 _base_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 
 source "${_base_dir}/hack/version.sh"

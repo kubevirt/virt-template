@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e
+
 _base_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 _bin_dir="${_base_dir}/bin"
 _client_staging_dir="${_base_dir}/staging/src/kubevirt.io/virt-template/client-go"
