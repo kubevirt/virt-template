@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8syaml "k8s.io/apimachinery/pkg/util/yaml"
+	"k8s.io/client-go/rest"
 	"sigs.k8s.io/yaml"
 
 	virtv1 "kubevirt.io/api/core/v1"
@@ -40,6 +41,11 @@ const (
 	// jsonBufferSize determines how far into the stream the decoder will look for JSON
 	jsonBufferSize = 1024
 )
+
+// GetTemplateClient is used in unit tests to allow overriding the client
+var GetTemplateClient = func(c *rest.Config) (templateclient.Interface, error) {
+	return templateclient.NewForConfig(c)
+}
 
 type process struct {
 	name        string
@@ -201,7 +207,7 @@ func (p *process) setDefaults(cmd *cobra.Command) error {
 	if err != nil {
 		return err
 	}
-	client, err := templateclient.NewForConfig(virtClient.Config())
+	client, err := GetTemplateClient(virtClient.Config())
 	if err != nil {
 		return err
 	}

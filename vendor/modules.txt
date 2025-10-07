@@ -1387,6 +1387,7 @@ kubevirt.io/client-go/prometheusoperator
 kubevirt.io/client-go/prometheusoperator/scheme
 kubevirt.io/client-go/prometheusoperator/typed/monitoring/v1
 kubevirt.io/client-go/subresources
+kubevirt.io/client-go/testing
 kubevirt.io/client-go/util
 kubevirt.io/client-go/version
 # kubevirt.io/containerized-data-importer-api v1.60.3-0.20241105012228-50fbed985de9
