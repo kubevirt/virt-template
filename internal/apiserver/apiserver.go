@@ -57,6 +57,8 @@ func (a *apiserver) Run(
 	config.EffectiveVersion = compatibility.DefaultBuildEffectiveVersion()
 	config.OpenAPIConfig = openAPIConfig
 	config.OpenAPIV3Config = openapiV3Config
+	// Disable discovery to not confuse kubectl and other client with dummy resources
+	config.EnableDiscovery = false
 
 	a.authzOpts.AlwaysAllowPaths = append(a.authzOpts.AlwaysAllowPaths,
 		"/", genericapiserver.APIGroupPrefix, "/openapi/v2", "/openapi/v3", "/openapi/v3/*",
@@ -92,6 +94,13 @@ func (a *apiserver) Run(
 		if err := server.InstallAPIGroup(&groupInfo); err != nil {
 			klog.Errorf("Failed to install APIGroup: %v", err)
 			return err
+		}
+		resourcesToHide := getParentResourceNames(resourcesStorage)
+		if len(resourcesToHide) > 0 {
+			klog.Infof("Hiding parent resources from APIResourceList: %v", resourcesToHide)
+			if err := installFilteredAPIVersionHandler(gv, resourcesToHide, server.Handler.GoRestfulContainer, factory); err != nil {
+				return err
+			}
 		}
 	}
 
