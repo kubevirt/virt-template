@@ -67,7 +67,7 @@ func NewProcessCommand() *cobra.Command {
 		Use:     "process [name]",
 		Short:   "Process a VirtualMachineTemplate and return the created VirtualMachine object.",
 		Example: usage(),
-		Args:    cobra.MatchAll(cobra.RangeArgs(0, 1), p.args()),
+		Args:    cobra.RangeArgs(0, 1),
 		RunE:    p.run,
 	}
 
@@ -148,31 +148,11 @@ func usage() string {
   `
 }
 
-func (p *process) args() cobra.PositionalArgs {
-	return func(cmd *cobra.Command, args []string) error {
-		if len(args) > 0 {
-			if p.file != "" {
-				return fmt.Errorf("only one of name or file can be provided")
-			}
-			if p.name != "" {
-				return fmt.Errorf("provide name either from positional argument or from flag")
-			}
-			p.name = args[0]
-		}
-
-		if p.file == "" && p.name == "" {
-			return fmt.Errorf("name or file must be provided")
-		}
-
-		if p.output != formatYAML && p.output != formatJSON {
-			return fmt.Errorf("not supported output format: %s", p.output)
-		}
-
-		return nil
+func (p *process) run(cmd *cobra.Command, args []string) error {
+	if err := p.validateArgs(args); err != nil {
+		return err
 	}
-}
 
-func (p *process) run(cmd *cobra.Command, _ []string) error {
 	if err := p.setDefaults(cmd); err != nil {
 		return err
 	}
@@ -197,6 +177,28 @@ func (p *process) run(cmd *cobra.Command, _ []string) error {
 
 	if err := p.print(vm, msg); err != nil {
 		return err
+	}
+
+	return nil
+}
+
+func (p *process) validateArgs(args []string) error {
+	if len(args) > 0 {
+		if p.file != "" {
+			return fmt.Errorf("only one of name or file can be provided")
+		}
+		if p.name != "" {
+			return fmt.Errorf("provide name either from positional argument or from flag")
+		}
+		p.name = args[0]
+	}
+
+	if p.file == "" && p.name == "" {
+		return fmt.Errorf("name or file must be provided")
+	}
+
+	if p.output != formatYAML && p.output != formatJSON {
+		return fmt.Errorf("not supported output format: %s", p.output)
 	}
 
 	return nil
