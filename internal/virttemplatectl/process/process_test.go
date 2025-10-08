@@ -44,6 +44,7 @@ const (
 	paramFlag       = "param"
 	paramsFileFlag  = "params-file"
 	localFlag       = "local"
+	createFlag      = "create"
 	printParamsFlag = "print-params"
 
 	formatYAML = "yaml"
@@ -210,14 +211,21 @@ var _ = Describe("Process command", func() {
 			Entry("when name is passed as flag and output format is YAML", false, formatYAML, unmarshalYAML),
 		)
 
-		Context("should call process subresource", func() {
+		Context("should call subresource APIs", func() {
+			const (
+				subresourceCreate  = "create"
+				subresourceProcess = "process"
+			)
+
+			var expectedSubresource string
+
 			BeforeEach(func() {
 				tplClient.PrependReactor("create", "virtualmachinetemplates", func(a k8stesting.Action) (bool, runtime.Object, error) {
 					c, ok := a.(k8stesting.CreateActionImpl)
 					Expect(ok).To(BeTrue())
 
 					Expect(c.Name).To(Equal(tpl.Name))
-					Expect(c.GetSubresource()).To(Equal("process"))
+					Expect(c.GetSubresource()).To(Equal(expectedSubresource))
 
 					opts, ok := c.GetObject().(*subresourcesv1alpha1.ProcessOptions)
 					Expect(ok).To(BeTrue())
@@ -230,8 +238,15 @@ var _ = Describe("Process command", func() {
 				})
 			})
 
-			DescribeTable("should call process subresource with parameters from flags", func(positional bool) {
+			DescribeTable("should call subresource with parameters from flags", func(positional, create bool) {
+				if create {
+					expectedSubresource = subresourceCreate
+				} else {
+					expectedSubresource = subresourceProcess
+				}
+
 				args := []string{
+					setFlag(createFlag, strconv.FormatBool(create)),
 					setParamFlag(param1Name, param1Val),
 					setParamFlag(param2Name, param2Val),
 				}
@@ -243,11 +258,19 @@ var _ = Describe("Process command", func() {
 				_, err := runCmd(args...)
 				Expect(err).ToNot(HaveOccurred())
 			},
-				Entry("when name is passed as positional arg", true),
-				Entry("when name is passed as flag", false),
+				Entry("call process when name is passed as positional arg", true, false),
+				Entry("call process when name is passed as flag", false, false),
+				Entry("call create when name is passed as positional arg", true, true),
+				Entry("call create when name is passed as flag", false, true),
 			)
 
-			DescribeTable("should call process subresource with parameters from file", func(positional bool, marshalFn func(any) []byte) {
+			DescribeTable("should call subresource with parameters from file", func(positional, create bool, marshalFn func(any) []byte) {
+				if create {
+					expectedSubresource = subresourceCreate
+				} else {
+					expectedSubresource = subresourceProcess
+				}
+
 				params := map[string]string{
 					param1Name: param1Val,
 					param2Name: param2Val,
@@ -256,6 +279,7 @@ var _ = Describe("Process command", func() {
 				Expect(os.WriteFile(paramsFile, marshalFn(params), 0o600)).To(Succeed())
 
 				args := []string{
+					setFlag(createFlag, strconv.FormatBool(create)),
 					setFlag(paramsFileFlag, paramsFile),
 				}
 				if positional {
@@ -266,10 +290,14 @@ var _ = Describe("Process command", func() {
 				_, err := runCmd(args...)
 				Expect(err).ToNot(HaveOccurred())
 			},
-				Entry("when name is passed as positional arg and input format is JSON", true, marshalJSON),
-				Entry("when name is passed as positional arg and input format is YAML", true, marshalYAML),
-				Entry("when name is passed as flag and input format is JSON", false, marshalJSON),
-				Entry("when name is passed as flag and input format is YAML", false, marshalYAML),
+				Entry("call process when name is passed as positional arg and input format is JSON", true, false, marshalJSON),
+				Entry("call process when name is passed as positional arg and input format is YAML", true, false, marshalYAML),
+				Entry("call process when name is passed as flag and input format is JSON", false, false, marshalJSON),
+				Entry("call process when name is passed as flag and input format is YAML", false, false, marshalYAML),
+				Entry("call create when name is passed as positional arg and input format is JSON", true, true, marshalJSON),
+				Entry("call create when name is passed as positional arg and input format is YAML", true, true, marshalYAML),
+				Entry("call create when name is passed as flag and input format is JSON", false, true, marshalJSON),
+				Entry("call create when name is passed as flag and input format is YAML", false, true, marshalYAML),
 			)
 		})
 
@@ -342,6 +370,32 @@ var _ = Describe("Process command", func() {
 			)
 			Expect(err).To(MatchError(
 				"if any flags in the group [param params-file] are set none of the others can be; [param params-file] were all set",
+			))
+		})
+
+		It("should fail when both --create and --file are provided", func() {
+			_, err := runCmd(
+				setFlag(createFlag, "true"),
+				setFlag(fileFlag, "something"),
+			)
+			Expect(err).To(MatchError("if any flags in the group [create file] are set none of the others can be; [create file] were all set"))
+		})
+
+		It("should fail when both --create and --local are provided", func() {
+			_, err := runCmd(
+				setFlag(createFlag, "true"),
+				setFlag(localFlag, "true"),
+			)
+			Expect(err).To(MatchError("if any flags in the group [create local] are set none of the others can be; [create local] were all set"))
+		})
+
+		It("should fail when both --create and --print-params are provided", func() {
+			_, err := runCmd(
+				setFlag(createFlag, "true"),
+				setFlag(printParamsFlag, "true"),
+			)
+			Expect(err).To(MatchError(
+				"if any flags in the group [create print-params] are set none of the others can be; [create print-params] were all set",
 			))
 		})
 

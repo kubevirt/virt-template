@@ -33,6 +33,7 @@ const (
 	paramFlagShort  = "p"
 	paramsFileFlag  = "params-file"
 	localFlag       = "local"
+	createFlag      = "create"
 	printParamsFlag = "print-params"
 
 	formatYAML = "yaml"
@@ -54,6 +55,7 @@ type process struct {
 	params      map[string]string
 	paramsFile  string
 	local       bool
+	create      bool
 	printParams bool
 
 	cmd       *cobra.Command
@@ -83,12 +85,17 @@ func NewProcessCommand() *cobra.Command {
 		"Specify a file that contains parameters that should be used during processing. Supports JSON and YAML dictionaries.")
 	cmd.Flags().BoolVar(&p.local, localFlag, false,
 		"Force local processing of VirtualMachineTemplates.")
+	cmd.Flags().BoolVar(&p.create, createFlag, false,
+		"Use subresource API to create a VM when processing a remote VirtualMachineTemplate.")
 	cmd.Flags().BoolVar(&p.printParams, printParamsFlag, false,
 		"Only print parameters of the specified VirtualMachineTemplates.")
 
 	cmd.MarkFlagsMutuallyExclusive(fileFlag, nameFlag)
 	cmd.MarkFlagsMutuallyExclusive(fileFlag, localFlag)
 	cmd.MarkFlagsMutuallyExclusive(paramFlag, paramsFileFlag)
+	cmd.MarkFlagsMutuallyExclusive(createFlag, fileFlag)
+	cmd.MarkFlagsMutuallyExclusive(createFlag, localFlag)
+	cmd.MarkFlagsMutuallyExclusive(createFlag, printParamsFlag)
 	cmd.SetUsageTemplate(templates.UsageTemplate())
 
 	return cmd
@@ -124,6 +131,12 @@ func usage() string {
 
   # Force local processing (instead of server-side processing).
   {{ProgramName}} process --name mytemplate --local
+
+  # Create a VM in the cluster from a template using the subresource API.
+  {{ProgramName}} process --name mytemplate --create
+
+  # Create a VM in the cluster with parameters.
+  {{ProgramName}} process --name mytemplate --create --param CPU=4 --param MEMORY=8Gi
 
   # Print only the parameters of a template without processing.
   {{ProgramName}} process --name mytemplate --print-params
@@ -312,11 +325,27 @@ func (p *process) readParamFile() error {
 }
 
 func (p *process) processTemplate() (*virtv1.VirtualMachine, string, error) {
+	if p.create {
+		return p.createRemote()
+	}
 	if !p.local && p.name != "" {
 		return p.processRemote()
 	} else {
 		return p.processLocal()
 	}
+}
+
+func (p *process) createRemote() (*virtv1.VirtualMachine, string, error) {
+	opts := subresourcesv1alpha1.ProcessOptions{
+		Parameters: p.params,
+	}
+
+	created, err := p.client.TemplateV1alpha1().VirtualMachineTemplates(p.namespace).CreateVirtualMachine(p.cmd.Context(), p.name, opts)
+	if err != nil {
+		return nil, "", fmt.Errorf("error creating VirtualMachine from remote VirtualMachineTemplate %s/%s: %w", p.namespace, p.name, err)
+	}
+
+	return created.VirtualMachine, created.Message, nil
 }
 
 func (p *process) processRemote() (*virtv1.VirtualMachine, string, error) {
