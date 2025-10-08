@@ -19,12 +19,15 @@ package controller
 import (
 	"context"
 
+	"k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 
-	templatev1alpha1 "kubevirt.io/virt-template/api/v1alpha1"
+	templateapi "kubevirt.io/virt-template/api"
+	"kubevirt.io/virt-template/api/v1alpha1"
 )
 
 // VirtualMachineTemplateReconciler reconciles a VirtualMachineTemplate object
@@ -39,17 +42,33 @@ type VirtualMachineTemplateReconciler struct {
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
-// TODO(user): Modify the Reconcile function to compare the state specified by
-// the VirtualMachineTemplate object against the actual cluster state, and then
-// perform operations to make the cluster state reflect the state specified by
-// the user.
 //
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.21.0/pkg/reconcile
 func (r *VirtualMachineTemplateReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	_ = logf.FromContext(ctx)
+	log := logf.FromContext(ctx)
 
-	// TODO(user): your logic here
+	tpl := &v1alpha1.VirtualMachineTemplate{}
+	if err := r.Get(ctx, req.NamespacedName, tpl); err != nil {
+		log.Error(err, "unable to fetch VirtualMachineTemplate")
+		// we'll ignore not-found errors, since they can't be fixed by an immediate
+		// requeue (we'll need to wait for a new notification), and we can get them
+		// on deleted requests.
+		return ctrl.Result{}, client.IgnoreNotFound(err)
+	}
+
+	meta.SetStatusCondition(&tpl.Status.Conditions, metav1.Condition{
+		Type:               "Ready",
+		Status:             metav1.ConditionTrue,
+		ObservedGeneration: tpl.Generation,
+		Reason:             "TemplateReady",
+		Message:            "VirtualMachineTemplate is ready to be processed",
+	})
+
+	if err := r.Status().Update(ctx, tpl); err != nil {
+		log.Error(err, "unable to update VirtualMachineTemplate status")
+		return ctrl.Result{}, err
+	}
 
 	return ctrl.Result{}, nil
 }
@@ -57,7 +76,7 @@ func (r *VirtualMachineTemplateReconciler) Reconcile(ctx context.Context, req ct
 // SetupWithManager sets up the controller with the Manager.
 func (r *VirtualMachineTemplateReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&templatev1alpha1.VirtualMachineTemplate{}).
-		Named("virtualmachinetemplate").
+		For(&v1alpha1.VirtualMachineTemplate{}).
+		Named(templateapi.SingularResourceName).
 		Complete(r)
 }

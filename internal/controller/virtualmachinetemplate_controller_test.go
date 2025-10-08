@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package controller
+package controller_test
 
 import (
 	"context"
@@ -22,70 +22,68 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	"k8s.io/apimachinery/pkg/api/errors"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	virtv1 "kubevirt.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	virtv1 "kubevirt.io/api/core/v1"
+	"kubevirt.io/virt-template/api/v1alpha1"
 
-	templatev1alpha1 "kubevirt.io/virt-template/api/v1alpha1"
+	"kubevirt.io/virt-template/internal/controller"
 )
 
 var _ = Describe("VirtualMachineTemplate Controller", func() {
-	Context("When reconciling a resource", func() {
-		const resourceName = "test-resource"
+	var (
+		reconciler *controller.VirtualMachineTemplateReconciler
+		tpl        *v1alpha1.VirtualMachineTemplate
+	)
 
-		ctx := context.Background()
-
-		typeNamespacedName := types.NamespacedName{
-			Name:      resourceName,
-			Namespace: "default", // TODO(user):Modify as needed
+	BeforeEach(func() {
+		reconciler = &controller.VirtualMachineTemplateReconciler{
+			Client: k8sClient,
+			Scheme: k8sClient.Scheme(),
 		}
-		virtualmachinetemplate := &templatev1alpha1.VirtualMachineTemplate{}
+	})
 
-		BeforeEach(func() {
-			By("creating the custom resource for the Kind VirtualMachineTemplate")
-			err := k8sClient.Get(ctx, typeNamespacedName, virtualmachinetemplate)
-			if err != nil && errors.IsNotFound(err) {
-				resource := &templatev1alpha1.VirtualMachineTemplate{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      resourceName,
-						Namespace: "default",
-					},
-					Spec: templatev1alpha1.VirtualMachineTemplateSpec{
-						VirtualMachine: &runtime.RawExtension{
-							Object: &virtv1.VirtualMachine{},
-						},
-					},
-				}
-				Expect(k8sClient.Create(ctx, resource)).To(Succeed())
-			}
+	AfterEach(func() {
+		if tpl != nil {
+			Expect(k8sClient.Delete(context.Background(), tpl)).To(Or(Succeed(), MatchError(k8serrors.IsNotFound, "k8serrors.IsNotFound")))
+		}
+	})
+
+	It("should set the Ready condition", func() {
+		By("Creating a new VirtualMachineTemplate")
+		tpl = &v1alpha1.VirtualMachineTemplate{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test-template",
+				Namespace: metav1.NamespaceDefault,
+			},
+			Spec: v1alpha1.VirtualMachineTemplateSpec{
+				VirtualMachine: &runtime.RawExtension{
+					Object: &virtv1.VirtualMachine{},
+				},
+			},
+		}
+		Expect(k8sClient.Create(context.Background(), tpl)).To(Succeed())
+
+		By("Reconciling the created VirtualMachineTemplate")
+		namespacedName := types.NamespacedName{
+			Name:      tpl.Name,
+			Namespace: metav1.NamespaceDefault,
+		}
+		_, err := reconciler.Reconcile(ctx, reconcile.Request{
+			NamespacedName: namespacedName,
 		})
+		Expect(err).NotTo(HaveOccurred())
 
-		AfterEach(func() {
-			// TODO(user): Cleanup logic after each test, like removing the resource instance.
-			resource := &templatev1alpha1.VirtualMachineTemplate{}
-			err := k8sClient.Get(ctx, typeNamespacedName, resource)
-			Expect(err).NotTo(HaveOccurred())
-
-			By("Cleanup the specific resource instance VirtualMachineTemplate")
-			Expect(k8sClient.Delete(ctx, resource)).To(Succeed())
-		})
-		It("should successfully reconcile the resource", func() {
-			By("Reconciling the created resource")
-			controllerReconciler := &VirtualMachineTemplateReconciler{
-				Client: k8sClient,
-				Scheme: k8sClient.Scheme(),
-			}
-
-			_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
-				NamespacedName: typeNamespacedName,
-			})
-			Expect(err).NotTo(HaveOccurred())
-			// TODO(user): Add more specific assertions depending on your controller's reconciliation logic.
-			// Example: If you expect a certain status condition after reconciliation, verify it here.
-		})
+		Expect(k8sClient.Get(context.Background(), namespacedName, tpl)).To(Succeed())
+		Expect(tpl.Status.Conditions).To(HaveLen(1))
+		Expect(tpl.Status.Conditions[0].Type).To(Equal("Ready"))
+		Expect(tpl.Status.Conditions[0].Status).To(Equal(metav1.ConditionTrue))
+		Expect(tpl.Status.Conditions[0].Reason).To(Equal("TemplateReady"))
+		Expect(tpl.Status.Conditions[0].Message).To(Equal("VirtualMachineTemplate is ready to be processed"))
+		Expect(tpl.Status.Conditions[0].ObservedGeneration).To(Equal(tpl.Generation))
 	})
 })
