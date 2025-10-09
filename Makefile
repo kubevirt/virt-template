@@ -70,6 +70,7 @@ vet: ## Run go vet against code.
 lint: golangci-lint ## Run golangci-lint linter and lint.sh script
 	$(GOLANGCI_LINT) run
 	./hack/lint.sh
+	./hack/license-header-check.sh
 
 .PHONY: vendor
 vendor: ## Update vendored modules
