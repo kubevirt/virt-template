@@ -32,15 +32,7 @@ var _ = Describe("Processor", func() {
 		param5Val         = "true"
 	)
 
-	type processor interface {
-		Process(tpl *v1alpha1.VirtualMachineTemplate) (*virtv1.VirtualMachine, string, error)
-	}
-
-	var p processor
-
-	BeforeEach(func() {
-		p = template.NewDefaultProcessor()
-	})
+	p := template.GetDefaultProcessor()
 
 	It("should return error for parameter generation failure", func() {
 		tmpl := &v1alpha1.VirtualMachineTemplate{

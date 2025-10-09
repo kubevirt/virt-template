@@ -3,6 +3,7 @@ package template
 import (
 	"encoding/json"
 	"fmt"
+	"sync"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -20,13 +21,22 @@ type processor struct {
 	generators map[string]generator.Generator
 }
 
-// NewDefaultProcessor creates a new processor and initializes its set of generators.
-func NewDefaultProcessor() *processor {
-	return &processor{
-		generators: map[string]generator.Generator{
-			"expression": &generator.ExpressionValue{},
-		},
-	}
+var (
+	defaultProcessor *processor
+	once             sync.Once
+)
+
+// GetDefaultProcessor creates a new default processor once and initializes its set of generators.
+// Then it returns the default processor.
+func GetDefaultProcessor() *processor {
+	once.Do(func() {
+		defaultProcessor = &processor{
+			generators: map[string]generator.Generator{
+				"expression": &generator.ExpressionValue{},
+			},
+		}
+	})
+	return defaultProcessor
 }
 
 // Process processes a VirtualMachineTemplate into a VirtualMachine. It generates

@@ -44,7 +44,7 @@ type ProcessREST struct {
 func NewProcessREST(client templateclient.Interface) *ProcessREST {
 	return &ProcessREST{
 		client:    client,
-		processor: template.NewDefaultProcessor(),
+		processor: template.GetDefaultProcessor(),
 	}
 }
 

@@ -37,7 +37,7 @@ func NewCreateREST(
 	return &CreateREST{
 		client:     client,
 		virtClient: virtClient,
-		processor:  template.NewDefaultProcessor(),
+		processor:  template.GetDefaultProcessor(),
 	}
 }
 
