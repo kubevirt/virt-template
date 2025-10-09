@@ -48,10 +48,10 @@ func GetDefaultProcessor() *processor {
 // parameter expressions, so it is left up to the user in which namespace to create the
 // resulting VirtualMachine. The message of the template is also processed and expressions
 // in it are replaced.
-func (p *processor) Process(tpl *v1alpha1.VirtualMachineTemplate) (*virtv1.VirtualMachine, string, error) {
-	params, err := generateParameterValues(tpl.Spec.Parameters, p.generators)
-	if err != nil {
-		return nil, "", err
+func (p *processor) Process(tpl *v1alpha1.VirtualMachineTemplate) (*virtv1.VirtualMachine, string, *field.Error) {
+	params, gErr := generateParameterValues(tpl.Spec.Parameters, p.generators)
+	if gErr != nil {
+		return nil, "", gErr
 	}
 
 	if tpl.Spec.VirtualMachine == nil || (len(tpl.Spec.VirtualMachine.Raw) == 0 && tpl.Spec.VirtualMachine.Object == nil) {
@@ -59,12 +59,14 @@ func (p *processor) Process(tpl *v1alpha1.VirtualMachineTemplate) (*virtv1.Virtu
 			tpl.Spec.VirtualMachine, "virtualMachine is required and cannot be empty")
 	}
 
-	var obj runtime.Object
+	var (
+		obj runtime.Object
+		err error
+	)
 	if len(tpl.Spec.VirtualMachine.Raw) > 0 {
 		if obj, err = decode(tpl.Spec.VirtualMachine.Raw); err != nil {
 			return nil, "", field.Invalid(field.NewPath("spec", "virtualMachine", "raw"),
-				tpl.Spec.VirtualMachine.Raw, err.Error(),
-			)
+				tpl.Spec.VirtualMachine.Raw, fmt.Sprintf("error decoding virtualMachine: %v", err))
 		}
 	} else {
 		obj = tpl.Spec.VirtualMachine.Object.DeepCopyObject()
@@ -74,11 +76,13 @@ func (p *processor) Process(tpl *v1alpha1.VirtualMachineTemplate) (*virtv1.Virtu
 	// before substituting parameters. Namespace fields that contain a ${PARAMETER_REFERENCE}
 	// will be left in place and will be resolved during the parameter substitution.
 	if rErr := removeHardcodedNamespace(obj); rErr != nil {
-		return nil, "", rErr
+		return nil, "", field.InternalError(field.NewPath("spec", "virtualMachine"),
+			fmt.Errorf("error removing hardcoded namespace: %w", rErr))
 	}
 
 	if err = substituteAllParameters(obj, params); err != nil {
-		return nil, "", field.Invalid(field.NewPath("spec", "parameters"), tpl.Spec.Parameters, err.Error())
+		return nil, "", field.Invalid(field.NewPath("spec", "parameters"),
+			tpl.Spec.Parameters, fmt.Sprintf("error processing template: %v", err))
 	}
 
 	vm := &virtv1.VirtualMachine{}
@@ -87,10 +91,12 @@ func (p *processor) Process(tpl *v1alpha1.VirtualMachineTemplate) (*virtv1.Virtu
 		vm = typedObj
 	case *unstructured.Unstructured:
 		if err = runtime.DefaultUnstructuredConverter.FromUnstructuredWithValidation(typedObj.Object, vm, true); err != nil {
-			return nil, "", fmt.Errorf("failed to convert unstructured object to VirtualMachine: %w", err)
+			return nil, "", field.Invalid(field.NewPath("spec", "virtualMachine"),
+				typedObj, fmt.Sprintf("failed to convert unstructured object to VirtualMachine: %v", err))
 		}
 	default:
-		return nil, "", fmt.Errorf("unable to convert into VirtualMachine: object is %T", tpl.Spec.VirtualMachine.Object)
+		return nil, "", field.Invalid(field.NewPath("spec", "virtualMachine"),
+			typedObj, fmt.Sprintf("unable to convert into VirtualMachine: object is %T", typedObj))
 	}
 
 	// Ensure we have a valid GVK
@@ -100,7 +106,8 @@ func (p *processor) Process(tpl *v1alpha1.VirtualMachineTemplate) (*virtv1.Virtu
 	// instruct a user on next steps for the returned VirtualMachine.
 	msg, _, err := substituteParameters(tpl.Spec.Message, params)
 	if err != nil {
-		return nil, "", err
+		return nil, "", field.Invalid(field.NewPath("spec", "message"),
+			tpl.Spec.Message, fmt.Sprintf("error processing message: %v", err))
 	}
 
 	return vm, msg, nil

@@ -12,7 +12,7 @@ import (
 
 	templateapi "kubevirt.io/virt-template/api"
 	"kubevirt.io/virt-template/api/subresourcesv1alpha1"
-	"kubevirt.io/virt-template/client-go/template"
+	templateclient "kubevirt.io/virt-template/client-go/template"
 
 	"kubevirt.io/virt-template/internal/apiserver"
 	"kubevirt.io/virt-template/internal/apiserver/openapi"
@@ -31,7 +31,7 @@ func main() {
 	if err != nil {
 		klog.Fatalf("Failed to get virtClient: %v", err)
 	}
-	client, err := template.NewForConfig(virtClient.Config())
+	client, err := templateclient.NewForConfig(virtClient.Config())
 	if err != nil {
 		klog.Fatalf("Failed to create client: %v", err)
 	}

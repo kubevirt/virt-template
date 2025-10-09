@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"net/http"
 
-	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apiserver/pkg/endpoints/request"
@@ -61,47 +61,19 @@ func (c *CreateREST) Connect(ctx context.Context, id string, _ runtime.Object, r
 	return http.HandlerFunc(func(_ http.ResponseWriter, req *http.Request) {
 		klog.V(debugLogLevel).Infof("POST /create for VirtualMachineTemplate %s/%s", ns, id)
 
-		tpl, err := c.client.TemplateV1alpha1().VirtualMachineTemplates(ns).Get(ctx, id, metav1.GetOptions{})
+		processed, err := processTemplate(ctx, c.client, c.processor, req.Body, ns, id)
 		if err != nil {
 			r.Error(err)
 			return
 		}
 
-		opts, err := decodeProcessOptions(req.Body)
+		processed.VirtualMachine, err = c.virtClient.VirtualMachine(ns).Create(ctx, processed.VirtualMachine, metav1.CreateOptions{})
 		if err != nil {
-			r.Error(err)
+			r.Error(apierrors.NewInternalError(fmt.Errorf("error creating VirtualMachine: %w", err)))
 			return
 		}
 
-		tpl.Spec.Parameters, err = template.MergeParameters(tpl.Spec.Parameters, opts.Parameters)
-		if err != nil {
-			r.Error(err)
-			return
-		}
-
-		vm, msg, err := c.processor.Process(tpl)
-		if err != nil {
-			r.Error(err)
-			return
-		}
-
-		vm, err = c.virtClient.VirtualMachine(ns).Create(ctx, vm, metav1.CreateOptions{})
-		if err != nil {
-			r.Error(err)
-			return
-		}
-
-		r.Object(
-			http.StatusOK,
-			&subresourcesv1alpha1.ProcessedVirtualMachineTemplate{
-				TemplateRef: &corev1.ObjectReference{
-					Namespace: ns,
-					Name:      id,
-				},
-				VirtualMachine: vm,
-				Message:        msg,
-			},
-		)
+		r.Object(http.StatusOK, processed)
 	}), nil
 }
 

@@ -372,9 +372,9 @@ func (p *process) processLocal() (*virtv1.VirtualMachine, string, error) {
 		return nil, "", fmt.Errorf("error merging template parameters: %w", err)
 	}
 
-	vm, msg, err := template.NewDefaultProcessor().Process(tpl)
-	if err != nil {
-		return nil, "", fmt.Errorf("error processing VirtualMachineTemplate locally: %w", err)
+	vm, msg, pErr := template.GetDefaultProcessor().Process(tpl)
+	if pErr != nil {
+		return nil, "", fmt.Errorf("error processing VirtualMachineTemplate locally: %w", pErr)
 	}
 
 	return vm, msg, nil

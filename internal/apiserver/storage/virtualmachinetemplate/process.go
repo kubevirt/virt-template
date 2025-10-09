@@ -7,8 +7,11 @@ import (
 	"net/http"
 
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/apiserver/pkg/endpoints/request"
 	"k8s.io/apiserver/pkg/registry/rest"
@@ -34,7 +37,7 @@ const (
 )
 
 type processor interface {
-	Process(tpl *v1alpha1.VirtualMachineTemplate) (*virtv1.VirtualMachine, string, error)
+	Process(tpl *v1alpha1.VirtualMachineTemplate) (*virtv1.VirtualMachine, string, *field.Error)
 }
 type ProcessREST struct {
 	client    templateclient.Interface
@@ -68,41 +71,13 @@ func (p *ProcessREST) Connect(ctx context.Context, id string, _ runtime.Object, 
 	return http.HandlerFunc(func(_ http.ResponseWriter, req *http.Request) {
 		klog.V(debugLogLevel).Infof("POST /process for VirtualMachineTemplate %s/%s", ns, id)
 
-		tpl, err := p.client.TemplateV1alpha1().VirtualMachineTemplates(ns).Get(ctx, id, metav1.GetOptions{})
+		processed, err := processTemplate(ctx, p.client, p.processor, req.Body, ns, id)
 		if err != nil {
 			r.Error(err)
 			return
 		}
 
-		opts, err := decodeProcessOptions(req.Body)
-		if err != nil {
-			r.Error(err)
-			return
-		}
-
-		tpl.Spec.Parameters, err = template.MergeParameters(tpl.Spec.Parameters, opts.Parameters)
-		if err != nil {
-			r.Error(err)
-			return
-		}
-
-		vm, msg, err := p.processor.Process(tpl)
-		if err != nil {
-			r.Error(err)
-			return
-		}
-
-		r.Object(
-			http.StatusOK,
-			&subresourcesv1alpha1.ProcessedVirtualMachineTemplate{
-				TemplateRef: &corev1.ObjectReference{
-					Namespace: ns,
-					Name:      id,
-				},
-				VirtualMachine: vm,
-				Message:        msg,
-			},
-		)
+		r.Object(http.StatusOK, processed)
 	}), nil
 }
 
@@ -114,10 +89,43 @@ func (p *ProcessREST) ConnectMethods() []string {
 	return []string{http.MethodPost}
 }
 
-func decodeProcessOptions(body io.Reader) (*subresourcesv1alpha1.ProcessOptions, error) {
+func processTemplate(
+	ctx context.Context,
+	client templateclient.Interface,
+	processor processor,
+	body io.Reader,
+	ns string,
+	id string,
+) (*subresourcesv1alpha1.ProcessedVirtualMachineTemplate, error) {
 	opts := &subresourcesv1alpha1.ProcessOptions{}
 	if err := yaml.NewYAMLOrJSONDecoder(body, jsonBufferSize).Decode(opts); err != nil {
-		return nil, err
+		return nil, apierrors.NewBadRequest(fmt.Sprintf("error parsing ProcessOptions: %v", err))
 	}
-	return opts, nil
+
+	tpl, err := client.TemplateV1alpha1().VirtualMachineTemplates(ns).Get(ctx, id, metav1.GetOptions{})
+	if err != nil {
+		return nil, apierrors.NewInternalError(fmt.Errorf("error getting VirtualMachineTemplate: %w", err))
+	}
+
+	tpl.Spec.Parameters, err = template.MergeParameters(tpl.Spec.Parameters, opts.Parameters)
+	if err != nil {
+		return nil, apierrors.NewConflict(schema.GroupResource{
+			Group:    tpl.GroupVersionKind().Group,
+			Resource: tpl.Kind,
+		}, id, err)
+	}
+
+	vm, msg, pErr := processor.Process(tpl)
+	if pErr != nil {
+		return nil, apierrors.NewInvalid(tpl.GroupVersionKind().GroupKind(), id, field.ErrorList{pErr})
+	}
+
+	return &subresourcesv1alpha1.ProcessedVirtualMachineTemplate{
+		TemplateRef: &corev1.ObjectReference{
+			Namespace: ns,
+			Name:      id,
+		},
+		VirtualMachine: vm,
+		Message:        msg,
+	}, nil
 }

@@ -27,8 +27,9 @@ var (
 // Returned errors relate to the template that is being processed,
 // therefore field paths start with 'spec'.
 func generateParameterValues(
-	parameters []v1alpha1.Parameter, generators map[string]generator.Generator,
-) (map[string]v1alpha1.Parameter, error) {
+	parameters []v1alpha1.Parameter,
+	generators map[string]generator.Generator,
+) (map[string]v1alpha1.Parameter, *field.Error) {
 	visited := make(map[string]struct{})
 	params := make(map[string]v1alpha1.Parameter)
 	for i, param := range parameters {
@@ -46,14 +47,12 @@ func generateParameterValues(
 		if newParam.Value == "" && newParam.Generate != "" {
 			g, ok := generators[newParam.Generate]
 			if !ok {
-				return nil, field.Invalid(
-					path.Child("generate"), newParam.Generate,
+				return nil, field.Invalid(path.Child("generate"), newParam.Generate,
 					fmt.Sprintf("unknown generator name '%v' for parameter '%s'", newParam.Generate, newParam.Name),
 				)
 			}
 			if newParam.From == "" {
-				return nil, field.Invalid(
-					path.Child("from"), newParam.From,
+				return nil, field.Invalid(path.Child("from"), newParam.From,
 					fmt.Sprintf("from cannot be empty for parameter '%s' using generator '%s'", newParam.Name, newParam.Generate),
 				)
 			}

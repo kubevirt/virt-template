@@ -131,7 +131,7 @@ var _ = Describe("Processor", func() {
 		}
 
 		vm, msg, err := p.Process(t)
-		Expect(err).To(MatchError("unable to convert into VirtualMachine: object is *v1.Pod"))
+		Expect(err).To(MatchError(ContainSubstring("unable to convert into VirtualMachine: object is *v1.Pod")))
 		Expect(vm).To(BeNil())
 		Expect(msg).To(BeEmpty())
 	})
