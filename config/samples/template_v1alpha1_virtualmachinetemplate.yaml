@@ -10,8 +10,6 @@ spec:
     - name: NAME
     - name: INSTANCETYPE
   virtualMachine:
-    apiVersion: kubevirt.io/v1
-    kind: VirtualMachine
     metadata:
       name: ${NAME}
     spec:

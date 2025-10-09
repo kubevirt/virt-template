@@ -322,7 +322,7 @@ var _ = Describe("Processor", func() {
 		Expect(vm.Name).To(Equal(param1Val))
 		Expect(msg).To(BeEmpty())
 	},
-		Entry("VM in Raw field", &runtime.RawExtension{
+		Entry("VM in Raw field with arbitrary GVK", &runtime.RawExtension{
 			Raw: []byte(`{
                   "apiVersion": "greatapi.io/v1alpha1",
                   "kind": "SomethingSomething",
@@ -331,7 +331,14 @@ var _ = Describe("Processor", func() {
                   }
 			    }`),
 		}),
-		Entry("unstructured VM in Object field", &runtime.RawExtension{
+		Entry("VM in Raw field with missing GVK", &runtime.RawExtension{
+			Raw: []byte(`{
+                  "metadata": {
+                    "name": "${NAME}"
+                  }
+			    }`),
+		}),
+		Entry("unstructured VM in Object field with arbitrary GVK", &runtime.RawExtension{
 			Object: &unstructured.Unstructured{
 				Object: map[string]any{
 					"apiVersion": "greatapi.io/v1alpha1",
@@ -342,12 +349,28 @@ var _ = Describe("Processor", func() {
 				},
 			},
 		}),
-		Entry("VM in Object field", &runtime.RawExtension{
+		Entry("unstructured VM in Object field with missing GVK", &runtime.RawExtension{
+			Object: &unstructured.Unstructured{
+				Object: map[string]any{
+					"metadata": map[string]any{
+						"name": param1Placeholder,
+					},
+				},
+			},
+		}),
+		Entry("VM in Object field with arbitrary GVK", &runtime.RawExtension{
 			Object: &virtv1.VirtualMachine{
 				TypeMeta: metav1.TypeMeta{
 					APIVersion: "greatapi.io/v1alpha1",
 					Kind:       "SomethingSomething",
 				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name: param1Placeholder,
+				},
+			},
+		}),
+		Entry("VM in Object field with missing GVK", &runtime.RawExtension{
+			Object: &virtv1.VirtualMachine{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: param1Placeholder,
 				},

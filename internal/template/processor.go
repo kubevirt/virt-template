@@ -1,6 +1,7 @@
 package template
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -50,7 +51,7 @@ func (p *processor) Process(tpl *v1alpha1.VirtualMachineTemplate) (*virtv1.Virtu
 
 	var obj runtime.Object
 	if len(tpl.Spec.VirtualMachine.Raw) > 0 {
-		if obj, err = runtime.Decode(unstructured.UnstructuredJSONScheme, tpl.Spec.VirtualMachine.Raw); err != nil {
+		if obj, err = decode(tpl.Spec.VirtualMachine.Raw); err != nil {
 			return nil, "", field.Invalid(field.NewPath("spec", "virtualMachine", "raw"),
 				tpl.Spec.VirtualMachine.Raw, err.Error(),
 			)
@@ -93,4 +94,14 @@ func (p *processor) Process(tpl *v1alpha1.VirtualMachineTemplate) (*virtv1.Virtu
 	}
 
 	return vm, msg, nil
+}
+
+func decode(raw []byte) (runtime.Object, error) {
+	// Do not use runtime.Decode and unstructured.UnstructuredJSONScheme
+	// so we can ignore missing apiVersion and kind. Those will be forced later.
+	var obj map[string]interface{}
+	if err := json.Unmarshal(raw, &obj); err != nil {
+		return nil, err
+	}
+	return &unstructured.Unstructured{Object: obj}, nil
 }
