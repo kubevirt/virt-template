@@ -33,6 +33,7 @@ import (
 	"kubevirt.io/client-go/log"
 
 	"kubevirt.io/virt-template/internal/virttemplatectl/clientconfig"
+	"kubevirt.io/virt-template/internal/virttemplatectl/convert"
 	"kubevirt.io/virt-template/internal/virttemplatectl/process"
 	"kubevirt.io/virt-template/internal/virttemplatectl/templates"
 )
@@ -99,6 +100,7 @@ func NewVirttemplatectlCommandFn() *cobra.Command {
 	rootCmd.AddCommand(
 		optionsCmd,
 		process.NewProcessCommand(),
+		convert.NewConvertCommand(),
 	)
 
 	return rootCmd

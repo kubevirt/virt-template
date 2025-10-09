@@ -157,6 +157,12 @@ Process a template locally:
 virttemplatectl process -f template.yaml -p NAME=myvm -p INSTANCETYPE=u1.small
 ```
 
+Convert OpenShift templates to VirtualMachineTemplate:
+
+```sh
+virttemplatectl convert -f openshift-template.yaml
+```
+
 ## Usage
 
 ### VirtualMachineTemplate CRD
