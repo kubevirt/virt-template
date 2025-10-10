@@ -22,8 +22,6 @@
       secretName: virt-template-metrics-server-cert
       optional: false
       items:
-        - key: ca.crt
-          path: ca.crt
         - key: tls.crt
           path: tls.crt
         - key: tls.key

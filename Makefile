@@ -194,6 +194,13 @@ build-installer: manifests generate kustomize ## Generate a consolidated YAML wi
 	cd config/apiserver && $(KUSTOMIZE) edit set image apiserver=${IMG_APISERVER}
 	$(KUSTOMIZE) build config/default > dist/install.yaml
 
+.PHONY: build-installer-openshift
+build-installer-openshift: manifests generate kustomize ## Generate a consolidated YAML with CRDs and deployment for OpenShift.
+	mkdir -p dist
+	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG_CONTROLLER}
+	cd config/apiserver && $(KUSTOMIZE) edit set image apiserver=${IMG_APISERVER}
+	$(KUSTOMIZE) build config/openshift > dist/install-openshift.yaml
+
 ##@ Deployment
 
 ifndef IGNORE_NOT_FOUND
@@ -209,14 +216,24 @@ uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster. Call with
 	$(KUSTOMIZE) build config/crd | $(KUBECTL) delete --ignore-not-found=$(IGNORE_NOT_FOUND) -f -
 
 .PHONY: deploy
-deploy: manifests kustomize ## Deploy controller to the K8s cluster.
+deploy: manifests kustomize ## Deploy controller and apiserver to the K8s cluster.
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG_CONTROLLER}
 	cd config/apiserver && $(KUSTOMIZE) edit set image apiserver=${IMG_APISERVER}
 	$(KUSTOMIZE) build config/default | $(KUBECTL) apply -f -
 
+.PHONY: deploy-openshift
+deploy-openshift: manifests kustomize ## Deploy controller and apiserver to the OpenShift cluster.
+	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG_CONTROLLER}
+	cd config/apiserver && $(KUSTOMIZE) edit set image apiserver=${IMG_APISERVER}
+	$(KUSTOMIZE) build config/openshift | $(KUBECTL) apply -f -
+
 .PHONY: undeploy
-undeploy: kustomize ## Undeploy controller from the K8s cluster. Call with ignore-not-found=true to ignore resource not found errors during deletion.
+undeploy: kustomize ## Undeploy controller and apiserver from the K8s cluster. Call with ignore-not-found=true to ignore resource not found errors during deletion.
 	$(KUSTOMIZE) build config/default | $(KUBECTL) delete --ignore-not-found=$(IGNORE_NOT_FOUND) -f -
+
+.PHONY: undeploy-openshift
+undeploy-openshift: kustomize ## Undeploy controller and apiserver from the OpenShift cluster. Call with ignore-not-found=true to ignore resource not found errors during deletion.
+	$(KUSTOMIZE) build config/openshift | $(KUBECTL) delete --ignore-not-found=$(IGNORE_NOT_FOUND) -f -
 
 CERT_MANAGER_VERSION ?= v1.18.2
 .PHONE: deploy-cert-manager

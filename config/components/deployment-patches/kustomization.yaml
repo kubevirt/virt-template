@@ -1,0 +1,32 @@
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+
+# This component contains shared deployment patches used by both
+# config/default and config/openshift configurations.
+
+patches:
+# [METRICS] The following patch will enable the metrics endpoint using HTTPS and the port :8443.
+# More info: https://book.kubebuilder.io/reference/metrics
+- path: manager_metrics_patch.yaml
+  target:
+    kind: Deployment
+    name: controller
+
+# [METRICS-WITH-CERTS] Enable metrics protected with certificates.
+- path: cert_metrics_manager_patch.yaml
+  target:
+    kind: Deployment
+    name: controller
+
+# [WEBHOOK] To enable webhook, uncomment all the sections with [WEBHOOK] prefix including the one in
+# crd/kustomization.yaml.
+- path: manager_webhook_patch.yaml
+  target:
+    kind: Deployment
+    name: controller
+
+# Protect the api server with certificates.
+- path: cert_api_patch.yaml
+  target:
+    kind: Deployment
+    name: apiserver

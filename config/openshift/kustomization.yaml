@@ -1,0 +1,99 @@
+# OpenShift-specific kustomization that uses Service CA operator instead of cert-manager
+# This configuration is derived from config/default but replaces cert-manager with
+# OpenShift's built-in Service CA operator for automatic certificate management.
+
+# Adds namespace to all resources.
+namespace: openshift-cnv
+
+# Value of this field is prepended to the
+# names of all resources, e.g. a deployment named
+# "wordpress" becomes "alices-wordpress".
+# Note that it should also match with the prefix (text before '-') of the namespace
+# field above.
+namePrefix: virt-template-
+
+# Labels to add to all resources and selectors.
+#labels:
+#- includeSelectors: true
+#  pairs:
+#    someName: someValue
+
+resources:
+- ../crd
+- ../rbac
+- ../manager
+# [WEBHOOK] To enable webhook, uncomment all the sections with [WEBHOOK] prefix including the one in
+# crd/kustomization.yaml
+- ../webhook
+# [PROMETHEUS] To enable prometheus monitor, uncomment all sections with 'PROMETHEUS'.
+#- ../prometheus
+# [METRICS] Expose the controller manager metrics service.
+- ../metrics
+# [NETWORK POLICY] Protect the /metrics endpoint and Webhook Server with NetworkPolicy.
+# Only Pod(s) running a namespace labeled with 'metrics: enabled' will be able to gather the metrics.
+# Only CR(s) which requires webhooks and are applied on namespaces labeled with 'webhooks: enabled' will
+# be able to communicate with the Webhook Server.
+#- ../network-policy
+# Enable the virt-template-api server
+- ../apiserver
+
+# Shared deployment patches for controller and apiserver
+components:
+- ../components/deployment-patches
+
+# OpenShift-specific patches for Service CA operator
+patches:
+# Add Service CA annotations to services for automatic certificate generation
+- patch: |-
+    - op: add
+      path: /metadata/annotations/service.beta.openshift.io~1serving-cert-secret-name
+      value: virt-template-webhook-server-cert
+  target:
+    kind: Service
+    name: webhook-service
+
+- patch: |-
+    - op: add
+      path: /metadata/annotations/service.beta.openshift.io~1serving-cert-secret-name
+      value: virt-template-api-server-cert
+  target:
+    kind: Service
+    name: api-service
+
+- patch: |-
+    - op: add
+      path: /metadata/annotations/service.beta.openshift.io~1serving-cert-secret-name
+      value: virt-template-metrics-server-cert
+  target:
+    kind: Service
+    name: controller-manager-metrics-service
+
+# Add Service CA annotations for CA bundle injection
+- patch: |-
+    - op: add
+      path: /metadata/annotations/service.beta.openshift.io~1inject-cabundle
+      value: "true"
+  target:
+    kind: ValidatingWebhookConfiguration
+    name: validating-webhook-configuration
+
+- patch: |-
+    - op: add
+      path: /metadata/annotations/service.beta.openshift.io~1inject-cabundle
+      value: "true"
+  target:
+    kind: APIService
+    name: v1alpha1.subresources.template.kubevirt.io
+
+transformers:
+# Keep kube-system namespace in the api-auth-reader RoleBinding
+- |-
+  apiVersion: builtin
+  kind: PatchTransformer
+  metadata:
+    name: fix-rolebinding-namespace
+  patch: '[{"op": "replace", "path": "/metadata/namespace", "value": "kube-system"}]'
+  target:
+    group: rbac.authorization.k8s.io
+    kind: RoleBinding
+    name: apiserver-auth-reader

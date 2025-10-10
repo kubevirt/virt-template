@@ -76,9 +76,17 @@ traditional virtualization experience within Kubernetes.
 
 ### Prerequisites
 
+**For development:**
 - Go version v1.24.0+
 - Container tool: Podman (default) or Docker
 - kubectl
+
+**For deployment on Kubernetes:**
+- cert-manager installed in the cluster
+- KubeVirt installed in the cluster
+
+**For deployment on OpenShift:**
+- OpenShift Virtualization installed in the cluster
 
 ### Development
 
@@ -117,6 +125,11 @@ make cluster-down      # Stop cluster
 
 #### Manual Deployment
 
+virt-template supports two deployment configurations:
+
+- **`config/default`** - Standard Kubernetes deployment (requires cert-manager)
+- **`config/openshift`** - OpenShift deployment (uses built-in Service CA operator)
+
 **Build and push container images:**
 
 ```sh
@@ -128,11 +141,18 @@ make container-build container-push \
 The build supports multi-arch images (amd64, arm64, s390x). Use
 `CONTAINER_TOOL=docker` or `CONTAINER_TOOL=podman`.
 
-**Install CRDs and deploy controllers:**
+**Deploy on Kubernetes:**
 
 ```sh
 make install
 make deploy IMG_REGISTRY=<registry> IMG_TAG=<tag>
+```
+
+**Deploy on OpenShift:**
+
+```sh
+make install
+make deploy-openshift IMG_REGISTRY=<registry> IMG_TAG=<tag>
 ```
 
 **Create a sample VirtualMachineTemplate:**
@@ -143,10 +163,20 @@ kubectl apply -f config/samples/template_v1alpha1_virtualmachinetemplate.yaml
 
 ### Uninstall
 
+**Uninstall from Kubernetes:**
+
 ```sh
 kubectl delete vmt --all  # Delete sample instances
 make undeploy             # Remove controllers
 make uninstall            # Remove CRDs
+```
+
+**Uninstall from OpenShift:**
+
+```sh
+kubectl delete vmt --all     # Delete sample instances
+make undeploy-openshift      # Remove controllers
+make uninstall               # Remove CRDs
 ```
 
 ### Using virttemplatectl
@@ -266,6 +296,8 @@ cat my-template.yaml | virttemplatectl process -f - \
 
 Generate a single YAML file with all resources:
 
+**For Kubernetes:**
+
 ```sh
 make build-installer IMG_REGISTRY=<registry> IMG_TAG=<tag>
 ```
@@ -274,6 +306,18 @@ This creates `dist/install.yaml` which can be deployed with:
 
 ```sh
 kubectl apply -f dist/install.yaml
+```
+
+**For OpenShift:**
+
+```sh
+make build-installer-openshift IMG_REGISTRY=<registry> IMG_TAG=<tag>
+```
+
+This creates `dist/install-openshift.yaml` which can be deployed with:
+
+```sh
+kubectl apply -f dist/install-openshift.yaml
 ```
 
 ## Development Tools
