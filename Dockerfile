@@ -1,6 +1,6 @@
 # Build the manager binary
 ARG BUILD_ARCH=amd64
-FROM --platform=linux/${BUILD_ARCH} golang:1.24 AS builder
+FROM --platform=linux/${BUILD_ARCH} docker.io/library/golang:1.24 AS builder
 
 ARG TARGETARCH
 
