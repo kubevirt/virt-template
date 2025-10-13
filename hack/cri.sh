@@ -19,11 +19,14 @@
 
 set -e
 
-# We need to add the current directory as a safe git directory before running any commands
-git config --global --add safe.directory "$(pwd)"
-
-if [[ -n "$(git status --porcelain)" ]] ; then
-  echo "You have uncommitted changes. Please commit the changes."
-  git status --porcelain
-  exit 1
+if [ "${VIRT_TEMPLATE_CRI}" == "" ]; then
+    /bin/bash -c "$@"
+    exit $?
 fi
+
+if [ "${VIRT_TEMPLATE_CRI}" != "docker" ] && [ "${VIRT_TEMPLATE_CRI}" != "podman" ]; then
+    echo "VIRT_TEMPLATE_CRI must be set to either docker or podman"
+    exit 1
+fi
+
+${VIRT_TEMPLATE_CRI} run -v "$(pwd):/virt-template:rw,Z" --rm "${IMG_BUILDER}:${IMG_BUILDER_TAG}" /usr/bin/bash -c "cd /virt-template && $*"

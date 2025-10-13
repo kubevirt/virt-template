@@ -4,6 +4,13 @@ IMG_PLATFORMS ?= linux/amd64,linux/arm64,linux/s390x
 IMG_CONTROLLER ?= ${IMG_REGISTRY}/virt-template-controller:${IMG_TAG}
 IMG_APISERVER ?= ${IMG_REGISTRY}/virt-template-apiserver:${IMG_TAG}
 
+# Use the VIRT_TEMPLATE_CRI env variable to control if some targets are executed within a container.
+# Supported runtimes are docker and podman. By default targets run directly on the host.
+IMG_BUILDER_TAG ?= v20251013-a2c948e
+export IMG_BUILDER_TAG
+IMG_BUILDER ?= quay.io/kubevirtci/golang
+export IMG_BUILDER
+
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
 GOBIN=$(shell go env GOPATH)/bin
@@ -69,7 +76,7 @@ vet: ## Run go vet against code.
 .PHONY: lint
 lint: golangci-lint ## Run golangci-lint linter and lint.sh script
 	$(GOLANGCI_LINT) run
-	./hack/lint.sh
+	./hack/cri.sh "./hack/lint.sh"
 	./hack/license-header-check.sh
 
 .PHONY: vendor
@@ -94,12 +101,12 @@ functest: manifests generate fmt vet ## Run the functional tests.
 
 .PHONY: cluster-up
 cluster-up: cmctl ## Start a kubevirtci cluster running a stable version of KubeVirt.
-	hack/kubevirtci.sh up
+	./hack/kubevirtci.sh up
 	KUBECONFIG=$$(./hack/kubevirtci.sh kubeconfig) $(MAKE) deploy-cert-manager
 
 .PHONY: cluster-down
 cluster-down: ## Stop the kubevirtci cluster running a stable version of KubeVirt.
-	hack/kubevirtci.sh down
+	./hack/kubevirtci.sh down
 
 .PHONY: cluster-sync
 cluster-sync: generate ## Install virt-template to the kubevirtci cluster running a stable version of KubeVirt.
@@ -113,12 +120,12 @@ cluster-functest: ## Run the functional tests on the kubevirtci cluster running 
 
 .PHONY: kubevirt-up
 kubevirt-up: cmctl ## Start a kubevirtci cluster running a git version of KubeVirt.
-	hack/kubevirt.sh up
+	./hack/kubevirt.sh up
 	KUBECONFIG=$$(./hack/kubevirt.sh kubeconfig) $(MAKE) deploy-cert-manager
 
 .PHONY: kubevirt-down
 kubevirt-down: ## Stop the kubevirtci cluster running a git version of KubeVirt.
-	hack/kubevirt.sh down
+	./hack/kubevirt.sh down
 
 .PHONY: kubevirt-sync
 kubevirt-sync: generate ## Install virt-template to the kubevirtci cluster running a git version of KubeVirt.
