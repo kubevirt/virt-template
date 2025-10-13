@@ -20,8 +20,11 @@
 set -e
 
 _base_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+_out_dir="${_base_dir}/_out"
+
+mkdir -p "${_out_dir}"
 
 source "${_base_dir}/hack/version.sh"
 
 kube::version::get_version_vars
-kube::version::save_version_vars "${_base_dir}/_out/version"
+kube::version::save_version_vars "${_out_dir}/version"
