@@ -272,7 +272,6 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"k8s.io/api/core/v1.WeightedPodAffinityTerm":                                                 schema_k8sio_api_core_v1_WeightedPodAffinityTerm(ref),
 		"k8s.io/api/core/v1.WindowsSecurityContextOptions":                                           schema_k8sio_api_core_v1_WindowsSecurityContextOptions(ref),
 		"k8s.io/apimachinery/pkg/api/resource.Quantity":                                              schema_apimachinery_pkg_api_resource_Quantity(ref),
-		"k8s.io/apimachinery/pkg/api/resource.int64Amount":                                           schema_apimachinery_pkg_api_resource_int64Amount(ref),
 		"k8s.io/apimachinery/pkg/apis/meta/v1.APIGroup":                                              schema_pkg_apis_meta_v1_APIGroup(ref),
 		"k8s.io/apimachinery/pkg/apis/meta/v1.APIGroupList":                                          schema_pkg_apis_meta_v1_APIGroupList(ref),
 		"k8s.io/apimachinery/pkg/apis/meta/v1.APIResource":                                           schema_pkg_apis_meta_v1_APIResource(ref),
