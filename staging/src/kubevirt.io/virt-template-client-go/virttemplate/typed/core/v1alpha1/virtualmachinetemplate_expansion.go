@@ -23,8 +23,8 @@ import (
 	"context"
 	"fmt"
 
-	templateapi "kubevirt.io/virt-template/api"
-	"kubevirt.io/virt-template/api/subresourcesv1alpha1"
+	templateapi "kubevirt.io/virt-template-api/core"
+	"kubevirt.io/virt-template-api/core/subresourcesv1alpha1"
 )
 
 const subresourceURLFmt = "/apis/%s/%s"

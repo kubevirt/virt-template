@@ -26,7 +26,7 @@ import (
 	"k8s.io/kube-openapi/pkg/spec3"
 	"k8s.io/kube-openapi/pkg/validation/spec"
 
-	"kubevirt.io/virt-template/client-go/api"
+	"kubevirt.io/virt-template-client-go/api"
 )
 
 var info = &spec.Info{

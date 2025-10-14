@@ -29,7 +29,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 
-	"kubevirt.io/virt-template/api/v1alpha1"
+	"kubevirt.io/virt-template-api/core/v1alpha1"
 
 	"kubevirt.io/virt-template/internal/template/generator"
 )

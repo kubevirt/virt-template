@@ -33,8 +33,8 @@ import (
 
 	"kubevirt.io/client-go/kubecli"
 
-	"kubevirt.io/virt-template/api/subresourcesv1alpha1"
-	templateclient "kubevirt.io/virt-template/client-go/template"
+	"kubevirt.io/virt-template-api/core/subresourcesv1alpha1"
+	templateclient "kubevirt.io/virt-template-client-go/virttemplate"
 
 	"kubevirt.io/virt-template/internal/template"
 )

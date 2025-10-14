@@ -33,7 +33,7 @@ import (
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/yaml"
 
-	"kubevirt.io/virt-template/api/v1alpha1"
+	"kubevirt.io/virt-template-api/core/v1alpha1"
 
 	"kubevirt.io/virt-template/internal/virttemplatectl/clientconfig"
 	"kubevirt.io/virt-template/internal/virttemplatectl/templates"

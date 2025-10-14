@@ -82,7 +82,7 @@ lint: golangci-lint ## Run golangci-lint linter and lint.sh script
 .PHONY: vendor
 vendor: ## Update vendored modules
 	cd api && go mod tidy
-	cd staging/src/kubevirt.io/virt-template/client-go && go mod tidy
+	cd staging/src/kubevirt.io/virt-template-client-go && go mod tidy
 	go mod tidy
 	go work sync
 	go work vendor

@@ -29,8 +29,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 
-	templateapi "kubevirt.io/virt-template/api"
-	"kubevirt.io/virt-template/api/v1alpha1"
+	templateapi "kubevirt.io/virt-template-api/core"
+	"kubevirt.io/virt-template-api/core/v1alpha1"
 )
 
 // VirtualMachineTemplateReconciler reconciles a VirtualMachineTemplate object

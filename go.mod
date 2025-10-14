@@ -20,8 +20,8 @@ require (
 	kubevirt.io/api v1.6.2
 	kubevirt.io/client-go v1.6.2
 	kubevirt.io/qe-tools v0.1.8
-	kubevirt.io/virt-template/api v0.0.0-00010101000000-000000000000
-	kubevirt.io/virt-template/client-go v0.0.0-00010101000000-000000000000
+	kubevirt.io/virt-template-api v0.0.0-00010101000000-000000000000
+	kubevirt.io/virt-template-client-go v0.0.0-00010101000000-000000000000
 	sigs.k8s.io/controller-runtime v0.22.3
 	sigs.k8s.io/yaml v1.6.0
 )
@@ -389,8 +389,8 @@ require (
 )
 
 replace (
-	kubevirt.io/virt-template/api => ./api
-	kubevirt.io/virt-template/client-go => ./staging/src/kubevirt.io/virt-template/client-go
+	kubevirt.io/virt-template-api => ./api
+	kubevirt.io/virt-template-client-go => ./staging/src/kubevirt.io/virt-template-client-go
 )
 
 // Fix compatibility with imports pulled in by kubevirt.io/api

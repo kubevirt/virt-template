@@ -24,7 +24,7 @@ package fake
 import (
 	rest "k8s.io/client-go/rest"
 	testing "k8s.io/client-go/testing"
-	v1alpha1 "kubevirt.io/virt-template/client-go/template/typed/api/v1alpha1"
+	v1alpha1 "kubevirt.io/virt-template-client-go/virttemplate/typed/core/v1alpha1"
 )
 
 type FakeTemplateV1alpha1 struct {

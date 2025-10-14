@@ -28,9 +28,9 @@ import (
 	"k8s.io/client-go/discovery"
 	fakediscovery "k8s.io/client-go/discovery/fake"
 	"k8s.io/client-go/testing"
-	clientset "kubevirt.io/virt-template/client-go/template"
-	templatev1alpha1 "kubevirt.io/virt-template/client-go/template/typed/api/v1alpha1"
-	faketemplatev1alpha1 "kubevirt.io/virt-template/client-go/template/typed/api/v1alpha1/fake"
+	clientset "kubevirt.io/virt-template-client-go/virttemplate"
+	templatev1alpha1 "kubevirt.io/virt-template-client-go/virttemplate/typed/core/v1alpha1"
+	faketemplatev1alpha1 "kubevirt.io/virt-template-client-go/virttemplate/typed/core/v1alpha1/fake"
 )
 
 // NewSimpleClientset returns a clientset that will respond with the provided objects.

@@ -26,8 +26,8 @@ import (
 
 	virtclientgoscheme "kubevirt.io/client-go/kubevirt/scheme"
 
-	templatesubresourcesv1alpha1 "kubevirt.io/virt-template/api/subresourcesv1alpha1"
-	templatev1alpha1 "kubevirt.io/virt-template/api/v1alpha1"
+	templatesubresourcesv1alpha1 "kubevirt.io/virt-template-api/core/subresourcesv1alpha1"
+	templatev1alpha1 "kubevirt.io/virt-template-api/core/v1alpha1"
 )
 
 func New() *runtime.Scheme {

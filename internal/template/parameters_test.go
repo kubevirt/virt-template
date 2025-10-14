@@ -25,7 +25,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	"kubevirt.io/virt-template/api/v1alpha1"
+	"kubevirt.io/virt-template-api/core/v1alpha1"
 	"kubevirt.io/virt-template/internal/template"
 )
 
