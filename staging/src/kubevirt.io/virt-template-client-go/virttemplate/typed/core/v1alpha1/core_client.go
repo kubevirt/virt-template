@@ -25,8 +25,8 @@ import (
 	http "net/http"
 
 	rest "k8s.io/client-go/rest"
-	apiv1alpha1 "kubevirt.io/virt-template/api/v1alpha1"
-	scheme "kubevirt.io/virt-template/client-go/template/scheme"
+	corev1alpha1 "kubevirt.io/virt-template-api/core/v1alpha1"
+	scheme "kubevirt.io/virt-template-client-go/virttemplate/scheme"
 )
 
 type TemplateV1alpha1Interface interface {
@@ -84,7 +84,7 @@ func New(c rest.Interface) *TemplateV1alpha1Client {
 }
 
 func setConfigDefaults(config *rest.Config) {
-	gv := apiv1alpha1.SchemeGroupVersion
+	gv := corev1alpha1.SchemeGroupVersion
 	config.GroupVersion = &gv
 	config.APIPath = "/apis"
 	config.NegotiatedSerializer = rest.CodecFactoryForGeneratedClient(scheme.Scheme, scheme.Codecs).WithoutConversion()

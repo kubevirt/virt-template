@@ -21,14 +21,14 @@ set -e
 
 _base_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 _bin_dir="${_base_dir}/bin"
-_client_staging_dir="${_base_dir}/staging/src/kubevirt.io/virt-template/client-go"
+_client_staging_dir="${_base_dir}/staging/src/kubevirt.io/virt-template-client-go"
 _out_dir="${_base_dir}/_out"
 
 mkdir -p "${_out_dir}"
 
 "${_bin_dir}/openapi-gen" \
   --output-dir "${_client_staging_dir}/api" \
-  --output-pkg kubevirt.io/virt-template/client-go/api \
+  --output-pkg kubevirt.io/virt-template-client-go/api \
   --output-file openapi_generated.go \
   --go-header-file "${_base_dir}/hack/boilerplate.go.txt" \
   --report-filename "${_out_dir}/api-rule-violations.list" \
@@ -40,13 +40,13 @@ mkdir -p "${_out_dir}"
   k8s.io/apimachinery/pkg/version \
   kubevirt.io/api/core/v1 \
   kubevirt.io/containerized-data-importer-api/pkg/apis/core/v1beta1 \
-  kubevirt.io/virt-template/api/v1alpha1 \
-  kubevirt.io/virt-template/api/subresourcesv1alpha1
+  kubevirt.io/virt-template-api/core/v1alpha1 \
+  kubevirt.io/virt-template-api/core/subresourcesv1alpha1
 
 "${_bin_dir}/client-gen" \
-  --clientset-name template \
-  --input-base kubevirt.io/virt-template \
-  --input api/v1alpha1 \
+  --clientset-name virttemplate \
+  --input-base kubevirt.io/virt-template-api \
+  --input core/v1alpha1 \
   --output-dir "${_client_staging_dir}" \
-  --output-pkg kubevirt.io/virt-template/client-go \
+  --output-pkg kubevirt.io/virt-template-client-go \
   --go-header-file "${_base_dir}/hack/boilerplate.go.txt"

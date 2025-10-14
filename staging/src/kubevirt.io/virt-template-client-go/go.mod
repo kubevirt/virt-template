@@ -1,4 +1,4 @@
-module kubevirt.io/virt-template/client-go
+module kubevirt.io/virt-template-client-go
 
 go 1.24.0
 
@@ -7,7 +7,7 @@ require (
 	k8s.io/apimachinery v0.34.0
 	k8s.io/client-go v0.34.0
 	k8s.io/kube-openapi v0.0.0-20250905212525-66792eed8611
-	kubevirt.io/virt-template/api v0.0.0-00010101000000-000000000000
+	kubevirt.io/virt-template-api v0.0.0-00010101000000-000000000000
 )
 
 require (
@@ -55,4 +55,4 @@ require (
 	sigs.k8s.io/yaml v1.6.0 // indirect
 )
 
-replace kubevirt.io/virt-template/api => ../../../../../api
+replace kubevirt.io/virt-template-api => ../../../../api

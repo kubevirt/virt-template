@@ -23,8 +23,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apiserver/pkg/registry/rest"
 
-	templateapi "kubevirt.io/virt-template/api"
-	"kubevirt.io/virt-template/api/subresourcesv1alpha1"
+	templateapi "kubevirt.io/virt-template-api/core"
+	"kubevirt.io/virt-template-api/core/subresourcesv1alpha1"
 )
 
 // DummyREST is required to satisfy the k8s.io/apiserver conventions.

@@ -39,11 +39,11 @@ import (
 	virtv1 "kubevirt.io/api/core/v1"
 	kvtesting "kubevirt.io/client-go/testing"
 
-	templateapi "kubevirt.io/virt-template/api"
-	"kubevirt.io/virt-template/api/subresourcesv1alpha1"
-	"kubevirt.io/virt-template/api/v1alpha1"
-	templateclient "kubevirt.io/virt-template/client-go/template"
-	templatefake "kubevirt.io/virt-template/client-go/template/fake"
+	templateapi "kubevirt.io/virt-template-api/core"
+	"kubevirt.io/virt-template-api/core/subresourcesv1alpha1"
+	"kubevirt.io/virt-template-api/core/v1alpha1"
+	templateclient "kubevirt.io/virt-template-client-go/virttemplate"
+	templatefake "kubevirt.io/virt-template-client-go/virttemplate/fake"
 
 	"kubevirt.io/virt-template/internal/virttemplatectl/process"
 	"kubevirt.io/virt-template/internal/virttemplatectl/testing"

@@ -23,7 +23,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	templatev1alpha1 "kubevirt.io/virt-template/api/v1alpha1"
+	templatev1alpha1 "kubevirt.io/virt-template-api/core/v1alpha1"
 	// TODO (user): Add any additional imports if needed
 )
 

@@ -23,8 +23,8 @@ package fake
 
 import (
 	gentype "k8s.io/client-go/gentype"
-	v1alpha1 "kubevirt.io/virt-template/api/v1alpha1"
-	apiv1alpha1 "kubevirt.io/virt-template/client-go/template/typed/api/v1alpha1"
+	v1alpha1 "kubevirt.io/virt-template-api/core/v1alpha1"
+	corev1alpha1 "kubevirt.io/virt-template-client-go/virttemplate/typed/core/v1alpha1"
 )
 
 // fakeVirtualMachineTemplates implements VirtualMachineTemplateInterface
@@ -33,7 +33,7 @@ type fakeVirtualMachineTemplates struct {
 	Fake *FakeTemplateV1alpha1
 }
 
-func newFakeVirtualMachineTemplates(fake *FakeTemplateV1alpha1, namespace string) apiv1alpha1.VirtualMachineTemplateInterface {
+func newFakeVirtualMachineTemplates(fake *FakeTemplateV1alpha1, namespace string) corev1alpha1.VirtualMachineTemplateInterface {
 	return &fakeVirtualMachineTemplates{
 		gentype.NewFakeClientWithList[*v1alpha1.VirtualMachineTemplate, *v1alpha1.VirtualMachineTemplateList](
 			fake.Fake,

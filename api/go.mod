@@ -1,4 +1,4 @@
-module kubevirt.io/virt-template/api
+module kubevirt.io/virt-template-api
 
 go 1.24.0
 

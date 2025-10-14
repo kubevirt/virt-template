@@ -23,7 +23,7 @@ import (
 	"fmt"
 	"slices"
 
-	"kubevirt.io/virt-template/api/v1alpha1"
+	"kubevirt.io/virt-template-api/core/v1alpha1"
 )
 
 func MergeParameters(tplParams []v1alpha1.Parameter, params map[string]string) ([]v1alpha1.Parameter, error) {

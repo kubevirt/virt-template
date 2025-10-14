@@ -666,14 +666,14 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"kubevirt.io/containerized-data-importer-api/pkg/apis/core/v1beta1.VolumeUploadSourceList":        schema_pkg_apis_core_v1beta1_VolumeUploadSourceList(ref),
 		"kubevirt.io/containerized-data-importer-api/pkg/apis/core/v1beta1.VolumeUploadSourceSpec":        schema_pkg_apis_core_v1beta1_VolumeUploadSourceSpec(ref),
 		"kubevirt.io/containerized-data-importer-api/pkg/apis/core/v1beta1.VolumeUploadSourceStatus":      schema_pkg_apis_core_v1beta1_VolumeUploadSourceStatus(ref),
-		"kubevirt.io/virt-template/api/subresourcesv1alpha1.ProcessOptions":                               schema_kubevirtio_virt_template_api_subresourcesv1alpha1_ProcessOptions(ref),
-		"kubevirt.io/virt-template/api/subresourcesv1alpha1.ProcessedVirtualMachineTemplate":              schema_kubevirtio_virt_template_api_subresourcesv1alpha1_ProcessedVirtualMachineTemplate(ref),
-		"kubevirt.io/virt-template/api/subresourcesv1alpha1.VirtualMachineTemplate":                       schema_kubevirtio_virt_template_api_subresourcesv1alpha1_VirtualMachineTemplate(ref),
-		"kubevirt.io/virt-template/api/v1alpha1.Parameter":                                                schema_kubevirtio_virt_template_api_v1alpha1_Parameter(ref),
-		"kubevirt.io/virt-template/api/v1alpha1.VirtualMachineTemplate":                                   schema_kubevirtio_virt_template_api_v1alpha1_VirtualMachineTemplate(ref),
-		"kubevirt.io/virt-template/api/v1alpha1.VirtualMachineTemplateList":                               schema_kubevirtio_virt_template_api_v1alpha1_VirtualMachineTemplateList(ref),
-		"kubevirt.io/virt-template/api/v1alpha1.VirtualMachineTemplateSpec":                               schema_kubevirtio_virt_template_api_v1alpha1_VirtualMachineTemplateSpec(ref),
-		"kubevirt.io/virt-template/api/v1alpha1.VirtualMachineTemplateStatus":                             schema_kubevirtio_virt_template_api_v1alpha1_VirtualMachineTemplateStatus(ref),
+		"kubevirt.io/virt-template-api/core/subresourcesv1alpha1.ProcessOptions":                          schema_kubevirtio_virt_template_api_core_subresourcesv1alpha1_ProcessOptions(ref),
+		"kubevirt.io/virt-template-api/core/subresourcesv1alpha1.ProcessedVirtualMachineTemplate":         schema_kubevirtio_virt_template_api_core_subresourcesv1alpha1_ProcessedVirtualMachineTemplate(ref),
+		"kubevirt.io/virt-template-api/core/subresourcesv1alpha1.VirtualMachineTemplate":                  schema_kubevirtio_virt_template_api_core_subresourcesv1alpha1_VirtualMachineTemplate(ref),
+		"kubevirt.io/virt-template-api/core/v1alpha1.Parameter":                                           schema_kubevirtio_virt_template_api_core_v1alpha1_Parameter(ref),
+		"kubevirt.io/virt-template-api/core/v1alpha1.VirtualMachineTemplate":                              schema_kubevirtio_virt_template_api_core_v1alpha1_VirtualMachineTemplate(ref),
+		"kubevirt.io/virt-template-api/core/v1alpha1.VirtualMachineTemplateList":                          schema_kubevirtio_virt_template_api_core_v1alpha1_VirtualMachineTemplateList(ref),
+		"kubevirt.io/virt-template-api/core/v1alpha1.VirtualMachineTemplateSpec":                          schema_kubevirtio_virt_template_api_core_v1alpha1_VirtualMachineTemplateSpec(ref),
+		"kubevirt.io/virt-template-api/core/v1alpha1.VirtualMachineTemplateStatus":                        schema_kubevirtio_virt_template_api_core_v1alpha1_VirtualMachineTemplateStatus(ref),
 	}
 }
 
@@ -32021,7 +32021,7 @@ func schema_pkg_apis_core_v1beta1_VolumeUploadSourceStatus(ref common.ReferenceC
 	}
 }
 
-func schema_kubevirtio_virt_template_api_subresourcesv1alpha1_ProcessOptions(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_kubevirtio_virt_template_api_core_subresourcesv1alpha1_ProcessOptions(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
@@ -32072,7 +32072,7 @@ func schema_kubevirtio_virt_template_api_subresourcesv1alpha1_ProcessOptions(ref
 	}
 }
 
-func schema_kubevirtio_virt_template_api_subresourcesv1alpha1_ProcessedVirtualMachineTemplate(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_kubevirtio_virt_template_api_core_subresourcesv1alpha1_ProcessedVirtualMachineTemplate(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
@@ -32127,7 +32127,7 @@ func schema_kubevirtio_virt_template_api_subresourcesv1alpha1_ProcessedVirtualMa
 	}
 }
 
-func schema_kubevirtio_virt_template_api_subresourcesv1alpha1_VirtualMachineTemplate(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_kubevirtio_virt_template_api_core_subresourcesv1alpha1_VirtualMachineTemplate(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
@@ -32162,7 +32162,7 @@ func schema_kubevirtio_virt_template_api_subresourcesv1alpha1_VirtualMachineTemp
 	}
 }
 
-func schema_kubevirtio_virt_template_api_v1alpha1_Parameter(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_kubevirtio_virt_template_api_core_v1alpha1_Parameter(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
@@ -32226,7 +32226,7 @@ func schema_kubevirtio_virt_template_api_v1alpha1_Parameter(ref common.Reference
 	}
 }
 
-func schema_kubevirtio_virt_template_api_v1alpha1_VirtualMachineTemplate(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_kubevirtio_virt_template_api_core_v1alpha1_VirtualMachineTemplate(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
@@ -32257,14 +32257,14 @@ func schema_kubevirtio_virt_template_api_v1alpha1_VirtualMachineTemplate(ref com
 						SchemaProps: spec.SchemaProps{
 							Description: "Spec defines the desired state of the template",
 							Default:     map[string]interface{}{},
-							Ref:         ref("kubevirt.io/virt-template/api/v1alpha1.VirtualMachineTemplateSpec"),
+							Ref:         ref("kubevirt.io/virt-template-api/core/v1alpha1.VirtualMachineTemplateSpec"),
 						},
 					},
 					"status": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Status defines the observed state of the template",
 							Default:     map[string]interface{}{},
-							Ref:         ref("kubevirt.io/virt-template/api/v1alpha1.VirtualMachineTemplateStatus"),
+							Ref:         ref("kubevirt.io/virt-template-api/core/v1alpha1.VirtualMachineTemplateStatus"),
 						},
 					},
 				},
@@ -32272,11 +32272,11 @@ func schema_kubevirtio_virt_template_api_v1alpha1_VirtualMachineTemplate(ref com
 			},
 		},
 		Dependencies: []string{
-			"k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta", "kubevirt.io/virt-template/api/v1alpha1.VirtualMachineTemplateSpec", "kubevirt.io/virt-template/api/v1alpha1.VirtualMachineTemplateStatus"},
+			"k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta", "kubevirt.io/virt-template-api/core/v1alpha1.VirtualMachineTemplateSpec", "kubevirt.io/virt-template-api/core/v1alpha1.VirtualMachineTemplateStatus"},
 	}
 }
 
-func schema_kubevirtio_virt_template_api_v1alpha1_VirtualMachineTemplateList(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_kubevirtio_virt_template_api_core_v1alpha1_VirtualMachineTemplateList(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
@@ -32310,7 +32310,7 @@ func schema_kubevirtio_virt_template_api_v1alpha1_VirtualMachineTemplateList(ref
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("kubevirt.io/virt-template/api/v1alpha1.VirtualMachineTemplate"),
+										Ref:     ref("kubevirt.io/virt-template-api/core/v1alpha1.VirtualMachineTemplate"),
 									},
 								},
 							},
@@ -32321,11 +32321,11 @@ func schema_kubevirtio_virt_template_api_v1alpha1_VirtualMachineTemplateList(ref
 			},
 		},
 		Dependencies: []string{
-			"k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta", "kubevirt.io/virt-template/api/v1alpha1.VirtualMachineTemplate"},
+			"k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta", "kubevirt.io/virt-template-api/core/v1alpha1.VirtualMachineTemplate"},
 	}
 }
 
-func schema_kubevirtio_virt_template_api_v1alpha1_VirtualMachineTemplateSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_kubevirtio_virt_template_api_core_v1alpha1_VirtualMachineTemplateSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
@@ -32346,7 +32346,7 @@ func schema_kubevirtio_virt_template_api_v1alpha1_VirtualMachineTemplateSpec(ref
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("kubevirt.io/virt-template/api/v1alpha1.Parameter"),
+										Ref:     ref("kubevirt.io/virt-template-api/core/v1alpha1.Parameter"),
 									},
 								},
 							},
@@ -32364,11 +32364,11 @@ func schema_kubevirtio_virt_template_api_v1alpha1_VirtualMachineTemplateSpec(ref
 			},
 		},
 		Dependencies: []string{
-			"k8s.io/apimachinery/pkg/runtime.RawExtension", "kubevirt.io/virt-template/api/v1alpha1.Parameter"},
+			"k8s.io/apimachinery/pkg/runtime.RawExtension", "kubevirt.io/virt-template-api/core/v1alpha1.Parameter"},
 	}
 }
 
-func schema_kubevirtio_virt_template_api_v1alpha1_VirtualMachineTemplateStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_kubevirtio_virt_template_api_core_v1alpha1_VirtualMachineTemplateStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{

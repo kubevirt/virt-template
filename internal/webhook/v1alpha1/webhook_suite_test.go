@@ -42,7 +42,7 @@ import (
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
-	templatev1alpha1 "kubevirt.io/virt-template/api/v1alpha1"
+	templatev1alpha1 "kubevirt.io/virt-template-api/core/v1alpha1"
 	// +kubebuilder:scaffold:imports
 )
 

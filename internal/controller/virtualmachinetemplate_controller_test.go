@@ -32,7 +32,7 @@ import (
 	virtv1 "kubevirt.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	"kubevirt.io/virt-template/api/v1alpha1"
+	"kubevirt.io/virt-template-api/core/v1alpha1"
 
 	"kubevirt.io/virt-template/internal/controller"
 )

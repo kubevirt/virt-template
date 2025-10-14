@@ -29,9 +29,9 @@ import (
 
 	"kubevirt.io/client-go/kubecli"
 
-	templateapi "kubevirt.io/virt-template/api"
-	"kubevirt.io/virt-template/api/subresourcesv1alpha1"
-	templateclient "kubevirt.io/virt-template/client-go/template"
+	templateapi "kubevirt.io/virt-template-api/core"
+	"kubevirt.io/virt-template-api/core/subresourcesv1alpha1"
+	templateclient "kubevirt.io/virt-template-client-go/virttemplate"
 
 	"kubevirt.io/virt-template/internal/apiserver"
 	"kubevirt.io/virt-template/internal/apiserver/openapi"

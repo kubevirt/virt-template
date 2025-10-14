@@ -35,7 +35,7 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	templatev1alpha1 "kubevirt.io/virt-template/api/v1alpha1"
+	templatev1alpha1 "kubevirt.io/virt-template-api/core/v1alpha1"
 	// +kubebuilder:scaffold:imports
 )
 

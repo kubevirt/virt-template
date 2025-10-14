@@ -28,8 +28,8 @@ import (
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
 	gentype "k8s.io/client-go/gentype"
-	apiv1alpha1 "kubevirt.io/virt-template/api/v1alpha1"
-	scheme "kubevirt.io/virt-template/client-go/template/scheme"
+	corev1alpha1 "kubevirt.io/virt-template-api/core/v1alpha1"
+	scheme "kubevirt.io/virt-template-client-go/virttemplate/scheme"
 )
 
 // VirtualMachineTemplatesGetter has a method to return a VirtualMachineTemplateInterface.
@@ -40,34 +40,34 @@ type VirtualMachineTemplatesGetter interface {
 
 // VirtualMachineTemplateInterface has methods to work with VirtualMachineTemplate resources.
 type VirtualMachineTemplateInterface interface {
-	Create(ctx context.Context, virtualMachineTemplate *apiv1alpha1.VirtualMachineTemplate, opts v1.CreateOptions) (*apiv1alpha1.VirtualMachineTemplate, error)
-	Update(ctx context.Context, virtualMachineTemplate *apiv1alpha1.VirtualMachineTemplate, opts v1.UpdateOptions) (*apiv1alpha1.VirtualMachineTemplate, error)
+	Create(ctx context.Context, virtualMachineTemplate *corev1alpha1.VirtualMachineTemplate, opts v1.CreateOptions) (*corev1alpha1.VirtualMachineTemplate, error)
+	Update(ctx context.Context, virtualMachineTemplate *corev1alpha1.VirtualMachineTemplate, opts v1.UpdateOptions) (*corev1alpha1.VirtualMachineTemplate, error)
 	// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-	UpdateStatus(ctx context.Context, virtualMachineTemplate *apiv1alpha1.VirtualMachineTemplate, opts v1.UpdateOptions) (*apiv1alpha1.VirtualMachineTemplate, error)
+	UpdateStatus(ctx context.Context, virtualMachineTemplate *corev1alpha1.VirtualMachineTemplate, opts v1.UpdateOptions) (*corev1alpha1.VirtualMachineTemplate, error)
 	Delete(ctx context.Context, name string, opts v1.DeleteOptions) error
 	DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error
-	Get(ctx context.Context, name string, opts v1.GetOptions) (*apiv1alpha1.VirtualMachineTemplate, error)
-	List(ctx context.Context, opts v1.ListOptions) (*apiv1alpha1.VirtualMachineTemplateList, error)
+	Get(ctx context.Context, name string, opts v1.GetOptions) (*corev1alpha1.VirtualMachineTemplate, error)
+	List(ctx context.Context, opts v1.ListOptions) (*corev1alpha1.VirtualMachineTemplateList, error)
 	Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error)
-	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *apiv1alpha1.VirtualMachineTemplate, err error)
+	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *corev1alpha1.VirtualMachineTemplate, err error)
 	VirtualMachineTemplateExpansion
 }
 
 // virtualMachineTemplates implements VirtualMachineTemplateInterface
 type virtualMachineTemplates struct {
-	*gentype.ClientWithList[*apiv1alpha1.VirtualMachineTemplate, *apiv1alpha1.VirtualMachineTemplateList]
+	*gentype.ClientWithList[*corev1alpha1.VirtualMachineTemplate, *corev1alpha1.VirtualMachineTemplateList]
 }
 
 // newVirtualMachineTemplates returns a VirtualMachineTemplates
 func newVirtualMachineTemplates(c *TemplateV1alpha1Client, namespace string) *virtualMachineTemplates {
 	return &virtualMachineTemplates{
-		gentype.NewClientWithList[*apiv1alpha1.VirtualMachineTemplate, *apiv1alpha1.VirtualMachineTemplateList](
+		gentype.NewClientWithList[*corev1alpha1.VirtualMachineTemplate, *corev1alpha1.VirtualMachineTemplateList](
 			"virtualmachinetemplates",
 			c.RESTClient(),
 			scheme.ParameterCodec,
 			namespace,
-			func() *apiv1alpha1.VirtualMachineTemplate { return &apiv1alpha1.VirtualMachineTemplate{} },
-			func() *apiv1alpha1.VirtualMachineTemplateList { return &apiv1alpha1.VirtualMachineTemplateList{} },
+			func() *corev1alpha1.VirtualMachineTemplate { return &corev1alpha1.VirtualMachineTemplate{} },
+			func() *corev1alpha1.VirtualMachineTemplateList { return &corev1alpha1.VirtualMachineTemplateList{} },
 		),
 	}
 }
