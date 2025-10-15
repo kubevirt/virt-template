@@ -56,7 +56,7 @@ function prepare_repo() {
   (
     cd "${repo_dir}" || return 1
     git checkout -B "${TARGET_BRANCH}-local"
-    git rm -rf .
+    git rm -rf --ignore-unmatch .
     git clean -fxd
   )
 
