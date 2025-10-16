@@ -8,14 +8,24 @@ metadata:
 spec:
   parameters:
     - name: NAME
+      required: true
     - name: INSTANCETYPE
+    - name: PREFERENCE
+    - name: CONTAINERDISK
   virtualMachine:
     metadata:
       name: ${NAME}
     spec:
-      running: false
+      runStrategy: Always
       instancetype:
         name: ${INSTANCETYPE}
+      preference:
+        name: ${PREFERENCE}
       template:
         spec:
-          domain: {}
+          domain:
+            devices: {}
+          volumes:
+            - containerDisk:
+                image: ${CONTAINERDISK}
+              name: containerdisk-0
