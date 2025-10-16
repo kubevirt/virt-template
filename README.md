@@ -6,7 +6,7 @@ KubeVirt virtual machines.
 ## Quick Example
 
 ```yaml
-# Define a template
+cat <<'EOF' | kubectl apply -f -
 apiVersion: template.kubevirt.io/v1alpha1
 kind: VirtualMachineTemplate
 metadata:
@@ -17,24 +17,34 @@ spec:
       required: true
     - name: INSTANCETYPE
       value: u1.medium
+    - name: PREFERENCE
+      value: fedora
   virtualMachine:
     metadata:
       name: ${NAME}
     spec:
+      runStrategy: Always
       instancetype:
-        name: u1.medium
+        name: ${INSTANCETYPE}
       preference:
-        name: fedora
-    runStrategy: Always
-    template:
-      spec:
-        domain:
-          devices: {}
-        terminationGracePeriodSeconds: 180
-        volumes:
-          - containerDisk:
-              image: quay.io/containerdisks/fedora:latest
-            name: containerdisk-0
+        name: ${PREFERENCE}
+      template:
+        spec:
+          domain:
+            devices: {}
+          terminationGracePeriodSeconds: 180
+          volumes:
+            - containerDisk:
+                image: quay.io/containerdisks/fedora:latest
+              name: containerdisk-0
+            - cloudInitNoCloud:
+                userData: |
+                  #cloud-config
+                  password: fedora
+                  chpasswd: { expire: False }
+                  ssh_pwauth: True
+              name: cloudinitdisk-0
+EOF
 ```
 
 ```sh
