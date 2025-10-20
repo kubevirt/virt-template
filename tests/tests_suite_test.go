@@ -20,16 +20,37 @@
 package tests_test
 
 import (
+	"os"
 	"testing"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
 	ginkgo_reporters "github.com/onsi/ginkgo/v2/reporters"
+
+	"k8s.io/client-go/tools/clientcmd"
+
+	"kubevirt.io/client-go/kubecli"
 	qe_reporters "kubevirt.io/qe-tools/pkg/ginkgo-reporters"
 )
 
-var afterSuiteReporters []Reporter
+var (
+	virtClient          kubecli.KubevirtClient
+	afterSuiteReporters []Reporter
+)
+
+var _ = BeforeSuite(func() {
+	kubeconfigPath := os.Getenv("KUBECONFIG")
+	if _, err := os.Stat(kubeconfigPath); os.IsNotExist(err) {
+		Skip("KUBECONFIG not found, skipping tests")
+	}
+
+	config, err := clientcmd.BuildConfigFromFlags("", kubeconfigPath)
+	Expect(err).NotTo(HaveOccurred())
+
+	virtClient, err = kubecli.GetKubevirtClientFromRESTConfig(config)
+	Expect(err).NotTo(HaveOccurred())
+})
 
 var _ = ReportAfterSuite("TestFunctional", func(report Report) {
 	for _, reporter := range afterSuiteReporters {
