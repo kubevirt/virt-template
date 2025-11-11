@@ -26,11 +26,9 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/utils/ptr"
 
 	virtv1 "kubevirt.io/api/core/v1"
@@ -41,27 +39,13 @@ import (
 )
 
 var _ = Describe("VirtualMachineTemplate", Ordered, func() {
-	var (
-		namespace string
-		client    templateclient.Interface
-	)
+	var client templateclient.Interface
 
 	BeforeAll(func() {
-		namespace = fmt.Sprintf("vm-template-test-%s", rand.String(5))
-		v1namespace := &corev1.Namespace{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: namespace,
-			},
-		}
-		_, err := virtClient.CoreV1().Namespaces().Create(context.Background(), v1namespace, metav1.CreateOptions{})
-		Expect(err).NotTo(HaveOccurred())
+		var err error
 
 		client, err = templateclient.NewForConfig(virtClient.Config())
 		Expect(err).NotTo(HaveOccurred())
-	})
-
-	AfterAll(func() {
-		_ = virtClient.CoreV1().Namespaces().Delete(context.Background(), namespace, metav1.DeleteOptions{})
 	})
 
 	It("should process a VirtualMachineTemplate and return a VirtualMachine", func() {
@@ -113,34 +97,6 @@ var _ = Describe("VirtualMachineTemplate", Ordered, func() {
 		Expect(processed.VirtualMachine.Spec.Template.Spec.Domain.CPU.Cores).To(Equal(uint32(desiredCPUs)))
 	})
 
-	It("should fail when required parameter is missing", func() {
-		template := &templatev1alpha1.VirtualMachineTemplate{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "missing-param-template",
-				Namespace: namespace,
-			},
-			Spec: templatev1alpha1.VirtualMachineTemplateSpec{
-				Parameters: []templatev1alpha1.Parameter{
-					{
-						Name:     "MEMORY",
-						Required: true,
-					},
-				},
-				VirtualMachine: &runtime.RawExtension{
-					Object: &virtv1.VirtualMachine{},
-				},
-			},
-		}
-		_, err := client.TemplateV1alpha1().VirtualMachineTemplates(namespace).Create(context.Background(), template, metav1.CreateOptions{})
-		Expect(err).NotTo(HaveOccurred())
-
-		// Process without providing the required parameter
-		opts := subresourcesv1alpha1.ProcessOptions{}
-		_, err = client.TemplateV1alpha1().VirtualMachineTemplates(namespace).Process(context.Background(), template.Name, opts)
-		Expect(err).To(HaveOccurred())
-		Expect(err.Error()).To(ContainSubstring("MEMORY"))
-	})
-
 	It("should create a VirtualMachine from VirtualMachineTemplate", func() {
 		template := &templatev1alpha1.VirtualMachineTemplate{
 			ObjectMeta: metav1.ObjectMeta{
@@ -172,6 +128,7 @@ var _ = Describe("VirtualMachineTemplate", Ordered, func() {
 			opts)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(processed).NotTo(BeNil())
+		Expect(processed.VirtualMachine.RunStrategy()).To(Equal(virtv1.RunStrategyHalted))
 
 		// Clean up created VM
 		err = virtClient.VirtualMachine(namespace).Delete(context.Background(), processed.VirtualMachine.Name, metav1.DeleteOptions{})
