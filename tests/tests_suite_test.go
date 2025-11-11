@@ -20,6 +20,8 @@
 package tests_test
 
 import (
+	"context"
+	"fmt"
 	"os"
 	"testing"
 
@@ -28,6 +30,9 @@ import (
 
 	ginkgo_reporters "github.com/onsi/ginkgo/v2/reporters"
 
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/client-go/tools/clientcmd"
 
 	"kubevirt.io/client-go/kubecli"
@@ -35,7 +40,9 @@ import (
 )
 
 var (
-	virtClient          kubecli.KubevirtClient
+	virtClient kubecli.KubevirtClient
+	namespace  string
+
 	afterSuiteReporters []Reporter
 )
 
@@ -50,6 +57,19 @@ var _ = BeforeSuite(func() {
 
 	virtClient, err = kubecli.GetKubevirtClientFromRESTConfig(config)
 	Expect(err).NotTo(HaveOccurred())
+
+	namespace = fmt.Sprintf("vm-template-test-%s", rand.String(5))
+	v1namespace := &corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: namespace,
+		},
+	}
+	_, err = virtClient.CoreV1().Namespaces().Create(context.Background(), v1namespace, metav1.CreateOptions{})
+	Expect(err).NotTo(HaveOccurred())
+})
+
+var _ = AfterSuite(func() {
+	_ = virtClient.CoreV1().Namespaces().Delete(context.Background(), namespace, metav1.DeleteOptions{})
 })
 
 var _ = ReportAfterSuite("TestFunctional", func(report Report) {
