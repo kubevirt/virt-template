@@ -1,6 +1,6 @@
 module kubevirt.io/virt-template
 
-go 1.24.8
+go 1.24.6
 
 require (
 	github.com/emicklei/go-restful/v3 v3.13.0
