@@ -1,0 +1,48 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    ":gitSignOff"
+  ],
+  "baseBranchPatterns": [
+    "main",
+    "/^release-v([0-9]+\\.([0-9]+))$/"
+  ],
+  "prConcurrentLimit": 3,
+  "labels": [
+    "release-note-none"
+  ],
+  "enabledManagers": ["gomod"],
+  "packageRules": [
+    {
+      "matchManagers": [
+        "gomod"
+      ],
+      "matchPackageNames": [
+        "kubevirt.io/virt-template-client-go",
+        "kubevirt.io/virt-template-api"
+      ],
+      "enabled": false
+    },
+    {
+      "matchManagers": [
+        "gomod"
+      ],
+      "matchDepTypes": [
+        "require",
+        "indirect"
+      ],
+      "groupName": "Go dependencies"
+    }
+  ],
+  "constraints": {
+    "go": "1.24"
+  },
+  "postUpdateOptions": [
+    "gomodTidy",
+    "gomodUpdateImportPaths"
+  ],
+  "ignorePaths": [
+    "**/vendor/**"
+  ]
+}
