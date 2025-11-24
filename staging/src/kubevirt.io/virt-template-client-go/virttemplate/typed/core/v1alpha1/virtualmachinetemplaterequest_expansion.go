@@ -17,15 +17,6 @@
  *
  */
 
-package api
+package v1alpha1
 
-const (
-	// GroupName is the group name used in this package
-	GroupName            = "template.kubevirt.io"
-	SubresourceGroupName = "subresources.template.kubevirt.io"
-
-	SingularResourceName        = "virtualmachinetemplate"
-	PluralResourceName          = SingularResourceName + "s"
-	SingularRequestResourceName = "virtualmachinetemplaterequest"
-	PluralRequestResourceName   = SingularRequestResourceName + "s"
-)
+type VirtualMachineTemplateRequestExpansion interface{}

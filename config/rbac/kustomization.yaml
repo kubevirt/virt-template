@@ -22,6 +22,9 @@ resources:
 # default, aiding admins in cluster management. Those roles are
 # not used by the virt-template itself. You can comment the following lines
 # if you do not want those helpers be installed with your Project.
+- virtualmachinetemplaterequest_admin_role.yaml
+- virtualmachinetemplaterequest_editor_role.yaml
+- virtualmachinetemplaterequest_viewer_role.yaml
 - virtualmachinetemplate_admin_role.yaml
 - virtualmachinetemplate_editor_role.yaml
 - virtualmachinetemplate_viewer_role.yaml
