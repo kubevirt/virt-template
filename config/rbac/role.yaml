@@ -7,17 +7,38 @@ rules:
 - apiGroups:
   - template.kubevirt.io
   resources:
+  - virtualmachinetemplaterequests
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - template.kubevirt.io
+  resources:
+  - virtualmachinetemplaterequests/finalizers
+  - virtualmachinetemplates/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - template.kubevirt.io
+  resources:
+  - virtualmachinetemplaterequests/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - template.kubevirt.io
+  resources:
   - virtualmachinetemplates
   verbs:
   - get
   - list
   - watch
-- apiGroups:
-  - template.kubevirt.io
-  resources:
-  - virtualmachinetemplates/finalizers
-  verbs:
-  - update
 - apiGroups:
   - template.kubevirt.io
   resources:
