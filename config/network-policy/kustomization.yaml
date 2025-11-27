@@ -1,3 +1,6 @@
 resources:
 - allow-webhook-traffic.yaml
 - allow-metrics-traffic.yaml
+- allow-apiserver-ingress.yaml
+- allow-apiserver-egress.yaml
+- allow-controller-egress.yaml

@@ -33,7 +33,7 @@ resources:
 # Only Pod(s) running a namespace labeled with 'metrics: enabled' will be able to gather the metrics.
 # Only CR(s) which requires webhooks and are applied on namespaces labeled with 'webhooks: enabled' will
 # be able to communicate with the Webhook Server.
-#- ../network-policy
+- ../network-policy
 # Enable the virt-template-api server
 - ../apiserver
 
@@ -43,6 +43,47 @@ components:
 
 # OpenShift-specific patches for Service CA operator
 patches:
+# Modify NetworkPolicies to use OpenShift DNS labels and ports
+- target:
+    kind: NetworkPolicy
+    name: allow-apiserver-egress
+  patch: |-
+    - op: replace
+      path: /spec/egress/1
+      value:
+        ports:
+          - port: 5353
+            protocol: UDP
+          - port: 5353
+            protocol: TCP
+        to:
+          - namespaceSelector:
+              matchLabels:
+                kubernetes.io/metadata.name: openshift-dns
+            podSelector:
+              matchLabels:
+                dns.operator.openshift.io/daemonset-dns: default
+
+- target:
+    kind: NetworkPolicy
+    name: allow-controller-egress
+  patch: |-
+    - op: replace
+      path: /spec/egress/1
+      value:
+        ports:
+          - port: 5353
+            protocol: UDP
+          - port: 5353
+            protocol: TCP
+        to:
+          - namespaceSelector:
+              matchLabels:
+                kubernetes.io/metadata.name: openshift-dns
+            podSelector:
+              matchLabels:
+                dns.operator.openshift.io/daemonset-dns: default
+
 # Add Service CA annotations to services for automatic certificate generation
 - patch: |-
     - op: add
