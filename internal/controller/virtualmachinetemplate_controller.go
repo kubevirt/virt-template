@@ -22,6 +22,7 @@ package controller
 import (
 	"context"
 
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -53,11 +54,11 @@ func (r *VirtualMachineTemplateReconciler) Reconcile(ctx context.Context, req ct
 
 	tpl := &v1alpha1.VirtualMachineTemplate{}
 	if err := r.Get(ctx, req.NamespacedName, tpl); err != nil {
+		if apierrors.IsNotFound(err) {
+			return ctrl.Result{}, nil
+		}
 		log.Error(err, "unable to fetch VirtualMachineTemplate")
-		// we'll ignore not-found errors, since they can't be fixed by an immediate
-		// requeue (we'll need to wait for a new notification), and we can get them
-		// on deleted requests.
-		return ctrl.Result{}, client.IgnoreNotFound(err)
+		return ctrl.Result{}, err
 	}
 
 	meta.SetStatusCondition(&tpl.Status.Conditions, metav1.Condition{
