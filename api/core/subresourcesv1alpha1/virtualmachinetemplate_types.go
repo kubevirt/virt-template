@@ -49,9 +49,9 @@ type ProcessedVirtualMachineTemplate struct {
 	// VirtualMachine is a VirtualMachine that was created from processing a template. Required.
 	VirtualMachine *virtv1.VirtualMachine `json:"virtualMachine" protobuf:"bytes,3,name=virtualMachine"`
 
-	// Message is an optional instructional message the should inform the user how to
+	// Message is an optional instructional message that should inform the user how to
 	// utilize the newly created VirtualMachine. Optional.
-	Message string `json:"message,omitempty,omitzero" protobuf:"bytes,4,opt,name=message"`
+	Message string `json:"message,omitempty" protobuf:"bytes,4,opt,name=message"`
 }
 
 // +kubebuilder:object:root=true
