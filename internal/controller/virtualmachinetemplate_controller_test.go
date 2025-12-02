@@ -83,9 +83,9 @@ var _ = Describe("VirtualMachineTemplate Controller", func() {
 
 		Expect(k8sClient.Get(context.Background(), namespacedName, tpl)).To(Succeed())
 		Expect(tpl.Status.Conditions).To(HaveLen(1))
-		Expect(tpl.Status.Conditions[0].Type).To(Equal("Ready"))
+		Expect(tpl.Status.Conditions[0].Type).To(Equal(v1alpha1.ConditionReady))
 		Expect(tpl.Status.Conditions[0].Status).To(Equal(metav1.ConditionTrue))
-		Expect(tpl.Status.Conditions[0].Reason).To(Equal("TemplateReady"))
+		Expect(tpl.Status.Conditions[0].Reason).To(Equal(v1alpha1.ReasonReconciled))
 		Expect(tpl.Status.Conditions[0].Message).To(Equal("VirtualMachineTemplate is ready to be processed"))
 		Expect(tpl.Status.Conditions[0].ObservedGeneration).To(Equal(tpl.Generation))
 	})
