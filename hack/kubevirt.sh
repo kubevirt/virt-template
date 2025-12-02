@@ -42,6 +42,9 @@ function kubevirt::up() {
   KUBECONFIG=$(kubevirt::kubeconfig)
   export KUBECONFIG
 
+  echo "enabling snapshot feature gate"
+  ${_kubectl} patch kv/kubevirt -n kubevirt --type merge -p '{"spec": {"configuration": {"developerConfiguration": {"featureGates": ["Snapshot"]}}}}'
+
   echo "waiting for kubevirt to become ready, this can take a few minutes..."
   ${_kubectl} -n kubevirt wait kv kubevirt --for condition=Available --timeout=15m
 }
