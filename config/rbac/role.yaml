@@ -9,12 +9,8 @@ rules:
   resources:
   - virtualmachinetemplates
   verbs:
-  - create
-  - delete
   - get
   - list
-  - patch
-  - update
   - watch
 - apiGroups:
   - template.kubevirt.io
@@ -29,4 +25,3 @@ rules:
   verbs:
   - get
   - patch
-  - update
