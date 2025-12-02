@@ -24,9 +24,11 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	k8syaml "k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/yaml"
@@ -207,11 +209,27 @@ func (p *process) run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	if err := p.print(vm, msg); err != nil {
-		return err
+	if p.create {
+		if kg, err := getKindGroup(&vm.TypeMeta); err != nil {
+			return err
+		} else {
+			p.cmd.Printf("%s/%s created\n", kg, vm.Name)
+		}
+	} else {
+		if err := p.print(vm, msg); err != nil {
+			return err
+		}
 	}
 
 	return nil
+}
+
+func getKindGroup(tm *metav1.TypeMeta) (string, error) {
+	gv, err := schema.ParseGroupVersion(tm.APIVersion)
+	if err != nil {
+		return "", fmt.Errorf("error parsing GroupVersion: %w", err)
+	}
+	return strings.ToLower(tm.Kind + "." + gv.Group), nil
 }
 
 func (p *process) validateArgs(args []string) error {

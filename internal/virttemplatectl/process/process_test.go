@@ -45,6 +45,7 @@ import (
 	templateclient "kubevirt.io/virt-template-client-go/virttemplate"
 	templatefake "kubevirt.io/virt-template-client-go/virttemplate/fake"
 
+	"kubevirt.io/virt-template/internal/template"
 	"kubevirt.io/virt-template/internal/virttemplatectl/process"
 	"kubevirt.io/virt-template/internal/virttemplatectl/testing"
 )
@@ -253,7 +254,13 @@ var _ = Describe("Process command", func() {
 						param2Name: param2Val,
 					}))
 
-					return true, &subresourcesv1alpha1.ProcessedVirtualMachineTemplate{}, nil
+					var err error
+					tpl.Spec.Parameters, err = template.MergeParameters(tpl.Spec.Parameters, opts.Parameters)
+					Expect(err).ToNot(HaveOccurred())
+					vm, _, err := template.GetDefaultProcessor().Process(tpl)
+					Expect(err).ToNot(HaveOccurred())
+
+					return true, &subresourcesv1alpha1.ProcessedVirtualMachineTemplate{VirtualMachine: vm}, nil
 				})
 			})
 
