@@ -54,7 +54,7 @@ var _ = Describe("VirtualMachineTemplate", Ordered, func() {
 		template := &templatev1alpha1.VirtualMachineTemplate{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "simple-template",
-				Namespace: namespace,
+				Namespace: NamespaceTest,
 			},
 			Spec: templatev1alpha1.VirtualMachineTemplateSpec{
 				Parameters: []templatev1alpha1.Parameter{
@@ -84,14 +84,14 @@ var _ = Describe("VirtualMachineTemplate", Ordered, func() {
 				},
 			},
 		}
-		_, err := client.TemplateV1alpha1().VirtualMachineTemplates(namespace).Create(context.Background(), template, metav1.CreateOptions{})
+		_, err := client.TemplateV1alpha1().VirtualMachineTemplates(NamespaceTest).Create(context.Background(), template, metav1.CreateOptions{})
 		Expect(err).NotTo(HaveOccurred())
 
 		// Process with parameter override
 		opts := subresourcesv1alpha1.ProcessOptions{
 			Parameters: map[string]string{"CPU_COUNT": fmt.Sprintf("%d", desiredCPUs)},
 		}
-		processed, err := client.TemplateV1alpha1().VirtualMachineTemplates(namespace).Process(context.Background(), template.Name, opts)
+		processed, err := client.TemplateV1alpha1().VirtualMachineTemplates(NamespaceTest).Process(context.Background(), template.Name, opts)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(processed.VirtualMachine).NotTo(BeNil())
 		Expect(processed.VirtualMachine.Spec.Template.Spec.Domain.CPU.Cores).To(Equal(uint32(desiredCPUs)))
@@ -101,7 +101,7 @@ var _ = Describe("VirtualMachineTemplate", Ordered, func() {
 		template := &templatev1alpha1.VirtualMachineTemplate{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "create-template",
-				Namespace: namespace,
+				Namespace: NamespaceTest,
 			},
 			Spec: templatev1alpha1.VirtualMachineTemplateSpec{
 				VirtualMachine: &runtime.RawExtension{
@@ -117,12 +117,12 @@ var _ = Describe("VirtualMachineTemplate", Ordered, func() {
 				},
 			},
 		}
-		_, err := client.TemplateV1alpha1().VirtualMachineTemplates(namespace).Create(context.Background(), template, metav1.CreateOptions{})
+		_, err := client.TemplateV1alpha1().VirtualMachineTemplates(NamespaceTest).Create(context.Background(), template, metav1.CreateOptions{})
 		Expect(err).NotTo(HaveOccurred())
 
 		// Create VM from template
 		opts := subresourcesv1alpha1.ProcessOptions{}
-		processed, err := client.TemplateV1alpha1().VirtualMachineTemplates(namespace).CreateVirtualMachine(
+		processed, err := client.TemplateV1alpha1().VirtualMachineTemplates(NamespaceTest).CreateVirtualMachine(
 			context.Background(),
 			template.Name,
 			opts)
@@ -131,7 +131,7 @@ var _ = Describe("VirtualMachineTemplate", Ordered, func() {
 		Expect(processed.VirtualMachine.RunStrategy()).To(Equal(virtv1.RunStrategyHalted))
 
 		// Clean up created VM
-		err = virtClient.VirtualMachine(namespace).Delete(context.Background(), processed.VirtualMachine.Name, metav1.DeleteOptions{})
+		err = virtClient.VirtualMachine(NamespaceTest).Delete(context.Background(), processed.VirtualMachine.Name, metav1.DeleteOptions{})
 		Expect(err).NotTo(HaveOccurred())
 	})
 })
