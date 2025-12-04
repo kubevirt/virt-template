@@ -1,5 +1,8 @@
 extends: default
 
+ignore:
+  - config/crd/external/
+
 rules:
   line-length:
     max: 165
