@@ -1,5 +1,8 @@
 extends: default
 
+ignore:
+  - config/crd/testing/
+
 rules:
   line-length:
     max: 165
