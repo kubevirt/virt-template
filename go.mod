@@ -19,6 +19,7 @@ require (
 	k8s.io/utils v0.0.0-20251002143259-bc988d571ff4
 	kubevirt.io/api v1.6.2
 	kubevirt.io/client-go v1.6.2
+	kubevirt.io/containerized-data-importer-api v1.63.1
 	kubevirt.io/qe-tools v0.1.8
 	kubevirt.io/virt-template-api v0.0.0-00010101000000-000000000000
 	kubevirt.io/virt-template-client-go v0.0.0-00010101000000-000000000000
@@ -367,7 +368,6 @@ require (
 	k8s.io/gengo/v2 v2.0.0-20250604051438-85fd79dbfd9f // indirect
 	k8s.io/kms v0.34.1 // indirect
 	k8s.io/kubectl v0.33.2 // indirect
-	kubevirt.io/containerized-data-importer-api v1.63.1 // indirect
 	kubevirt.io/controller-lifecycle-operator-sdk/api v0.2.4 // indirect
 	mvdan.cc/gofumpt v0.9.1 // indirect
 	mvdan.cc/unparam v0.0.0-20250301125049-0df0534333a4 // indirect
