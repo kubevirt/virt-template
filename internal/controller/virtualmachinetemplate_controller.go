@@ -25,9 +25,9 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/cluster-api/util/patch"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	logf "sigs.k8s.io/controller-runtime/pkg/log"
 
 	templateapi "kubevirt.io/virt-template-api/core"
 	"kubevirt.io/virt-template-api/core/v1alpha1"
@@ -39,8 +39,8 @@ type VirtualMachineTemplateReconciler struct {
 	Scheme *runtime.Scheme
 }
 
-// +kubebuilder:rbac:groups=template.kubevirt.io,resources=virtualmachinetemplates,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=template.kubevirt.io,resources=virtualmachinetemplates/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=template.kubevirt.io,resources=virtualmachinetemplates,verbs=get;list;watch
+// +kubebuilder:rbac:groups=template.kubevirt.io,resources=virtualmachinetemplates/status,verbs=get;patch
 // +kubebuilder:rbac:groups=template.kubevirt.io,resources=virtualmachinetemplates/finalizers,verbs=update
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
@@ -49,31 +49,25 @@ type VirtualMachineTemplateReconciler struct {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.21.0/pkg/reconcile
 func (r *VirtualMachineTemplateReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	log := logf.FromContext(ctx)
-
 	tpl := &v1alpha1.VirtualMachineTemplate{}
 	if err := r.Get(ctx, req.NamespacedName, tpl); err != nil {
-		log.Error(err, "unable to fetch VirtualMachineTemplate")
-		// we'll ignore not-found errors, since they can't be fixed by an immediate
-		// requeue (we'll need to wait for a new notification), and we can get them
-		// on deleted requests.
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	meta.SetStatusCondition(&tpl.Status.Conditions, metav1.Condition{
-		Type:               "Ready",
-		Status:             metav1.ConditionTrue,
-		ObservedGeneration: tpl.Generation,
-		Reason:             "TemplateReady",
-		Message:            "VirtualMachineTemplate is ready to be processed",
-	})
-
-	if err := r.Status().Update(ctx, tpl); err != nil {
-		log.Error(err, "unable to update VirtualMachineTemplate status")
+	helper, err := patch.NewHelper(tpl, r.Client)
+	if err != nil {
 		return ctrl.Result{}, err
 	}
 
-	return ctrl.Result{}, nil
+	meta.SetStatusCondition(&tpl.Status.Conditions, metav1.Condition{
+		Type:               v1alpha1.ConditionReady,
+		Status:             metav1.ConditionTrue,
+		ObservedGeneration: tpl.Generation,
+		Reason:             v1alpha1.ReasonReconciled,
+		Message:            "VirtualMachineTemplate is ready to be processed",
+	})
+
+	return ctrl.Result{}, helper.Patch(ctx, tpl)
 }
 
 // SetupWithManager sets up the controller with the Manager.

@@ -24,6 +24,8 @@ const (
 	GroupName            = "template.kubevirt.io"
 	SubresourceGroupName = "subresources.template.kubevirt.io"
 
-	SingularResourceName = "virtualmachinetemplate"
-	PluralResourceName   = SingularResourceName + "s"
+	SingularResourceName        = "virtualmachinetemplate"
+	PluralResourceName          = SingularResourceName + "s"
+	SingularRequestResourceName = "virtualmachinetemplaterequest"
+	PluralRequestResourceName   = SingularRequestResourceName + "s"
 )

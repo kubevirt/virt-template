@@ -32,6 +32,7 @@ import (
 type TemplateV1alpha1Interface interface {
 	RESTClient() rest.Interface
 	VirtualMachineTemplatesGetter
+	VirtualMachineTemplateRequestsGetter
 }
 
 // TemplateV1alpha1Client is used to interact with features provided by the template.kubevirt.io group.
@@ -41,6 +42,10 @@ type TemplateV1alpha1Client struct {
 
 func (c *TemplateV1alpha1Client) VirtualMachineTemplates(namespace string) VirtualMachineTemplateInterface {
 	return newVirtualMachineTemplates(c, namespace)
+}
+
+func (c *TemplateV1alpha1Client) VirtualMachineTemplateRequests(namespace string) VirtualMachineTemplateRequestInterface {
+	return newVirtualMachineTemplateRequests(c, namespace)
 }
 
 // NewForConfig creates a new TemplateV1alpha1Client for the given config.
