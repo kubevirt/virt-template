@@ -32113,7 +32113,7 @@ func schema_kubevirtio_virt_template_api_core_subresourcesv1alpha1_ProcessedVirt
 					},
 					"message": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Message is an optional instructional message the should inform the user how to utilize the newly created VirtualMachine. Optional.",
+							Description: "Message is an optional instructional message that should inform the user how to utilize the newly created VirtualMachine. Optional.",
 							Type:        []string{"string"},
 							Format:      "",
 						},

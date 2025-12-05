@@ -48,7 +48,7 @@ type VirtualMachineTemplateSpec struct {
 	//
 	// +kubebuilder:validation:Optional
 	// +optional
-	Message string `json:"message,omitempty,omitzero" protobuf:"bytes,3,opt,name=message"`
+	Message string `json:"message,omitempty" protobuf:"bytes,3,opt,name=message"`
 }
 
 // Parameter defines a name/value combination that is to be substituted during
@@ -66,13 +66,13 @@ type Parameter struct {
 	//
 	// +kubebuilder:validation:Optional
 	// +optional
-	DisplayName string `json:"displayName,omitempty,omitzero" protobuf:"bytes,2,opt,name=displayName"`
+	DisplayName string `json:"displayName,omitempty" protobuf:"bytes,2,opt,name=displayName"`
 
 	// Description is the description of the parameter. Optional.
 	//
 	// +kubebuilder:validation:Optional
 	// +optional
-	Description string `json:"description,omitempty,omitzero" protobuf:"bytes,3,opt,name=description"`
+	Description string `json:"description,omitempty" protobuf:"bytes,3,opt,name=description"`
 
 	// Value holds the value of the Parameter. If specified, a generator will be
 	// ignored. The value replaces all occurrences of the ${PARAMETER_NAME}
@@ -80,7 +80,7 @@ type Parameter struct {
 	//
 	// +kubebuilder:validation:Optional
 	// +optional
-	Value string `json:"value,omitempty,omitzero" protobuf:"bytes,4,opt,name=value"`
+	Value string `json:"value,omitempty" protobuf:"bytes,4,opt,name=value"`
 
 	// Generate specifies the generator to be used to generate a Value for this
 	// parameter. The From field can be used to provide input to this generator
@@ -111,14 +111,14 @@ type Parameter struct {
 	// +kubebuilder:validation:Enum=expression
 	// +kubebuilder:validation:Optional
 	// +optional
-	Generate string `json:"generate,omitempty,omitzero" protobuf:"bytes,5,opt,name=generate"`
+	Generate string `json:"generate,omitempty" protobuf:"bytes,5,opt,name=generate"`
 
 	// From is used as input for the generator specified in Generate. Optional.
 	//
 	// +kubebuilder:validation:Pattern=`\[([a-zA-Z0-9\-\\]+)\](\{(\w+)\})`
 	// +kubebuilder:validation:Optional
 	// +optional
-	From string `json:"from,omitempty,omitzero" protobuf:"bytes,6,opt,name=from"`
+	From string `json:"from,omitempty" protobuf:"bytes,6,opt,name=from"`
 
 	// Indicates that the parameter must have a Value or valid Generate and From values.
 	// Defaults to false. Optional.
