@@ -25,6 +25,7 @@ import (
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 
 	virtclientgoscheme "kubevirt.io/client-go/kubevirt/scheme"
+	cdiv1beta1 "kubevirt.io/containerized-data-importer-api/pkg/apis/core/v1beta1"
 
 	templatesubresourcesv1alpha1 "kubevirt.io/virt-template-api/core/subresourcesv1alpha1"
 	templatev1alpha1 "kubevirt.io/virt-template-api/core/v1alpha1"
@@ -35,6 +36,7 @@ func New() *runtime.Scheme {
 
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	utilruntime.Must(virtclientgoscheme.AddToScheme(scheme))
+	utilruntime.Must(cdiv1beta1.AddToScheme(scheme))
 
 	utilruntime.Must(templatesubresourcesv1alpha1.AddToScheme(scheme))
 	utilruntime.Must(templatev1alpha1.AddToScheme(scheme))

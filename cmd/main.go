@@ -28,12 +28,22 @@ import (
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/selection"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/metrics/filters"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
+
+	snapshotv1beta1 "kubevirt.io/api/snapshot/v1beta1"
+	"kubevirt.io/client-go/kubecli"
+	cdiv1beta1 "kubevirt.io/containerized-data-importer-api/pkg/apis/core/v1beta1"
+
+	"kubevirt.io/virt-template-api/core/v1alpha1"
 
 	"kubevirt.io/virt-template/internal/controller"
 	"kubevirt.io/virt-template/internal/scheme"
@@ -143,6 +153,12 @@ func main() {
 		metricsServerOptions.KeyName = metricsCertKey
 	}
 
+	uidSelector, err := getUIDSelector()
+	if err != nil {
+		setupLog.Error(err, "failed to create RequestUID selector")
+		os.Exit(1)
+	}
+
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:                 scheme.New(),
 		Metrics:                metricsServerOptions,
@@ -161,9 +177,32 @@ func main() {
 		// if you are doing or is intended to do any operation such as perform cleanups
 		// after the manager stops then its usage might be unsafe.
 		// LeaderElectionReleaseOnCancel: true,
+		Cache: cache.Options{
+			ByObject: map[client.Object]cache.ByObject{
+				&snapshotv1beta1.VirtualMachineSnapshot{}: {
+					Label: uidSelector,
+				},
+				&cdiv1beta1.DataVolume{}: {
+					Label: uidSelector,
+				},
+			},
+		},
+		Client: client.Options{
+			Cache: &client.CacheOptions{
+				DisableFor: []client.Object{
+					&snapshotv1beta1.VirtualMachineSnapshotContent{},
+				},
+			},
+		},
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
+		os.Exit(1)
+	}
+
+	virtClient, err := kubecli.GetKubevirtClientFromRESTConfig(mgr.GetConfig())
+	if err != nil {
+		setupLog.Error(err, "unable to create virtClient")
 		os.Exit(1)
 	}
 
@@ -175,8 +214,9 @@ func main() {
 		os.Exit(1)
 	}
 	if err := (&controller.VirtualMachineTemplateRequestReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
+		Client:     mgr.GetClient(),
+		VirtClient: virtClient,
+		Scheme:     mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "VirtualMachineTemplateRequest")
 		os.Exit(1)
@@ -203,4 +243,12 @@ func main() {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
 	}
+}
+
+func getUIDSelector() (labels.Selector, error) {
+	uidReq, err := labels.NewRequirement(v1alpha1.LabelRequestUID, selection.Exists, nil)
+	if err != nil {
+		return nil, err
+	}
+	return labels.NewSelector().Add(*uidReq), nil
 }

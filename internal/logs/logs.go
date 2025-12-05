@@ -17,20 +17,18 @@
  *
  */
 
-package v1alpha1
+package logs
 
-import templateapi "kubevirt.io/virt-template-api/core"
-
+// Log verbosity levels for use with log.V(level).
+// Higher values = more verbose/debug output.
+//
+// With controller-runtime's zap integration, use the --zap-log-level flag:
+//   - --zap-log-level=info  (or 0): Shows Info() calls only
+//   - --zap-log-level=debug (or 1): Shows DebugLevel V() logs
+//   - --zap-log-level=2:            Shows all V() logs up to TraceLevel
+//
+// Example: ./manager --zap-log-level=2 will show DebugLevel and TraceLevel.
 const (
-	FinalizerSnapshotCleanup = templateapi.GroupName + "/SnapshotCleanup"
-	LabelRequestUID          = templateapi.GroupName + "/RequestUID"
-
-	ConditionReady       = "Ready"
-	ConditionProgressing = "Progressing"
-
-	ReasonReconciled           = "Reconciled"
-	ReasonReconciling          = "Reconciling"
-	ReasonInvalidConfiguration = "InvalidConfiguration"
-	ReasonFailed               = "Failed"
-	ReasonWaiting              = "Waiting"
+	DebugLevel = 1
+	TraceLevel = 2
 )
