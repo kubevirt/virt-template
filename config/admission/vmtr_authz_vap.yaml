@@ -1,0 +1,55 @@
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
+metadata:
+  name: vmtr-authz
+spec:
+  failurePolicy: Fail
+  matchConstraints:
+    resourceRules:
+    - apiGroups:
+      - template.kubevirt.io
+      apiVersions:
+      - v1alpha1
+      operations:
+      - CREATE
+      resources:
+      - virtualmachinetemplaterequests
+  variables:
+  - name: sourceNS
+    expression: object.spec.virtualMachineRef.namespace
+  - name: targetNS
+    expression: object.metadata.namespace
+  validations:
+  # Source namespace checks
+  - expression: >-
+      authorizer.group('kubevirt.io').resource('virtualmachines').namespace(variables.sourceNS).check('get').allowed()
+    messageExpression: >-
+      'User is not allowed to get VirtualMachines in namespace ' + variables.sourceNS
+    reason: Forbidden
+  - expression: >-
+      authorizer.group('snapshot.kubevirt.io').resource('virtualmachinesnapshots').namespace(variables.sourceNS).check('create').allowed()
+    messageExpression: >-
+      'User is not allowed to create VirtualMachineSnapshots in namespace ' + variables.sourceNS
+    reason: Forbidden
+  - expression: >-
+      authorizer.group('snapshot.kubevirt.io').resource('virtualmachinesnapshotcontents').namespace(variables.sourceNS).check('get').allowed()
+    messageExpression: >-
+      'User is not allowed to get VirtualMachineSnapshotContents in namespace ' + variables.sourceNS
+    reason: Forbidden
+  - expression: >-
+      authorizer.group('subresources.kubevirt.io').resource('expand-vm-spec').namespace(variables.sourceNS).check('update').allowed()
+    messageExpression: >-
+      'User is not allowed to expand VM spec in namespace ' + variables.sourceNS
+    reason: Forbidden
+  # Target namespace checks
+  - expression: >-
+      authorizer.group('cdi.kubevirt.io').resource('datavolumes').namespace(variables.targetNS).check('create').allowed()
+    messageExpression: >-
+      'User is not allowed to create DataVolumes in namespace ' + variables.targetNS
+    reason: Forbidden
+  - expression: >-
+      authorizer.group('template.kubevirt.io').resource('virtualmachinetemplates').namespace(variables.targetNS).check('create').allowed()
+    messageExpression: >-
+      'User is not allowed to create VirtualMachineTemplates in namespace ' + variables.targetNS
+    reason: Forbidden

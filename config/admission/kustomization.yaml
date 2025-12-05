@@ -1,0 +1,3 @@
+resources:
+  - vmtr_authz_vap.yaml
+  - vmtr_authz_vapb.yaml
