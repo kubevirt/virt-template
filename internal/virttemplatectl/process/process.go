@@ -409,6 +409,14 @@ func (p *process) processLocal() (*virtv1.VirtualMachine, string, error) {
 		return nil, "", fmt.Errorf("error merging template parameters: %w", err)
 	}
 
+	warnings, errs := template.ValidateParameterReferences(tpl)
+	for _, w := range warnings {
+		p.cmd.PrintErrf("Warning: %s\n", w)
+	}
+	if len(errs) > 0 {
+		return nil, "", fmt.Errorf("error validating template parameters: %w", errs.ToAggregate())
+	}
+
 	vm, msg, pErr := template.GetDefaultProcessor().Process(tpl)
 	if pErr != nil {
 		return nil, "", fmt.Errorf("error processing VirtualMachineTemplate locally: %w", pErr)

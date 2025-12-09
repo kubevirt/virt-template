@@ -57,6 +57,9 @@ const (
 	param2Name        = "PREFERENCE"
 	param2Placeholder = "${PREFERENCE}"
 	param2Val         = "fedora"
+	param3Name        = "COUNT"
+	param3Placeholder = "${COUNT}"
+	param3Val         = "2"
 
 	nameFlag        = "name"
 	fileFlag        = "file"
@@ -177,6 +180,82 @@ var _ = Describe("Process command", func() {
 				setFlag(paramsFileFlag, file),
 			)
 			Expect(err).To(MatchError(ContainSubstring("error reading params file")))
+		})
+
+		It("should fail when template contains undefined parameter reference", func() {
+			tpl := newVirtualMachineTemplateWithSpec(
+				&v1alpha1.VirtualMachineTemplateSpec{
+					Parameters: []v1alpha1.Parameter{
+						{
+							Name: param1Name,
+						},
+					},
+					VirtualMachine: &runtime.RawExtension{
+						Raw: []byte(`{"metadata":{"name":"${NAME}"},"spec":{"preference":{"name":"${PREFERENCE}"}}}`),
+					},
+				},
+			)
+			Expect(os.WriteFile(file, marshalYAML(tpl), 0o600)).To(Succeed())
+
+			_, err := runCmd(
+				setFlag(fileFlag, file),
+				setParamFlag(param1Name, param1Val),
+			)
+			Expect(err).To(MatchError(ContainSubstring("references undefined parameter PREFERENCE")))
+		})
+
+		It("should warn when template contains unused parameter", func() {
+			tpl := newVirtualMachineTemplateWithSpec(
+				&v1alpha1.VirtualMachineTemplateSpec{
+					Parameters: []v1alpha1.Parameter{
+						{
+							Name: param1Name,
+						},
+						{
+							Name: param2Name,
+						},
+					},
+					VirtualMachine: &runtime.RawExtension{
+						Raw: []byte(`{"metadata":{"name":"${NAME}"}}`),
+					},
+				},
+			)
+			Expect(os.WriteFile(file, marshalYAML(tpl), 0o600)).To(Succeed())
+
+			out, errOut, err := runCmdWithErr(
+				setFlag(fileFlag, file),
+				setParamFlag(param1Name, param1Val),
+				setParamFlag(param2Name, param2Val),
+			)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(string(errOut)).To(ContainSubstring("PREFERENCE is defined but never referenced"))
+
+			var vm virtv1.VirtualMachine
+			Expect(yaml.Unmarshal(out, &vm)).To(Succeed())
+			Expect(vm.Name).To(Equal(param1Val))
+		})
+
+		It("should fail and warn when template contains both undefined and unused parameters", func() {
+			tpl := newVirtualMachineTemplateWithSpec(
+				&v1alpha1.VirtualMachineTemplateSpec{
+					Parameters: []v1alpha1.Parameter{
+						{
+							Name: param1Name,
+						},
+						{
+							Name: param3Name,
+						},
+					},
+					VirtualMachine: &runtime.RawExtension{
+						Raw: []byte(`{"metadata":{"name":"${NAME}"},"spec":{"preference":{"name":"${PREFERENCE}"}}}`),
+					},
+				},
+			)
+			Expect(os.WriteFile(file, marshalYAML(tpl), 0o600)).To(Succeed())
+
+			_, errOut, err := runCmdWithErr(setFlag(fileFlag, file))
+			Expect(err).To(MatchError(ContainSubstring("references undefined parameter PREFERENCE")))
+			Expect(string(errOut)).To(ContainSubstring("COUNT is defined but never referenced"))
 		})
 	})
 
@@ -474,6 +553,11 @@ func runCmd(extraArgs ...string) ([]byte, error) {
 	return testing.NewRepeatableVirttemplatectlCommandWithOut(args...)()
 }
 
+func runCmdWithErr(extraArgs ...string) (out, errOut []byte, err error) {
+	args := append([]string{"process"}, extraArgs...)
+	return testing.NewRepeatableVirttemplatectlCommandWithOutAndErr(args...)()
+}
+
 func marshalYAML(obj any) []byte {
 	data, err := yaml.Marshal(obj)
 	ExpectWithOffset(1, err).ToNot(HaveOccurred())
@@ -490,7 +574,7 @@ func unmarshalYAML(data []byte, out any) error {
 	return yaml.Unmarshal(data, out)
 }
 
-func newVirtualMachineTemplate() *v1alpha1.VirtualMachineTemplate {
+func newVirtualMachineTemplateWithSpec(spec *v1alpha1.VirtualMachineTemplateSpec) *v1alpha1.VirtualMachineTemplate {
 	return &v1alpha1.VirtualMachineTemplate{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: v1alpha1.GroupVersion.String(),
@@ -500,7 +584,13 @@ func newVirtualMachineTemplate() *v1alpha1.VirtualMachineTemplate {
 			Name:      "test-template",
 			Namespace: metav1.NamespaceDefault,
 		},
-		Spec: v1alpha1.VirtualMachineTemplateSpec{
+		Spec: *spec,
+	}
+}
+
+func newVirtualMachineTemplate() *v1alpha1.VirtualMachineTemplate {
+	return newVirtualMachineTemplateWithSpec(
+		&v1alpha1.VirtualMachineTemplateSpec{
 			Parameters: []v1alpha1.Parameter{
 				{
 					Name: param1Name,
@@ -531,5 +621,5 @@ func newVirtualMachineTemplate() *v1alpha1.VirtualMachineTemplate {
 				},
 			},
 		},
-	}
+	)
 }

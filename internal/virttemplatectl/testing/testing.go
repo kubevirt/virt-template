@@ -43,3 +43,16 @@ func NewRepeatableVirttemplatectlCommandWithOut(args ...string) func() ([]byte, 
 		return out.Bytes(), err
 	}
 }
+
+func NewRepeatableVirttemplatectlCommandWithOutAndErr(args ...string) func() (out, errOut []byte, err error) {
+	return func() ([]byte, []byte, error) {
+		out := &bytes.Buffer{}
+		errOut := &bytes.Buffer{}
+		cmd := virttemplattectl.NewVirtctlCommand()
+		cmd.SetArgs(args)
+		cmd.SetOut(out)
+		cmd.SetErr(errOut)
+		err := cmd.Execute()
+		return out.Bytes(), errOut.Bytes(), err
+	}
+}
