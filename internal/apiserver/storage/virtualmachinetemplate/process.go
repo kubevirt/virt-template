@@ -34,6 +34,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/apiserver/pkg/endpoints/request"
 	"k8s.io/apiserver/pkg/registry/rest"
+	"k8s.io/apiserver/pkg/warning"
 	"k8s.io/klog/v2"
 
 	virtv1 "kubevirt.io/api/core/v1"
@@ -132,6 +133,14 @@ func processTemplate(
 			Group:    tpl.GroupVersionKind().Group,
 			Resource: tpl.Kind,
 		}, id, err)
+	}
+
+	warnings, errs := template.ValidateParameterReferences(tpl)
+	for _, w := range warnings {
+		warning.AddWarning(ctx, "", w)
+	}
+	if len(errs) > 0 {
+		return nil, apierrors.NewInvalid(tpl.GroupVersionKind().GroupKind(), id, errs)
 	}
 
 	vm, msg, pErr := processor.Process(tpl)
