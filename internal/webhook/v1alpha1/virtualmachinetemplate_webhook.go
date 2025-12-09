@@ -25,15 +25,13 @@ import (
 
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
-	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	templatev1alpha1 "kubevirt.io/virt-template-api/core/v1alpha1"
-)
 
-// log is for logging in this package.
-var virtualmachinetemplatelog = logf.Log.WithName("virtualmachinetemplate-resource")
+	"kubevirt.io/virt-template/internal/template"
+)
 
 // SetupVirtualMachineTemplateWebhookWithManager registers the webhook for VirtualMachineTemplate in the manager.
 func SetupVirtualMachineTemplateWebhookWithManager(mgr ctrl.Manager) error {
@@ -42,9 +40,6 @@ func SetupVirtualMachineTemplateWebhookWithManager(mgr ctrl.Manager) error {
 		Complete()
 }
 
-// TODO(user): EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-
-// TODO(user): change verbs to "verbs=create;update;delete" if you want to enable deletion validation.
 // NOTE: The 'path' attribute must follow a specific pattern and should not be modified directly here.
 // Modifying the path for an invalid path can cause API server errors; failing to locate the webhook.
 //nolint:lll
@@ -52,12 +47,7 @@ func SetupVirtualMachineTemplateWebhookWithManager(mgr ctrl.Manager) error {
 
 // VirtualMachineTemplateCustomValidator struct is responsible for validating the VirtualMachineTemplate resource
 // when it is created, updated, or deleted.
-//
-// NOTE: The +kubebuilder:object:generate=false marker prevents controller-gen from generating DeepCopy methods,
-// as this struct is used only for temporary operations and does not need to be deeply copied.
-type VirtualMachineTemplateCustomValidator struct {
-	// TODO(user): Add more fields as needed for validation
-}
+type VirtualMachineTemplateCustomValidator struct{}
 
 var _ webhook.CustomValidator = &VirtualMachineTemplateCustomValidator{}
 
@@ -67,39 +57,31 @@ func (v *VirtualMachineTemplateCustomValidator) ValidateCreate(_ context.Context
 	if !ok {
 		return nil, fmt.Errorf("expected a VirtualMachineTemplate object but got %T", obj)
 	}
-	virtualmachinetemplatelog.Info("Validation for VirtualMachineTemplate upon creation", "name", virtualmachinetemplate.GetName())
 
-	// TODO(user): fill in your validation logic upon object creation.
+	warnings, errs := template.ValidateParameterReferences(virtualmachinetemplate)
+	if len(errs) > 0 {
+		return warnings, errs.ToAggregate()
+	}
 
-	return nil, nil
+	return warnings, nil
 }
 
 // ValidateUpdate implements webhook.CustomValidator so a webhook will be registered for the type VirtualMachineTemplate.
-func (v *VirtualMachineTemplateCustomValidator) ValidateUpdate(
-	_ context.Context,
-	oldObj,
-	newObj runtime.Object,
-) (admission.Warnings, error) {
+func (v *VirtualMachineTemplateCustomValidator) ValidateUpdate(_ context.Context, _, newObj runtime.Object) (admission.Warnings, error) {
 	virtualmachinetemplate, ok := newObj.(*templatev1alpha1.VirtualMachineTemplate)
 	if !ok {
 		return nil, fmt.Errorf("expected a VirtualMachineTemplate object for the newObj but got %T", newObj)
 	}
-	virtualmachinetemplatelog.Info("Validation for VirtualMachineTemplate upon update", "name", virtualmachinetemplate.GetName())
 
-	// TODO(user): fill in your validation logic upon object update.
+	warnings, errs := template.ValidateParameterReferences(virtualmachinetemplate)
+	if len(errs) > 0 {
+		return warnings, errs.ToAggregate()
+	}
 
-	return nil, nil
+	return warnings, nil
 }
 
 // ValidateDelete implements webhook.CustomValidator so a webhook will be registered for the type VirtualMachineTemplate.
-func (v *VirtualMachineTemplateCustomValidator) ValidateDelete(ctx context.Context, obj runtime.Object) (admission.Warnings, error) {
-	virtualmachinetemplate, ok := obj.(*templatev1alpha1.VirtualMachineTemplate)
-	if !ok {
-		return nil, fmt.Errorf("expected a VirtualMachineTemplate object but got %T", obj)
-	}
-	virtualmachinetemplatelog.Info("Validation for VirtualMachineTemplate upon deletion", "name", virtualmachinetemplate.GetName())
-
-	// TODO(user): fill in your validation logic upon object deletion.
-
+func (v *VirtualMachineTemplateCustomValidator) ValidateDelete(_ context.Context, _ runtime.Object) (admission.Warnings, error) {
 	return nil, nil
 }

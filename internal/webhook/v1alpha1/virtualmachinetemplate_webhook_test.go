@@ -17,57 +17,156 @@
  *
  */
 
-package v1alpha1
+package v1alpha1_test
 
 import (
+	"context"
+
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	templatev1alpha1 "kubevirt.io/virt-template-api/core/v1alpha1"
-	// TODO (user): Add any additional imports if needed
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
+
+	"kubevirt.io/virt-template-api/core/v1alpha1"
+
+	webhookv1alpha1 "kubevirt.io/virt-template/internal/webhook/v1alpha1"
 )
 
 var _ = Describe("VirtualMachineTemplate Webhook", func() {
-	var (
-		obj       *templatev1alpha1.VirtualMachineTemplate
-		oldObj    *templatev1alpha1.VirtualMachineTemplate
-		validator VirtualMachineTemplateCustomValidator
+	const (
+		param1Name = "NAME"
+		param2Name = "PREFERENCE"
+		param3Name = "COUNT"
 	)
 
+	var validator webhookv1alpha1.VirtualMachineTemplateCustomValidator
+
 	BeforeEach(func() {
-		obj = &templatev1alpha1.VirtualMachineTemplate{}
-		oldObj = &templatev1alpha1.VirtualMachineTemplate{}
-		validator = VirtualMachineTemplateCustomValidator{}
-		Expect(validator).NotTo(BeNil(), "Expected validator to be initialized")
-		Expect(oldObj).NotTo(BeNil(), "Expected oldObj to be initialized")
-		Expect(obj).NotTo(BeNil(), "Expected obj to be initialized")
-		// TODO (user): Add any setup logic common to all tests
+		validator = webhookv1alpha1.VirtualMachineTemplateCustomValidator{}
 	})
 
-	AfterEach(func() {
-		// TODO (user): Add any teardown logic common to all tests
-	})
+	validateOnCreate := func(tpl *v1alpha1.VirtualMachineTemplate) (admission.Warnings, error) {
+		return validator.ValidateCreate(context.Background(), tpl)
+	}
 
-	Context("When creating or updating VirtualMachineTemplate under Validating Webhook", func() {
-		// TODO (user): Add logic for validating webhooks
-		// Example:
-		// It("Should deny creation if a required field is missing", func() {
-		//     By("simulating an invalid creation scenario")
-		//     obj.SomeRequiredField = ""
-		//     Expect(validator.ValidateCreate(ctx, obj)).Error().To(HaveOccurred())
-		// })
-		//
-		// It("Should admit creation if all required fields are present", func() {
-		//     By("simulating an invalid creation scenario")
-		//     obj.SomeRequiredField = "valid_value"
-		//     Expect(validator.ValidateCreate(ctx, obj)).To(BeNil())
-		// })
-		//
-		// It("Should validate updates correctly", func() {
-		//     By("simulating a valid update scenario")
-		//     oldObj.SomeRequiredField = "updated_value"
-		//     obj.SomeRequiredField = "updated_value"
-		//     Expect(validator.ValidateUpdate(ctx, oldObj, obj)).To(BeNil())
-		// })
-	})
+	validateOnUpdate := func(tpl *v1alpha1.VirtualMachineTemplate) (admission.Warnings, error) {
+		return validator.ValidateUpdate(context.Background(), nil, tpl)
+	}
+
+	DescribeTable("should accept a template with all parameters referenced",
+		func(validate func(tpl *v1alpha1.VirtualMachineTemplate) (admission.Warnings, error)) {
+			tpl := newVirtualMachineTemplateWithSpec(
+				&v1alpha1.VirtualMachineTemplateSpec{
+					Parameters: []v1alpha1.Parameter{
+						{
+							Name: param1Name,
+						},
+						{
+							Name: param2Name,
+						},
+					},
+					VirtualMachine: &runtime.RawExtension{
+						Raw: []byte(`{"metadata":{"name":"${NAME}"},"spec":{"preference":{"name":"${PREFERENCE}"}}}`),
+					},
+				},
+			)
+
+			warnings, err := validate(tpl)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(warnings).To(BeEmpty())
+		},
+		Entry("on create", validateOnCreate),
+		Entry("on update", validateOnUpdate),
+	)
+
+	DescribeTable("should reject a template with undefined parameter reference",
+		func(validate func(tpl *v1alpha1.VirtualMachineTemplate) (admission.Warnings, error)) {
+			tpl := newVirtualMachineTemplateWithSpec(
+				&v1alpha1.VirtualMachineTemplateSpec{
+					Parameters: []v1alpha1.Parameter{
+						{
+							Name: param1Name,
+						},
+					},
+					VirtualMachine: &runtime.RawExtension{
+						Raw: []byte(`{"metadata":{"name":"${NAME}"},"spec":{"preference":{"name":"${PREFERENCE}"}}}`),
+					},
+				},
+			)
+
+			warnings, err := validate(tpl)
+			Expect(err).To(MatchError(ContainSubstring("references undefined parameter PREFERENCE")))
+			Expect(warnings).To(BeEmpty())
+		},
+		Entry("on create", validateOnCreate),
+		Entry("on update", validateOnUpdate),
+	)
+
+	DescribeTable("should warn about unused parameter",
+		func(validate func(tpl *v1alpha1.VirtualMachineTemplate) (admission.Warnings, error)) {
+			tpl := newVirtualMachineTemplateWithSpec(
+				&v1alpha1.VirtualMachineTemplateSpec{
+					Parameters: []v1alpha1.Parameter{
+						{
+							Name: param1Name,
+						},
+						{
+							Name: param2Name,
+						},
+					},
+					VirtualMachine: &runtime.RawExtension{
+						Raw: []byte(`{"metadata":{"name":"${NAME}"}}`),
+					},
+				},
+			)
+
+			warnings, err := validate(tpl)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(warnings).To(ConsistOf(ContainSubstring("PREFERENCE is defined but never referenced")))
+		},
+		Entry("on create", validateOnCreate),
+		Entry("on update", validateOnUpdate),
+	)
+
+	DescribeTable("should reject and warn for template with both undefined and unused parameters",
+		func(validate func(tpl *v1alpha1.VirtualMachineTemplate) (admission.Warnings, error)) {
+			tpl := newVirtualMachineTemplateWithSpec(
+				&v1alpha1.VirtualMachineTemplateSpec{
+					Parameters: []v1alpha1.Parameter{
+						{
+							Name: param1Name,
+						},
+						{
+							Name: param3Name,
+						},
+					},
+					VirtualMachine: &runtime.RawExtension{
+						Raw: []byte(`{"metadata":{"name":"${NAME}"},"spec":{"preference":{"name":"${PREFERENCE}"}}}`),
+					},
+				},
+			)
+
+			warnings, err := validate(tpl)
+			Expect(err).To(MatchError(ContainSubstring("references undefined parameter PREFERENCE")))
+			Expect(warnings).To(ConsistOf(ContainSubstring("COUNT is defined but never referenced")))
+		},
+		Entry("on create", validateOnCreate),
+		Entry("on update", validateOnUpdate),
+	)
 })
+
+func newVirtualMachineTemplateWithSpec(spec *v1alpha1.VirtualMachineTemplateSpec) *v1alpha1.VirtualMachineTemplate {
+	return &v1alpha1.VirtualMachineTemplate{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: v1alpha1.GroupVersion.String(),
+			Kind:       "VirtualMachineTemplate",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-template",
+			Namespace: metav1.NamespaceDefault,
+		},
+		Spec: *spec,
+	}
+}
