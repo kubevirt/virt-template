@@ -484,4 +484,133 @@ var _ = Describe("Template", func() {
 			})
 		})
 	})
+
+	Describe("collectReferencedParameters", func() {
+		It("should extract single ${KEY} parameter", func() {
+			params := collectReferencedParameters(param1Placeholder)
+			Expect(params).To(HaveLen(1))
+			Expect(params).To(HaveKey(param1Name))
+		})
+
+		It("should extract single ${{KEY}} parameter", func() {
+			params := collectReferencedParameters(param3Placeholder)
+			Expect(params).To(HaveLen(1))
+			Expect(params).To(HaveKey(param3Name))
+		})
+
+		It("should extract multiple ${KEY} parameters", func() {
+			params := collectReferencedParameters(param1Placeholder + "-" + param2Placeholder)
+			Expect(params).To(HaveLen(2))
+			Expect(params).To(HaveKey(param1Name))
+			Expect(params).To(HaveKey(param2Name))
+		})
+
+		It("should extract same parameter referenced multiple times", func() {
+			params := collectReferencedParameters(param1Placeholder + "-" + param1Placeholder)
+			Expect(params).To(HaveLen(1))
+			Expect(params).To(HaveKey(param1Name))
+		})
+
+		It("should handle string with no parameters", func() {
+			params := collectReferencedParameters("no-params-here")
+			Expect(params).To(BeEmpty())
+		})
+
+		It("should handle empty string", func() {
+			params := collectReferencedParameters("")
+			Expect(params).To(BeEmpty())
+		})
+	})
+
+	Describe("collectAllReferencedParameters", func() {
+		It("should collect parameters from unstructured object", func() {
+			obj := &unstructured.Unstructured{
+				Object: map[string]any{
+					"metadata": map[string]any{
+						"name": param1Placeholder,
+					},
+					"spec": map[string]any{
+						"preference": map[string]any{
+							"name": param2Placeholder,
+						},
+					},
+				},
+			}
+
+			params, err := collectAllReferencedParameters(obj)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(params).To(HaveLen(2))
+			Expect(params).To(HaveKey(param1Name))
+			Expect(params).To(HaveKey(param2Name))
+		})
+
+		It("should collect parameters from VirtualMachine object", func() {
+			vm := &virtv1.VirtualMachine{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: param1Placeholder,
+				},
+				Spec: virtv1.VirtualMachineSpec{
+					Preference: &virtv1.PreferenceMatcher{
+						Name: param2Placeholder,
+					},
+				},
+			}
+
+			params, err := collectAllReferencedParameters(vm)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(params).To(HaveLen(2))
+			Expect(params).To(HaveKey(param1Name))
+			Expect(params).To(HaveKey(param2Name))
+		})
+
+		It("should collect both ${} and ${{}} parameters", func() {
+			obj := &unstructured.Unstructured{
+				Object: map[string]any{
+					"apiVersion": "kubevirt.io/v1",
+					"kind":       "VirtualMachine",
+					"metadata": map[string]any{
+						"name": param1Placeholder,
+					},
+					"spec": map[string]any{
+						"instancetype": map[string]any{
+							"name": param2Placeholder,
+						},
+						"template": map[string]any{
+							"spec": map[string]any{
+								"domain": map[string]any{
+									"cpu": map[string]any{
+										param4Placeholder:       param3Placeholder,
+										"isolateEmulatorThread": param5Placeholder,
+									},
+								},
+							},
+						},
+					},
+				},
+			}
+
+			params, err := collectAllReferencedParameters(obj)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(params).To(HaveLen(5))
+			Expect(params).To(HaveKey(param1Name))
+			Expect(params).To(HaveKey(param2Name))
+			Expect(params).To(HaveKey(param3Name))
+			Expect(params).To(HaveKey(param4Name))
+			Expect(params).To(HaveKey(param5Name))
+		})
+
+		It("should handle object with no parameters", func() {
+			obj := &unstructured.Unstructured{
+				Object: map[string]any{
+					"metadata": map[string]any{
+						"name": "static-name",
+					},
+				},
+			}
+
+			params, err := collectAllReferencedParameters(obj)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(params).To(BeEmpty())
+		})
+	})
 })
