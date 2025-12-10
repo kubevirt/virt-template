@@ -20,17 +20,18 @@
 package apimachinery
 
 import (
-	"crypto/sha256"
 	"fmt"
+	"hash/fnv"
 	"strings"
 
 	"k8s.io/apimachinery/pkg/util/validation"
 )
 
 const (
-	// Reserve 10 chars for the hash + 1 char for the separator ('-')
-	hashLength             = 10
-	maxGeneratedNameLength = validation.DNS1035LabelMaxLength - hashLength - 1
+	// FNV-32a produces a 32-bit integer, which renders as 8 hex characters.
+	// Reserve 8 chars for the hash + 1 char for the separator ('-')
+	HashLength             = 8
+	MaxGeneratedNameLength = validation.DNS1035LabelMaxLength - HashLength - 1
 )
 
 // GetStableName generates a deterministic name based on a base string and additional inputs.
@@ -42,8 +43,8 @@ func GetStableName(base string, inputs ...string) string {
 		base = "x-" + base
 	}
 
-	if len(base) > maxGeneratedNameLength {
-		base = base[:maxGeneratedNameLength]
+	if len(base) > MaxGeneratedNameLength {
+		base = base[:MaxGeneratedNameLength]
 	}
 
 	// Ensure we don't end with a hyphen after truncation
@@ -59,10 +60,14 @@ func GetStableName(base string, inputs ...string) string {
 }
 
 func computeHash(base string, inputs []string) string {
-	hasher := sha256.New()
-	hasher.Write([]byte(base))
+	hasher := fnv.New32a()
+
+	// FNV writes never return an error, so we can ignore it safely
+	_, _ = hasher.Write([]byte(base))
 	for _, input := range inputs {
-		hasher.Write([]byte(input))
+		_, _ = hasher.Write([]byte(input))
 	}
-	return fmt.Sprintf("%x", hasher.Sum(nil))[:hashLength]
+
+	// To ensure consistent length even with leading zeros (e.g., 000a1b2c), we use %08x.
+	return fmt.Sprintf("%08x", hasher.Sum32())
 }

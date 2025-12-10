@@ -81,12 +81,12 @@ var _ = Describe("GetStableName", func() {
 		Expect(len(name)).To(BeNumerically("<=", validation.DNS1035LabelMaxLength))
 		Expect(validation.IsDNS1035Label(name)).To(BeEmpty())
 	},
-		Entry("base at max length", strings.Repeat("a", 52)),
+		Entry("base at max length", strings.Repeat("a", apimachinery.MaxGeneratedNameLength)),
 		Entry("base exceeding max length", strings.Repeat("b", 100)),
 	)
 
 	It("should remove trailing hyphens after truncation", func() {
-		base := strings.Repeat("a", 51) + "-"
+		base := strings.Repeat("a", apimachinery.MaxGeneratedNameLength-1) + "-"
 		name := apimachinery.GetStableName(base, input1)
 		Expect(name).ToNot(ContainSubstring("--"))
 		Expect(validation.IsDNS1035Label(name)).To(BeEmpty())
@@ -126,7 +126,7 @@ var _ = Describe("GetStableName", func() {
 		name := apimachinery.GetStableName(myResource, input1)
 		parts := strings.Split(name, "-")
 		Expect(parts).To(HaveLen(3))
-		Expect(parts[2]).To(HaveLen(10))
+		Expect(parts[2]).To(HaveLen(apimachinery.HashLength))
 	})
 
 	DescribeTable("should generate valid DNS-1035 labels for edge cases", func(base string, inputs ...string) {
