@@ -37,21 +37,11 @@ import (
 	virtv1 "kubevirt.io/api/core/v1"
 	cdiv1beta1 "kubevirt.io/containerized-data-importer-api/pkg/apis/core/v1beta1"
 
-	templatesubresourcesv1alpha1 "kubevirt.io/virt-template-api/core/subresourcesv1alpha1"
-	templatev1alpha1 "kubevirt.io/virt-template-api/core/v1alpha1"
-	templateclient "kubevirt.io/virt-template-client-go/virttemplate"
+	"kubevirt.io/virt-template-api/core/subresourcesv1alpha1"
+	"kubevirt.io/virt-template-api/core/v1alpha1"
 )
 
 var _ = Describe("VirtualMachineTemplateRequest", func() {
-	var tplClient templateclient.Interface
-
-	BeforeEach(func() {
-		var err error
-
-		tplClient, err = templateclient.NewForConfig(virtClient.Config())
-		Expect(err).NotTo(HaveOccurred())
-	})
-
 	It("should create a VirtualMachineTemplate from an existing VirtualMachine", func() {
 		vm, err := virtClient.VirtualMachine(NamespaceSecondaryTest).Create(context.Background(), newVM(), metav1.CreateOptions{})
 		Expect(err).ToNot(HaveOccurred())
@@ -62,13 +52,13 @@ var _ = Describe("VirtualMachineTemplateRequest", func() {
 			g.Expect(vm.Status.Ready).To(BeTrue())
 		}, 5*time.Minute, 1*time.Second).Should(Succeed())
 
-		tplReq := &templatev1alpha1.VirtualMachineTemplateRequest{
+		tplReq := &v1alpha1.VirtualMachineTemplateRequest{
 			ObjectMeta: metav1.ObjectMeta{
 				GenerateName: "virt-template-",
 				Namespace:    NamespaceTest,
 			},
-			Spec: templatev1alpha1.VirtualMachineTemplateRequestSpec{
-				VirtualMachineRef: templatev1alpha1.VirtualMachineReference{
+			Spec: v1alpha1.VirtualMachineTemplateRequestSpec{
+				VirtualMachineRef: v1alpha1.VirtualMachineReference{
 					Namespace: vm.Namespace,
 					Name:      vm.Name,
 				},
@@ -83,7 +73,7 @@ var _ = Describe("VirtualMachineTemplateRequest", func() {
 			tplReq, err = tplClient.TemplateV1alpha1().VirtualMachineTemplateRequests(NamespaceTest).
 				Get(context.Background(), tplReq.Name, metav1.GetOptions{})
 			g.Expect(err).ToNot(HaveOccurred())
-			cond := meta.FindStatusCondition(tplReq.Status.Conditions, templatev1alpha1.ConditionReady)
+			cond := meta.FindStatusCondition(tplReq.Status.Conditions, v1alpha1.ConditionReady)
 			g.Expect(cond).ToNot(BeNil())
 			g.Expect(cond.Status).To(Equal(metav1.ConditionTrue))
 		}, 5*time.Minute, 1*time.Second).Should(Succeed())
@@ -95,7 +85,7 @@ var _ = Describe("VirtualMachineTemplateRequest", func() {
 		name := "my-created-vm-" + rand.String(5)
 		processedVM, err := tplClient.TemplateV1alpha1().VirtualMachineTemplates(NamespaceTest).CreateVirtualMachine(
 			context.Background(), tpl.Name,
-			templatesubresourcesv1alpha1.ProcessOptions{
+			subresourcesv1alpha1.ProcessOptions{
 				Parameters: map[string]string{
 					"NAME": name,
 				},

@@ -35,6 +35,8 @@ import (
 
 	"kubevirt.io/client-go/kubecli"
 	qe_reporters "kubevirt.io/qe-tools/pkg/ginkgo-reporters"
+
+	templateclient "kubevirt.io/virt-template-client-go/virttemplate"
 )
 
 const (
@@ -44,6 +46,7 @@ const (
 
 var (
 	virtClient kubecli.KubevirtClient
+	tplClient  templateclient.Interface
 
 	afterSuiteReporters []Reporter
 )
@@ -58,6 +61,9 @@ var _ = BeforeSuite(func() {
 	Expect(err).NotTo(HaveOccurred())
 
 	virtClient, err = kubecli.GetKubevirtClientFromRESTConfig(config)
+	Expect(err).NotTo(HaveOccurred())
+
+	tplClient, err = templateclient.NewForConfig(virtClient.Config())
 	Expect(err).NotTo(HaveOccurred())
 
 	namespaceTest := &corev1.Namespace{
