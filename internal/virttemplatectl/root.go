@@ -34,6 +34,7 @@ import (
 
 	"kubevirt.io/virt-template/internal/virttemplatectl/clientconfig"
 	"kubevirt.io/virt-template/internal/virttemplatectl/convert"
+	"kubevirt.io/virt-template/internal/virttemplatectl/create"
 	"kubevirt.io/virt-template/internal/virttemplatectl/process"
 	"kubevirt.io/virt-template/internal/virttemplatectl/templates"
 )
@@ -101,6 +102,7 @@ func NewVirttemplatectlCommandFn() *cobra.Command {
 		optionsCmd,
 		process.NewProcessCommand(),
 		convert.NewConvertCommand(),
+		create.NewCreateCommand(),
 	)
 
 	return rootCmd
