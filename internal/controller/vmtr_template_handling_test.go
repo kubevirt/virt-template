@@ -63,7 +63,7 @@ var _ = Describe("VirtualMachineTemplateRequest Controller VirtualMachineTemplat
 	It("should fail when VirtualMachineSnapshotContent has no source VirtualMachine", func() {
 		tplReq := createRequest(k8sClient, testNamespace, testVMNamespace)
 		snap := createSnapshot(k8sClient, tplReq)
-		snap = setSnapshotStatus(k8sClient, snap, snapshotv1beta1.Succeeded, true, false)
+		snap = setSnapshotStatus(k8sClient, snap, withPhase(snapshotv1beta1.Succeeded), withReady())
 		snapContent := createSnapshotContent(k8sClient, snap)
 		snapContent.Spec.Source.VirtualMachine = nil
 		Expect(k8sClient.Update(context.Background(), snapContent)).To(Succeed())
@@ -88,7 +88,7 @@ var _ = Describe("VirtualMachineTemplateRequest Controller VirtualMachineTemplat
 
 		tplReq := createRequest(k8sClient, testNamespace, testVMNamespace)
 		snap := createSnapshot(k8sClient, tplReq)
-		snap = setSnapshotStatus(k8sClient, snap, snapshotv1beta1.Succeeded, true, false)
+		snap = setSnapshotStatus(k8sClient, snap, withPhase(snapshotv1beta1.Succeeded), withReady())
 		snapContent := createSnapshotContent(k8sClient, snap)
 		setSnapshotContentStatus(k8sClient, snapContent, true)
 		dv := createDataVolume(k8sClient, tplReq)
@@ -138,7 +138,7 @@ var _ = Describe("VirtualMachineTemplateRequest Controller VirtualMachineTemplat
 		}
 		Expect(k8sClient.Create(context.Background(), tplReq)).To(Succeed())
 		snap := createSnapshot(k8sClient, tplReq)
-		snap = setSnapshotStatus(k8sClient, snap, snapshotv1beta1.Succeeded, true, false)
+		snap = setSnapshotStatus(k8sClient, snap, withPhase(snapshotv1beta1.Succeeded), withReady())
 		snapContent := createSnapshotContent(k8sClient, snap)
 		setSnapshotContentStatus(k8sClient, snapContent, true)
 		dv := createDataVolume(k8sClient, tplReq)
@@ -199,7 +199,7 @@ var _ = Describe("VirtualMachineTemplateRequest Controller VirtualMachineTemplat
 	It("should transform existing DataVolumeTemplate instead of adding new one", func() {
 		tplReq := createRequest(k8sClient, testNamespace, testVMNamespace)
 		snap := createSnapshot(k8sClient, tplReq)
-		snap = setSnapshotStatus(k8sClient, snap, snapshotv1beta1.Succeeded, true, false)
+		snap = setSnapshotStatus(k8sClient, snap, withPhase(snapshotv1beta1.Succeeded), withReady())
 		snapContent := createSnapshotContent(k8sClient, snap)
 
 		// Use separate names for Volume and DataVolume to verify correct matching
@@ -462,7 +462,7 @@ type testPipeline struct {
 func setupTestPipeline(cli client.Client, testNamespace, testVMNamespace string) *testPipeline {
 	tplReq := createRequest(cli, testNamespace, testVMNamespace)
 	snap := createSnapshot(cli, tplReq)
-	snap = setSnapshotStatus(cli, snap, snapshotv1beta1.Succeeded, true, false)
+	snap = setSnapshotStatus(cli, snap, withPhase(snapshotv1beta1.Succeeded), withReady())
 	snapContent := createSnapshotContent(cli, snap)
 	snapContent = setSnapshotContentStatus(cli, snapContent, true)
 	dv := createDataVolume(cli, tplReq)

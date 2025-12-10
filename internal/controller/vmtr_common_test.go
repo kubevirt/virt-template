@@ -108,32 +108,66 @@ func createSnapshot(
 	return snap
 }
 
+type snapshotStatusOpts struct {
+	phase       snapshotv1beta1.VirtualMachineSnapshotPhase
+	ready       bool
+	progressing bool
+}
+
+type snapshotStatusOpt func(*snapshotStatusOpts)
+
+func withPhase(phase snapshotv1beta1.VirtualMachineSnapshotPhase) snapshotStatusOpt {
+	return func(opts *snapshotStatusOpts) {
+		opts.phase = phase
+	}
+}
+
+func withReady() snapshotStatusOpt {
+	return func(opts *snapshotStatusOpts) {
+		opts.ready = true
+	}
+}
+
+func withProgressing() snapshotStatusOpt {
+	return func(opts *snapshotStatusOpts) {
+		opts.progressing = true
+	}
+}
+
 func setSnapshotStatus(
 	cli client.Client,
 	snap *snapshotv1beta1.VirtualMachineSnapshot,
-	phase snapshotv1beta1.VirtualMachineSnapshotPhase, ready, progressing bool,
+	optFns ...snapshotStatusOpt,
 ) *snapshotv1beta1.VirtualMachineSnapshot {
-	readyStatus := corev1.ConditionTrue
-	if !ready {
-		readyStatus = corev1.ConditionFalse
+	opts := &snapshotStatusOpts{}
+	for _, optFn := range optFns {
+		optFn(opts)
 	}
-	progressingStatus := corev1.ConditionTrue
-	if !progressing {
-		progressingStatus = corev1.ConditionFalse
+
+	readyStatus := corev1.ConditionFalse
+	if opts.ready {
+		readyStatus = corev1.ConditionTrue
 	}
+	progressingStatus := corev1.ConditionFalse
+	if opts.progressing {
+		progressingStatus = corev1.ConditionTrue
+	}
+
+	conditions := []snapshotv1beta1.Condition{
+		{
+			Type:   snapshotv1beta1.ConditionReady,
+			Status: readyStatus,
+		},
+		{
+			Type:   snapshotv1beta1.ConditionProgressing,
+			Status: progressingStatus,
+		},
+	}
+
 	snap.Status = &snapshotv1beta1.VirtualMachineSnapshotStatus{
 		VirtualMachineSnapshotContentName: &snap.Name,
-		Phase:                             phase,
-		Conditions: []snapshotv1beta1.Condition{
-			{
-				Type:   snapshotv1beta1.ConditionReady,
-				Status: readyStatus,
-			},
-			{
-				Type:   snapshotv1beta1.ConditionProgressing,
-				Status: progressingStatus,
-			},
-		},
+		Phase:                             opts.phase,
+		Conditions:                        conditions,
 	}
 	ExpectWithOffset(1, cli.Status().Update(context.Background(), snap)).To(Succeed())
 	return snap

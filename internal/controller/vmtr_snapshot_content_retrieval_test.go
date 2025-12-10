@@ -53,7 +53,7 @@ var _ = Describe("VirtualMachineTemplateRequest Controller VirtualMachineSnapsho
 
 		tplReq = createRequest(k8sClient, testNamespace, testVMNamespace)
 		snap = createSnapshot(k8sClient, tplReq)
-		snap = setSnapshotStatus(k8sClient, snap, snapshotv1beta1.Succeeded, true, false)
+		snap = setSnapshotStatus(k8sClient, snap, withPhase(snapshotv1beta1.Succeeded), withReady())
 	})
 
 	It("should fail when VirtualMachineSnapshotContent does not exist but keep reconciling", func() {
