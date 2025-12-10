@@ -109,9 +109,11 @@ func createSnapshot(
 }
 
 type snapshotStatusOpts struct {
-	phase       snapshotv1beta1.VirtualMachineSnapshotPhase
-	ready       bool
-	progressing bool
+	phase             snapshotv1beta1.VirtualMachineSnapshotPhase
+	ready             bool
+	progressing       bool
+	progressingReason string
+	failed            bool
 }
 
 type snapshotStatusOpt func(*snapshotStatusOpts)
@@ -131,6 +133,18 @@ func withReady() snapshotStatusOpt {
 func withProgressing() snapshotStatusOpt {
 	return func(opts *snapshotStatusOpts) {
 		opts.progressing = true
+	}
+}
+
+func withProgressingReason(reason string) snapshotStatusOpt {
+	return func(opts *snapshotStatusOpts) {
+		opts.progressingReason = reason
+	}
+}
+
+func withFailed() snapshotStatusOpt {
+	return func(opts *snapshotStatusOpts) {
+		opts.failed = true
 	}
 }
 
@@ -161,7 +175,15 @@ func setSnapshotStatus(
 		{
 			Type:   snapshotv1beta1.ConditionProgressing,
 			Status: progressingStatus,
+			Reason: opts.progressingReason,
 		},
+	}
+
+	if opts.failed {
+		conditions = append(conditions, snapshotv1beta1.Condition{
+			Type:   snapshotv1beta1.ConditionFailure,
+			Status: corev1.ConditionTrue,
+		})
 	}
 
 	snap.Status = &snapshotv1beta1.VirtualMachineSnapshotStatus{
