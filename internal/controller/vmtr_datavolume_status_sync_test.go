@@ -53,7 +53,7 @@ var _ = Describe("VirtualMachineTemplateRequest controller DataVolumeStatus sync
 
 		tplReq = createRequest(k8sClient, testNamespace, testVMNamespace)
 		snap := createSnapshot(k8sClient, tplReq)
-		snap = setSnapshotStatus(k8sClient, snap, snapshotv1beta1.Succeeded, true, false)
+		snap = setSnapshotStatus(k8sClient, snap, withPhase(snapshotv1beta1.Succeeded), withReady())
 		snapContent := createSnapshotContent(k8sClient, snap)
 		setSnapshotContentStatus(k8sClient, snapContent, true)
 		dv = createDataVolume(k8sClient, tplReq)

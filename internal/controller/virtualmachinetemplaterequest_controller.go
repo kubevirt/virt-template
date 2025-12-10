@@ -23,6 +23,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -80,6 +81,11 @@ const (
 
 	annImmediateBinding = "cdi.kubevirt.io/storage.bind.immediate.requested"
 )
+
+var snapshotErrorReasons = []string{
+	"In error state",
+	"Source does not exist",
+}
 
 // VirtualMachineTemplateRequestReconciler reconciles a VirtualMachineTemplateRequest object
 type VirtualMachineTemplateRequestReconciler struct {
@@ -570,16 +576,9 @@ func syncSnapshotStatusConditions(
 ) {
 	logf.FromContext(ctx).V(logs.DebugLevel).Info("Syncing status conditions from VirtualMachineSnapshot",
 		logSnapNS, snap.Namespace, logSnapName, snap.Name)
-	progressing, present := isSnapshotStatusConditionTrue(snap, snapshotv1beta1.ConditionProgressing)
 
-	// Fallback to status.phase, snapshot can be progressing but status condition is false
-	if !progressing && present {
-		if snap.Status.Phase == snapshotv1beta1.PhaseUnset || snap.Status.Phase == snapshotv1beta1.InProgress {
-			progressing = true
-		}
-	}
-
-	if progressing || !present {
+	failed, _ := isSnapshotStatusConditionTrue(snap, snapshotv1beta1.ConditionFailure)
+	if !failed && isSnapshotProgressing(snap) {
 		setReadyCondition(ctx, tplReq, metav1.ConditionFalse, v1alpha1.ReasonWaiting,
 			"Waiting for VirtualMachineSnapshot %s/%s to be ready", snap.Namespace, snap.Name)
 	} else {
@@ -592,17 +591,47 @@ func syncSnapshotStatusConditions(
 func isSnapshotStatusConditionTrue(
 	snap *snapshotv1beta1.VirtualMachineSnapshot, condType snapshotv1beta1.ConditionType,
 ) (isTrue, present bool) {
-	if snap.Status == nil {
+	cond := findSnapshotStatusCondition(snap, condType)
+	if cond == nil {
 		return false, false
 	}
 
-	for _, condition := range snap.Status.Conditions {
-		if condition.Type == condType {
-			return condition.Status == corev1.ConditionTrue, true
+	return cond.Status == corev1.ConditionTrue, true
+}
+
+func findSnapshotStatusCondition(
+	snap *snapshotv1beta1.VirtualMachineSnapshot, condType snapshotv1beta1.ConditionType,
+) *snapshotv1beta1.Condition {
+	if snap.Status == nil {
+		return nil
+	}
+
+	for _, cond := range snap.Status.Conditions {
+		if cond.Type == condType {
+			return &cond
 		}
 	}
 
-	return false, false
+	return nil
+}
+
+func isSnapshotProgressing(snap *snapshotv1beta1.VirtualMachineSnapshot) bool {
+	cond := findSnapshotStatusCondition(snap, snapshotv1beta1.ConditionProgressing)
+	if cond == nil {
+		return true
+	}
+
+	if cond.Status == corev1.ConditionTrue {
+		return true
+	}
+
+	// Condition is false, but check if phase still indicates progress
+	// and reason is not a known error.
+	phaseInProgress := snap.Status.Phase == snapshotv1beta1.PhaseUnset ||
+		snap.Status.Phase == snapshotv1beta1.InProgress
+	hasErrorReason := slices.Contains(snapshotErrorReasons, cond.Reason)
+
+	return phaseInProgress && !hasErrorReason
 }
 
 func syncDataVolumeStatusConditions(ctx context.Context, tplReq *v1alpha1.VirtualMachineTemplateRequest, dv *cdiv1beta1.DataVolume) {

@@ -66,8 +66,8 @@ var _ = Describe("VirtualMachineTemplateRequest Controller VirtualMachineSnapsho
 		expectCondition(tplReq, v1alpha1.ConditionProgressing, metav1.ConditionTrue, v1alpha1.ReasonReconciling)
 	})
 
-	It("should set Failed condition when snapshot fails", func() {
-		setSnapshotStatus(k8sClient, snap, snapshotv1beta1.Failed, false, false)
+	DescribeTable("should set Failed condition", func(opts ...snapshotStatusOpt) {
+		setSnapshotStatus(k8sClient, snap, opts...)
 
 		_, err := reconciler.Reconcile(ctx, reconcile.Request{
 			NamespacedName: client.ObjectKeyFromObject(tplReq),
@@ -78,10 +78,19 @@ var _ = Describe("VirtualMachineTemplateRequest Controller VirtualMachineSnapsho
 		expectCondition(tplReq, v1alpha1.ConditionReady, metav1.ConditionFalse, v1alpha1.ReasonFailed,
 			MatchRegexp("VirtualMachineSnapshot .* failed"))
 		expectCondition(tplReq, v1alpha1.ConditionProgressing, metav1.ConditionFalse, v1alpha1.ReasonFailed)
-	})
+	},
+		Entry("when snapshot has failure condition",
+			withPhase(snapshotv1beta1.InProgress), withFailed()),
+		Entry("when snapshot phase is failed",
+			withPhase(snapshotv1beta1.Failed)),
+		Entry("when progressing reason indicates error state",
+			withPhase(snapshotv1beta1.InProgress), withProgressingReason("In error state")),
+		Entry("when progressing reason indicates source does not exist",
+			withPhase(snapshotv1beta1.InProgress), withProgressingReason("Source does not exist")),
+	)
 
 	It("should wait when snapshot is in progress", func() {
-		setSnapshotStatus(k8sClient, snap, snapshotv1beta1.InProgress, false, true)
+		setSnapshotStatus(k8sClient, snap, withPhase(snapshotv1beta1.InProgress), withProgressing())
 
 		_, err := reconciler.Reconcile(ctx, reconcile.Request{
 			NamespacedName: client.ObjectKeyFromObject(tplReq),
@@ -95,7 +104,7 @@ var _ = Describe("VirtualMachineTemplateRequest Controller VirtualMachineSnapsho
 	})
 
 	It("should wait when snapshot phase is unset", func() {
-		setSnapshotStatus(k8sClient, snap, snapshotv1beta1.PhaseUnset, false, false)
+		setSnapshotStatus(k8sClient, snap, withPhase(snapshotv1beta1.PhaseUnset))
 
 		_, err := reconciler.Reconcile(ctx, reconcile.Request{
 			NamespacedName: client.ObjectKeyFromObject(tplReq),
@@ -109,7 +118,7 @@ var _ = Describe("VirtualMachineTemplateRequest Controller VirtualMachineSnapsho
 	})
 
 	It("should wait when snapshot phase is in progress", func() {
-		setSnapshotStatus(k8sClient, snap, snapshotv1beta1.InProgress, false, true)
+		setSnapshotStatus(k8sClient, snap, withPhase(snapshotv1beta1.InProgress))
 
 		_, err := reconciler.Reconcile(ctx, reconcile.Request{
 			NamespacedName: client.ObjectKeyFromObject(tplReq),

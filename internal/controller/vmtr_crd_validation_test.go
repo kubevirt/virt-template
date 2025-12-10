@@ -160,7 +160,7 @@ var _ = Describe("VirtualMachineTemplateRequest controller CRD validation", func
 		It("should fail when source VirtualMachine has no template spec", func() {
 			tplReq := createRequest(fakeClient, testNamespace, testVMNamespace)
 			snap := createSnapshot(fakeClient, tplReq)
-			setSnapshotStatus(fakeClient, snap, snapshotv1beta1.Succeeded, true, false)
+			setSnapshotStatus(fakeClient, snap, withPhase(snapshotv1beta1.Succeeded), withReady())
 			snapContent := createSnapshotContent(fakeClient, snap)
 			snapContent.Spec.Source.VirtualMachine.Spec.Template = nil
 			Expect(fakeClient.Update(context.Background(), snapContent)).To(Succeed())
