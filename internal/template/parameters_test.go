@@ -25,11 +25,13 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
+	"k8s.io/apimachinery/pkg/runtime"
+
 	"kubevirt.io/virt-template-api/core/v1alpha1"
 	"kubevirt.io/virt-template/internal/template"
 )
 
-var _ = Describe("MergeParameters", func() {
+var _ = Describe("Parameters", func() {
 	const (
 		param1Name       = "NAME"
 		param1DefaultVal = "default-name"
@@ -37,103 +39,364 @@ var _ = Describe("MergeParameters", func() {
 		param2Name       = "PREFERENCE"
 		param2DefaultVal = "default-preference"
 		param2Val        = "fedora"
+		param3Name       = "RUNNING"
 		paramUnknownName = "UNKNOWN"
 		paramUnknownVal  = "something"
 	)
 
-	var tplParams []v1alpha1.Parameter
+	Context("MergeParameters", func() {
+		var tplParams []v1alpha1.Parameter
 
-	BeforeEach(func() {
-		tplParams = []v1alpha1.Parameter{
-			{
-				Name:  param1Name,
-				Value: param1DefaultVal,
-			},
-			{
-				Name:  param2Name,
-				Value: param2DefaultVal,
-			},
-		}
+		BeforeEach(func() {
+			tplParams = []v1alpha1.Parameter{
+				{
+					Name:  param1Name,
+					Value: param1DefaultVal,
+				},
+				{
+					Name:  param2Name,
+					Value: param2DefaultVal,
+				},
+			}
+		})
+
+		It("should merge single parameter successfully", func() {
+			params := map[string]string{
+				param1Name: param1Val,
+			}
+
+			newTplParams, err := template.MergeParameters(tplParams, params)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(newTplParams[0].Value).To(Equal(param1Val))
+			Expect(newTplParams[1].Value).To(Equal(param2DefaultVal))
+		})
+
+		It("should merge multiple parameters successfully", func() {
+			params := map[string]string{
+				param1Name: param1Val,
+				param2Name: param2Val,
+			}
+
+			newTplParams, err := template.MergeParameters(tplParams, params)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(newTplParams[0].Value).To(Equal(param1Val))
+			Expect(newTplParams[1].Value).To(Equal(param2Val))
+		})
+
+		It("should handle nil params", func() {
+			newTplParams, err := template.MergeParameters(tplParams, nil)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(newTplParams[0].Value).To(Equal(param1DefaultVal))
+			Expect(newTplParams[1].Value).To(Equal(param2DefaultVal))
+		})
+
+		It("should handle empty params", func() {
+			newTplParams, err := template.MergeParameters(tplParams, map[string]string{})
+			Expect(err).ToNot(HaveOccurred())
+			Expect(newTplParams[0].Value).To(Equal(param1DefaultVal))
+			Expect(newTplParams[1].Value).To(Equal(param2DefaultVal))
+		})
+
+		It("should return error for single parameter not in template", func() {
+			params := map[string]string{
+				paramUnknownName: paramUnknownVal,
+			}
+
+			newTplParams, err := template.MergeParameters(tplParams, params)
+			Expect(err).To(MatchError(fmt.Sprintf("parameter %s not found in template", paramUnknownName)))
+			Expect(newTplParams).To(BeNil())
+		})
+
+		It("should return error when one of multiple params not in template", func() {
+			params := map[string]string{
+				param1Name:       param1Val,
+				paramUnknownName: paramUnknownVal,
+			}
+
+			newTplParams, err := template.MergeParameters(tplParams, params)
+			Expect(err).To(MatchError(fmt.Sprintf("parameter %s not found in template", paramUnknownName)))
+			Expect(newTplParams).To(BeNil())
+		})
+
+		It("should handle empty template parameters", func() {
+			tplParams = []v1alpha1.Parameter{}
+
+			params := map[string]string{
+				param1Name: param1Val,
+			}
+
+			newTplParams, err := template.MergeParameters(tplParams, params)
+			Expect(err).To(MatchError(fmt.Sprintf("parameter %s not found in template", param1Name)))
+			Expect(newTplParams).To(BeNil())
+		})
+
+		It("should handle parameter with empty value", func() {
+			params := map[string]string{
+				param1Name: "",
+			}
+
+			newTplParams, err := template.MergeParameters(tplParams, params)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(newTplParams[0].Value).To(BeEmpty())
+			Expect(newTplParams[1].Value).To(Equal(param2DefaultVal))
+		})
 	})
 
-	It("should merge single parameter successfully", func() {
-		params := map[string]string{
-			param1Name: param1Val,
-		}
+	Context("ValidateParameterReferences", func() {
+		Context("with valid templates", func() {
+			It("should accept a template with all parameters referenced", func() {
+				t := &v1alpha1.VirtualMachineTemplate{
+					Spec: v1alpha1.VirtualMachineTemplateSpec{
+						Parameters: []v1alpha1.Parameter{
+							{
+								Name: param1Name,
+							},
+							{
+								Name: param2Name,
+							},
+						},
+						VirtualMachine: &runtime.RawExtension{
+							Raw: []byte(`{"metadata":{"name":"${NAME}"},"spec":{"preference":{"name":"${PREFERENCE}"}}}`),
+						},
+					},
+				}
 
-		newTplParams, err := template.MergeParameters(tplParams, params)
-		Expect(err).ToNot(HaveOccurred())
-		Expect(newTplParams[0].Value).To(Equal(param1Val))
-		Expect(newTplParams[1].Value).To(Equal(param2DefaultVal))
-	})
+				warnings, errs := template.ValidateParameterReferences(t)
+				Expect(errs).To(BeEmpty())
+				Expect(warnings).To(BeEmpty())
+			})
 
-	It("should merge multiple parameters successfully", func() {
-		params := map[string]string{
-			param1Name: param1Val,
-			param2Name: param2Val,
-		}
+			It("should accept a template with parameter referenced in message", func() {
+				t := &v1alpha1.VirtualMachineTemplate{
+					Spec: v1alpha1.VirtualMachineTemplateSpec{
+						Parameters: []v1alpha1.Parameter{
+							{
+								Name: param1Name,
+							},
+							{
+								Name: param2Name,
+							},
+						},
+						VirtualMachine: &runtime.RawExtension{
+							Raw: []byte(`{"metadata":{"name":"${NAME}"}}`),
+						},
+						Message: "A good preference for this VM could be ${PREFERENCE}.",
+					},
+				}
 
-		newTplParams, err := template.MergeParameters(tplParams, params)
-		Expect(err).ToNot(HaveOccurred())
-		Expect(newTplParams[0].Value).To(Equal(param1Val))
-		Expect(newTplParams[1].Value).To(Equal(param2Val))
-	})
+				warnings, errs := template.ValidateParameterReferences(t)
+				Expect(errs).To(BeEmpty())
+				Expect(warnings).To(BeEmpty())
+			})
 
-	It("should handle nil params", func() {
-		newTplParams, err := template.MergeParameters(tplParams, nil)
-		Expect(err).ToNot(HaveOccurred())
-		Expect(newTplParams[0].Value).To(Equal(param1DefaultVal))
-		Expect(newTplParams[1].Value).To(Equal(param2DefaultVal))
-	})
+			It("should accept a template with non-string parameter syntax ${{KEY}}", func() {
+				t := &v1alpha1.VirtualMachineTemplate{
+					Spec: v1alpha1.VirtualMachineTemplateSpec{
+						Parameters: []v1alpha1.Parameter{
+							{
+								Name: param3Name,
+							},
+						},
+						VirtualMachine: &runtime.RawExtension{
+							Raw: []byte(`{"spec":{"running":"${{RUNNING}}"}}`),
+						},
+					},
+				}
 
-	It("should handle empty params", func() {
-		newTplParams, err := template.MergeParameters(tplParams, map[string]string{})
-		Expect(err).ToNot(HaveOccurred())
-		Expect(newTplParams[0].Value).To(Equal(param1DefaultVal))
-		Expect(newTplParams[1].Value).To(Equal(param2DefaultVal))
-	})
+				warnings, errs := template.ValidateParameterReferences(t)
+				Expect(errs).To(BeEmpty())
+				Expect(warnings).To(BeEmpty())
+			})
 
-	It("should return error for single parameter not in template", func() {
-		params := map[string]string{
-			paramUnknownName: paramUnknownVal,
-		}
+			It("should accept a template with no parameters and no references", func() {
+				t := &v1alpha1.VirtualMachineTemplate{
+					Spec: v1alpha1.VirtualMachineTemplateSpec{
+						VirtualMachine: &runtime.RawExtension{
+							Raw: []byte(`{"metadata":{"name":"static-name"}}`),
+						},
+					},
+				}
 
-		newTplParams, err := template.MergeParameters(tplParams, params)
-		Expect(err).To(MatchError(fmt.Sprintf("parameter %s not found in template", paramUnknownName)))
-		Expect(newTplParams).To(BeNil())
-	})
+				warnings, errs := template.ValidateParameterReferences(t)
+				Expect(errs).To(BeEmpty())
+				Expect(warnings).To(BeEmpty())
+			})
 
-	It("should return error when one of multiple params not in template", func() {
-		params := map[string]string{
-			param1Name:       param1Val,
-			paramUnknownName: paramUnknownVal,
-		}
+			It("should accept multiple references to the same parameter", func() {
+				t := &v1alpha1.VirtualMachineTemplate{
+					Spec: v1alpha1.VirtualMachineTemplateSpec{
+						Parameters: []v1alpha1.Parameter{
+							{
+								Name: param1Name,
+							},
+						},
+						VirtualMachine: &runtime.RawExtension{
+							Raw: []byte(`{"metadata":{"name":"${NAME}","labels":{"app":"${NAME}"}}}`),
+						},
+					},
+				}
 
-		newTplParams, err := template.MergeParameters(tplParams, params)
-		Expect(err).To(MatchError(fmt.Sprintf("parameter %s not found in template", paramUnknownName)))
-		Expect(newTplParams).To(BeNil())
-	})
+				warnings, errs := template.ValidateParameterReferences(t)
+				Expect(errs).To(BeEmpty())
+				Expect(warnings).To(BeEmpty())
+			})
 
-	It("should handle empty template parameters", func() {
-		tplParams = []v1alpha1.Parameter{}
+			It("should accept parameters with mixed ${} and ${{}} references", func() {
+				t := &v1alpha1.VirtualMachineTemplate{
+					Spec: v1alpha1.VirtualMachineTemplateSpec{
+						Parameters: []v1alpha1.Parameter{
+							{
+								Name: param1Name,
+							},
+							{
+								Name: param3Name,
+							},
+						},
+						VirtualMachine: &runtime.RawExtension{
+							Raw: []byte(`{"metadata":{"name":"${NAME}"},"spec":{"running":"${{RUNNING}}"}}`),
+						},
+					},
+				}
 
-		params := map[string]string{
-			param1Name: param1Val,
-		}
+				warnings, errs := template.ValidateParameterReferences(t)
+				Expect(errs).To(BeEmpty())
+				Expect(warnings).To(BeEmpty())
+			})
+		})
 
-		newTplParams, err := template.MergeParameters(tplParams, params)
-		Expect(err).To(MatchError(fmt.Sprintf("parameter %s not found in template", param1Name)))
-		Expect(newTplParams).To(BeNil())
-	})
+		Context("with invalid templates", func() {
+			It("should reject a template with undefined parameter reference", func() {
+				t := &v1alpha1.VirtualMachineTemplate{
+					Spec: v1alpha1.VirtualMachineTemplateSpec{
+						Parameters: []v1alpha1.Parameter{
+							{
+								Name: param1Name,
+							},
+						},
+						VirtualMachine: &runtime.RawExtension{
+							Raw: []byte(`{"metadata":{"name":"${NAME}"},"spec":{"preference":{"name":"${PREFERENCE}"}}}`),
+						},
+					},
+				}
 
-	It("should handle parameter with empty value", func() {
-		params := map[string]string{
-			param1Name: "",
-		}
+				warnings, errs := template.ValidateParameterReferences(t)
+				Expect(errs).To(ConsistOf(MatchError(ContainSubstring("references undefined parameter PREFERENCE"))))
+				Expect(warnings).To(BeEmpty())
+			})
 
-		newTplParams, err := template.MergeParameters(tplParams, params)
-		Expect(err).ToNot(HaveOccurred())
-		Expect(newTplParams[0].Value).To(BeEmpty())
-		Expect(newTplParams[1].Value).To(Equal(param2DefaultVal))
+			It("should warn about unused parameter", func() {
+				t := &v1alpha1.VirtualMachineTemplate{
+					Spec: v1alpha1.VirtualMachineTemplateSpec{
+						Parameters: []v1alpha1.Parameter{
+							{
+								Name: param1Name,
+							},
+							{
+								Name: param2Name,
+							},
+						},
+						VirtualMachine: &runtime.RawExtension{
+							Raw: []byte(`{"metadata":{"name":"${NAME}"}}`),
+						},
+						Message: "VM created successfully",
+					},
+				}
+
+				warnings, errs := template.ValidateParameterReferences(t)
+				Expect(errs).To(BeEmpty())
+				Expect(warnings).To(ConsistOf(ContainSubstring("PREFERENCE is defined but never referenced")))
+			})
+
+			It("should reject and warn for template with both undefined and unused parameters", func() {
+				t := &v1alpha1.VirtualMachineTemplate{
+					Spec: v1alpha1.VirtualMachineTemplateSpec{
+						Parameters: []v1alpha1.Parameter{
+							{
+								Name: param3Name,
+							},
+						},
+						VirtualMachine: &runtime.RawExtension{
+							Raw: []byte(`{"metadata":{"name":"${NAME}"}}`),
+						},
+					},
+				}
+
+				warnings, errs := template.ValidateParameterReferences(t)
+				Expect(errs).To(ConsistOf(MatchError(ContainSubstring("references undefined parameter NAME"))))
+				Expect(warnings).To(ConsistOf(ContainSubstring("RUNNING is defined but never referenced")))
+			})
+
+			It("should reject undefined parameter in message", func() {
+				t := &v1alpha1.VirtualMachineTemplate{
+					Spec: v1alpha1.VirtualMachineTemplateSpec{
+						Parameters: []v1alpha1.Parameter{
+							{
+								Name: param1Name,
+							},
+						},
+						VirtualMachine: &runtime.RawExtension{
+							Raw: []byte(`{"metadata":{"name":"${NAME}"}}`),
+						},
+						Message: "A good preference for this VM could be ${PREFERENCE}.",
+					},
+				}
+
+				warnings, errs := template.ValidateParameterReferences(t)
+				Expect(errs).To(ConsistOf(MatchError(ContainSubstring("references undefined parameter PREFERENCE"))))
+				Expect(warnings).To(BeEmpty())
+			})
+
+			It("should reject undefined non-string parameter reference", func() {
+				t := &v1alpha1.VirtualMachineTemplate{
+					Spec: v1alpha1.VirtualMachineTemplateSpec{
+						VirtualMachine: &runtime.RawExtension{
+							Raw: []byte(`{"spec":{"running":"${{RUNNING}}"}}`),
+						},
+					},
+				}
+
+				warnings, errs := template.ValidateParameterReferences(t)
+				Expect(errs).To(ConsistOf(MatchError(ContainSubstring("references undefined parameter RUNNING"))))
+				Expect(warnings).To(BeEmpty())
+			})
+		})
+
+		Context("with edge cases", func() {
+			It("should handle nil virtualMachine", func() {
+				t := &v1alpha1.VirtualMachineTemplate{
+					Spec: v1alpha1.VirtualMachineTemplateSpec{},
+				}
+
+				warnings, errs := template.ValidateParameterReferences(t)
+				Expect(errs).To(ConsistOf(MatchError(ContainSubstring("virtualMachine is required and cannot be empty"))))
+				Expect(warnings).To(BeEmpty())
+			})
+
+			It("should handle empty virtualMachine", func() {
+				t := &v1alpha1.VirtualMachineTemplate{
+					Spec: v1alpha1.VirtualMachineTemplateSpec{
+						VirtualMachine: &runtime.RawExtension{},
+					},
+				}
+
+				warnings, errs := template.ValidateParameterReferences(t)
+				Expect(errs).To(ConsistOf(MatchError(ContainSubstring("virtualMachine is required and cannot be empty"))))
+				Expect(warnings).To(BeEmpty())
+			})
+
+			It("should handle invalid raw extension", func() {
+				t := &v1alpha1.VirtualMachineTemplate{
+					Spec: v1alpha1.VirtualMachineTemplateSpec{
+						VirtualMachine: &runtime.RawExtension{
+							Raw: []byte(`gibberish`),
+						},
+					},
+				}
+
+				warnings, errs := template.ValidateParameterReferences(t)
+				Expect(errs).To(ConsistOf(MatchError(ContainSubstring("error decoding virtualMachine"))))
+				Expect(warnings).To(BeEmpty())
+			})
+		})
 	})
 })

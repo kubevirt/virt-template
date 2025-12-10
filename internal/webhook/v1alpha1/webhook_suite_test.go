@@ -17,7 +17,7 @@
  *
  */
 
-package v1alpha1
+package v1alpha1_test
 
 import (
 	"context"
@@ -43,6 +43,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	templatev1alpha1 "kubevirt.io/virt-template-api/core/v1alpha1"
+
+	webhookv1alpha1 "kubevirt.io/virt-template/internal/webhook/v1alpha1"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -112,7 +114,7 @@ var _ = BeforeSuite(func() {
 	})
 	Expect(err).NotTo(HaveOccurred())
 
-	err = SetupVirtualMachineTemplateWebhookWithManager(mgr)
+	err = webhookv1alpha1.SetupVirtualMachineTemplateWebhookWithManager(mgr)
 	Expect(err).NotTo(HaveOccurred())
 
 	// +kubebuilder:scaffold:webhook

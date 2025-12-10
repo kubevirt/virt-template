@@ -20,12 +20,14 @@
 package template
 
 import (
+	"encoding/json"
 	"fmt"
 	"reflect"
 	"regexp"
 	"strings"
 
 	"k8s.io/apimachinery/pkg/api/meta"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 
@@ -95,6 +97,37 @@ func generateParameterValues(
 	return params, nil
 }
 
+// getVirtualMachineObject extracts the VirtualMachine runtime.Object from the spec of a VirtualMachineTemplate.
+// It handles both Raw JSON bytes and embedded Object representations.
+func getVirtualMachineObject(tplSpec *v1alpha1.VirtualMachineTemplateSpec) (runtime.Object, *field.Error) {
+	if tplSpec.VirtualMachine == nil || (len(tplSpec.VirtualMachine.Raw) == 0 && tplSpec.VirtualMachine.Object == nil) {
+		return nil, field.Invalid(field.NewPath("spec", "virtualMachine"),
+			tplSpec.VirtualMachine, "virtualMachine is required and cannot be empty")
+	}
+
+	if len(tplSpec.VirtualMachine.Raw) == 0 {
+		return tplSpec.VirtualMachine.Object.DeepCopyObject(), nil
+	}
+
+	obj, err := decode(tplSpec.VirtualMachine.Raw)
+	if err != nil {
+		return nil, field.Invalid(field.NewPath("spec", "virtualMachine", "raw"),
+			tplSpec.VirtualMachine.Raw, fmt.Sprintf("error decoding virtualMachine: %v", err))
+	}
+
+	return obj, nil
+}
+
+func decode(raw []byte) (runtime.Object, error) {
+	// Do not use runtime.Decode and unstructured.UnstructuredJSONScheme
+	// so we can ignore missing apiVersion and kind. Those will be forced later.
+	var obj map[string]interface{}
+	if err := json.Unmarshal(raw, &obj); err != nil {
+		return nil, err
+	}
+	return &unstructured.Unstructured{Object: obj}, nil
+}
+
 // removeHardcodedNamespace removes the namespace from an object if it is
 // not empty and not parametrized.
 func removeHardcodedNamespace(obj runtime.Object) error {
@@ -150,4 +183,36 @@ func substituteParameters(in string, params map[string]v1alpha1.Parameter) (out 
 	}
 
 	return out, true, nil
+}
+
+// collectAllReferencedParameters recursively visits all string values in an object
+// and collects all referenced parameters.
+func collectAllReferencedParameters(obj runtime.Object) (map[string]struct{}, error) {
+	params := map[string]struct{}{}
+	err := visitValue(reflect.ValueOf(obj), func(in string) (string, bool, error) {
+		for param := range collectReferencedParameters(in) {
+			params[param] = struct{}{}
+		}
+		return in, true, nil
+	})
+
+	return params, err
+}
+
+// collectReferencedParameters extracts all parameter names referenced in a string.
+// It checks for both ${KEY} and ${{KEY}} patterns.
+func collectReferencedParameters(in string) map[string]struct{} {
+	params := map[string]struct{}{}
+
+	if match := nonStringParamExpr.FindStringSubmatch(in); len(match) > 1 {
+		params[match[1]] = struct{}{}
+	}
+
+	for _, match := range stringParamExpr.FindAllStringSubmatch(in, -1) {
+		if len(match) > 1 {
+			params[match[1]] = struct{}{}
+		}
+	}
+
+	return params
 }

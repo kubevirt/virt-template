@@ -20,7 +20,6 @@
 package template
 
 import (
-	"encoding/json"
 	"fmt"
 	"sync"
 
@@ -73,22 +72,9 @@ func (p *processor) Process(tpl *v1alpha1.VirtualMachineTemplate) (*virtv1.Virtu
 		return nil, "", gErr
 	}
 
-	if tpl.Spec.VirtualMachine == nil || (len(tpl.Spec.VirtualMachine.Raw) == 0 && tpl.Spec.VirtualMachine.Object == nil) {
-		return nil, "", field.Invalid(field.NewPath("spec", "virtualMachine"),
-			tpl.Spec.VirtualMachine, "virtualMachine is required and cannot be empty")
-	}
-
-	var (
-		obj runtime.Object
-		err error
-	)
-	if len(tpl.Spec.VirtualMachine.Raw) > 0 {
-		if obj, err = decode(tpl.Spec.VirtualMachine.Raw); err != nil {
-			return nil, "", field.Invalid(field.NewPath("spec", "virtualMachine", "raw"),
-				tpl.Spec.VirtualMachine.Raw, fmt.Sprintf("error decoding virtualMachine: %v", err))
-		}
-	} else {
-		obj = tpl.Spec.VirtualMachine.Object.DeepCopyObject()
+	obj, gErr := getVirtualMachineObject(&tpl.Spec)
+	if gErr != nil {
+		return nil, "", gErr
 	}
 
 	// If an object definition's metadata includes a hardcoded namespace field, the field will be removed
@@ -99,7 +85,7 @@ func (p *processor) Process(tpl *v1alpha1.VirtualMachineTemplate) (*virtv1.Virtu
 			fmt.Errorf("error removing hardcoded namespace: %w", rErr))
 	}
 
-	if err = substituteAllParameters(obj, params); err != nil {
+	if err := substituteAllParameters(obj, params); err != nil {
 		return nil, "", field.Invalid(field.NewPath("spec", "parameters"),
 			tpl.Spec.Parameters, fmt.Sprintf("error processing template: %v", err))
 	}
@@ -109,7 +95,7 @@ func (p *processor) Process(tpl *v1alpha1.VirtualMachineTemplate) (*virtv1.Virtu
 	case *virtv1.VirtualMachine:
 		vm = typedObj
 	case *unstructured.Unstructured:
-		if err = runtime.DefaultUnstructuredConverter.FromUnstructuredWithValidation(typedObj.Object, vm, true); err != nil {
+		if err := runtime.DefaultUnstructuredConverter.FromUnstructuredWithValidation(typedObj.Object, vm, true); err != nil {
 			return nil, "", field.Invalid(field.NewPath("spec", "virtualMachine"),
 				typedObj, fmt.Sprintf("failed to convert unstructured object to VirtualMachine: %v", err))
 		}
@@ -130,14 +116,4 @@ func (p *processor) Process(tpl *v1alpha1.VirtualMachineTemplate) (*virtv1.Virtu
 	}
 
 	return vm, msg, nil
-}
-
-func decode(raw []byte) (runtime.Object, error) {
-	// Do not use runtime.Decode and unstructured.UnstructuredJSONScheme
-	// so we can ignore missing apiVersion and kind. Those will be forced later.
-	var obj map[string]interface{}
-	if err := json.Unmarshal(raw, &obj); err != nil {
-		return nil, err
-	}
-	return &unstructured.Unstructured{Object: obj}, nil
 }
