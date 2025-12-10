@@ -37,11 +37,13 @@ import (
 	qe_reporters "kubevirt.io/qe-tools/pkg/ginkgo-reporters"
 )
 
-const NamespaceTest = "vm-template-test"
+const (
+	NamespaceTest          = "vm-template-test"
+	NamespaceSecondaryTest = "vm-template-test-secondary"
+)
 
 var (
 	virtClient kubecli.KubevirtClient
-	namespace  string = NamespaceTest
 
 	afterSuiteReporters []Reporter
 )
@@ -58,17 +60,26 @@ var _ = BeforeSuite(func() {
 	virtClient, err = kubecli.GetKubevirtClientFromRESTConfig(config)
 	Expect(err).NotTo(HaveOccurred())
 
-	v1namespace := &corev1.Namespace{
+	namespaceTest := &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: namespace,
+			Name: NamespaceTest,
 		},
 	}
-	_, err = virtClient.CoreV1().Namespaces().Create(context.Background(), v1namespace, metav1.CreateOptions{})
+	_, err = virtClient.CoreV1().Namespaces().Create(context.Background(), namespaceTest, metav1.CreateOptions{})
+	Expect(err).NotTo(HaveOccurred())
+
+	namespaceTestSecondary := &corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: NamespaceSecondaryTest,
+		},
+	}
+	_, err = virtClient.CoreV1().Namespaces().Create(context.Background(), namespaceTestSecondary, metav1.CreateOptions{})
 	Expect(err).NotTo(HaveOccurred())
 })
 
 var _ = AfterSuite(func() {
-	_ = virtClient.CoreV1().Namespaces().Delete(context.Background(), namespace, metav1.DeleteOptions{})
+	Expect(virtClient.CoreV1().Namespaces().Delete(context.Background(), NamespaceTest, metav1.DeleteOptions{})).To(Succeed())
+	Expect(virtClient.CoreV1().Namespaces().Delete(context.Background(), NamespaceSecondaryTest, metav1.DeleteOptions{})).To(Succeed())
 })
 
 var _ = ReportAfterSuite("TestFunctional", func(report Report) {

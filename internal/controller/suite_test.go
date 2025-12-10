@@ -28,26 +28,31 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	"k8s.io/client-go/kubernetes/scheme"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	templatev1alpha1 "kubevirt.io/virt-template-api/core/v1alpha1"
-	// +kubebuilder:scaffold:imports
+	"kubevirt.io/virt-template/internal/scheme"
 )
 
 // These tests use Ginkgo (BDD-style Go testing framework). Refer to
 // http://onsi.github.io/ginkgo/ to learn more about Ginkgo.
 
 var (
-	ctx       context.Context
-	cancel    context.CancelFunc
-	testEnv   *envtest.Environment
-	cfg       *rest.Config
-	k8sClient client.Client
+	ctx             context.Context
+	cancel          context.CancelFunc
+	testEnv         *envtest.Environment
+	cfg             *rest.Config
+	k8sClient       client.Client
+	testScheme      *runtime.Scheme
+	testNamespace   string
+	testVMNamespace string
 )
 
 func TestControllers(t *testing.T) {
@@ -61,16 +66,16 @@ var _ = BeforeSuite(func() {
 
 	ctx, cancel = context.WithCancel(context.TODO())
 
-	var err error
-	err = templatev1alpha1.AddToScheme(scheme.Scheme)
-	Expect(err).NotTo(HaveOccurred())
-
-	// +kubebuilder:scaffold:scheme
+	testScheme = scheme.New()
 
 	By("bootstrapping test environment")
 	testEnv = &envtest.Environment{
-		CRDDirectoryPaths:     []string{filepath.Join("..", "..", "config", "crd", "bases")},
-		ErrorIfCRDPathMissing: true,
+		CRDDirectoryPaths: []string{
+			filepath.Join("..", "..", "config", "crd", "bases"),
+			filepath.Join("..", "..", "config", "crd", "testing"),
+		},
+		ErrorIfCRDPathMissing: false,
+		Scheme:                testScheme,
 	}
 
 	// Retrieve the first found binary directory to allow running tests from IDEs
@@ -79,11 +84,12 @@ var _ = BeforeSuite(func() {
 	}
 
 	// cfg is defined in this file globally.
+	var err error
 	cfg, err = testEnv.Start()
 	Expect(err).NotTo(HaveOccurred())
 	Expect(cfg).NotTo(BeNil())
 
-	k8sClient, err = client.New(cfg, client.Options{Scheme: scheme.Scheme})
+	k8sClient, err = client.New(cfg, client.Options{Scheme: testScheme})
 	Expect(err).NotTo(HaveOccurred())
 	Expect(k8sClient).NotTo(BeNil())
 })
@@ -93,6 +99,26 @@ var _ = AfterSuite(func() {
 	cancel()
 	err := testEnv.Stop()
 	Expect(err).NotTo(HaveOccurred())
+})
+
+var _ = BeforeEach(func() {
+	suffix := rand.String(10)
+	testNamespace = "test-namespace-" + suffix
+	testVMNamespace = "test-namespace-vm-" + suffix
+
+	testNS := &corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: testNamespace,
+		},
+	}
+	Expect(k8sClient.Create(context.Background(), testNS)).To(Succeed())
+
+	testVMNS := &corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: testVMNamespace,
+		},
+	}
+	Expect(k8sClient.Create(context.Background(), testVMNS)).To(Succeed())
 })
 
 // getFirstFoundEnvTestBinaryDir locates the first binary in the specified path.

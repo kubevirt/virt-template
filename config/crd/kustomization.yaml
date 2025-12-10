@@ -3,6 +3,7 @@
 # It should be run by config/default
 resources:
 - bases/template.kubevirt.io_virtualmachinetemplates.yaml
+- bases/template.kubevirt.io_virtualmachinetemplaterequests.yaml
 # +kubebuilder:scaffold:crdkustomizeresource
 
 patches:
