@@ -175,15 +175,15 @@ func (r *RequestInfoFactory) NewRequestInfo(req *http.Request) (*RequestInfo, er
 
 	} else {
 		switch req.Method {
-		case MethodPost:
+		case "POST":
 			requestInfo.Verb = "create"
-		case MethodGet, MethodHead:
+		case "GET", "HEAD":
 			requestInfo.Verb = "get"
-		case MethodPut:
+		case "PUT":
 			requestInfo.Verb = "update"
-		case MethodPatch:
+		case "PATCH":
 			requestInfo.Verb = "patch"
-		case MethodDelete:
+		case "DELETE":
 			requestInfo.Verb = "delete"
 		default:
 			requestInfo.Verb = ""

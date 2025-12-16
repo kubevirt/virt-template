@@ -22,10 +22,6 @@ import (
 	"sync"
 	"time"
 
-	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apiserver/pkg/features"
-	"k8s.io/apiserver/pkg/storage"
-	utilfeature "k8s.io/apiserver/pkg/util/feature"
 	compbasemetrics "k8s.io/component-base/metrics"
 	"k8s.io/component-base/metrics/legacyregistry"
 	"k8s.io/klog/v2"
@@ -52,7 +48,7 @@ var (
 				4, 5, 6, 8, 10, 15, 20, 30, 45, 60},
 			StabilityLevel: compbasemetrics.ALPHA,
 		},
-		[]string{"operation", "group", "resource"},
+		[]string{"operation", "type"},
 	)
 	etcdRequestCounts = compbasemetrics.NewCounterVec(
 		&compbasemetrics.CounterOpts{
@@ -60,7 +56,7 @@ var (
 			Help:           "Etcd request counts for each operation and object type.",
 			StabilityLevel: compbasemetrics.ALPHA,
 		},
-		[]string{"operation", "group", "resource"},
+		[]string{"operation", "type"},
 	)
 	etcdRequestErrorCounts = compbasemetrics.NewCounterVec(
 		&compbasemetrics.CounterOpts{
@@ -68,31 +64,15 @@ var (
 			Help:           "Etcd failed request counts for each operation and object type.",
 			StabilityLevel: compbasemetrics.ALPHA,
 		},
-		[]string{"operation", "group", "resource"},
+		[]string{"operation", "type"},
 	)
 	objectCounts = compbasemetrics.NewGaugeVec(
 		&compbasemetrics.GaugeOpts{
 			Name:           "apiserver_storage_objects",
-			Help:           "[DEPRECATED, consider using apiserver_resource_objects instead] Number of stored objects at the time of last check split by kind. In case of a fetching error, the value will be -1.",
+			Help:           "Number of stored objects at the time of last check split by kind. In case of a fetching error, the value will be -1.",
 			StabilityLevel: compbasemetrics.STABLE,
 		},
 		[]string{"resource"},
-	)
-	resourceSizeEstimate = compbasemetrics.NewGaugeVec(
-		&compbasemetrics.GaugeOpts{
-			Name:           "apiserver_resource_size_estimate_bytes",
-			Help:           "Estimated size of stored objects in database. Estimate is based on sum of last observed sizes of serialized objects. In case of a fetching error, the value will be -1.",
-			StabilityLevel: compbasemetrics.ALPHA,
-		},
-		[]string{"group", "resource"},
-	)
-	newObjectCounts = compbasemetrics.NewGaugeVec(
-		&compbasemetrics.GaugeOpts{
-			Name:           "apiserver_resource_objects",
-			Help:           "Number of stored objects at the time of last check split by kind. In case of a fetching error, the value will be -1.",
-			StabilityLevel: compbasemetrics.ALPHA,
-		},
-		[]string{"group", "resource"},
 	)
 	dbTotalSize = compbasemetrics.NewGaugeVec(
 		&compbasemetrics.GaugeOpts{
@@ -113,7 +93,7 @@ var (
 			Help:           "Number of etcd events received split by kind.",
 			StabilityLevel: compbasemetrics.ALPHA,
 		},
-		[]string{"group", "resource"},
+		[]string{"resource"},
 	)
 	etcdBookmarkCounts = compbasemetrics.NewGaugeVec(
 		&compbasemetrics.GaugeOpts{
@@ -121,7 +101,7 @@ var (
 			Help:           "Number of etcd bookmarks (progress notify events) split by kind.",
 			StabilityLevel: compbasemetrics.ALPHA,
 		},
-		[]string{"group", "resource"},
+		[]string{"resource"},
 	)
 	etcdLeaseObjectCounts = compbasemetrics.NewHistogramVec(
 		&compbasemetrics.HistogramOpts{
@@ -138,7 +118,7 @@ var (
 			Help:           "Number of LIST requests served from storage",
 			StabilityLevel: compbasemetrics.ALPHA,
 		},
-		[]string{"group", "resource"},
+		[]string{"resource"},
 	)
 	listStorageNumFetched = compbasemetrics.NewCounterVec(
 		&compbasemetrics.CounterOpts{
@@ -146,7 +126,7 @@ var (
 			Help:           "Number of objects read from storage in the course of serving a LIST request",
 			StabilityLevel: compbasemetrics.ALPHA,
 		},
-		[]string{"group", "resource"},
+		[]string{"resource"},
 	)
 	listStorageNumSelectorEvals = compbasemetrics.NewCounterVec(
 		&compbasemetrics.CounterOpts{
@@ -154,7 +134,7 @@ var (
 			Help:           "Number of objects tested in the course of serving a LIST request from storage",
 			StabilityLevel: compbasemetrics.ALPHA,
 		},
-		[]string{"group", "resource"},
+		[]string{"resource"},
 	)
 	listStorageNumReturned = compbasemetrics.NewCounterVec(
 		&compbasemetrics.CounterOpts{
@@ -162,7 +142,7 @@ var (
 			Help:           "Number of objects returned for a LIST request from storage",
 			StabilityLevel: compbasemetrics.ALPHA,
 		},
-		[]string{"group", "resource"},
+		[]string{"resource"},
 	)
 	decodeErrorCounts = compbasemetrics.NewCounterVec(
 		&compbasemetrics.CounterOpts{
@@ -171,7 +151,7 @@ var (
 			Help:           "Number of stored object decode errors split by object type",
 			StabilityLevel: compbasemetrics.ALPHA,
 		},
-		[]string{"group", "resource"},
+		[]string{"resource"},
 	)
 )
 
@@ -185,8 +165,6 @@ func Register() {
 		legacyregistry.MustRegister(etcdRequestCounts)
 		legacyregistry.MustRegister(etcdRequestErrorCounts)
 		legacyregistry.MustRegister(objectCounts)
-		legacyregistry.MustRegister(resourceSizeEstimate)
-		legacyregistry.MustRegister(newObjectCounts)
 		legacyregistry.MustRegister(dbTotalSize)
 		legacyregistry.CustomMustRegister(storageMonitor)
 		legacyregistry.MustRegister(etcdEventsReceivedCounts)
@@ -200,59 +178,35 @@ func Register() {
 	})
 }
 
-// UpdateStoreStats sets the stats metrics.
-func UpdateStoreStats(groupResource schema.GroupResource, stats storage.Stats, err error) {
-	if err != nil {
-		objectCounts.WithLabelValues(groupResource.String()).Set(-1)
-		newObjectCounts.WithLabelValues(groupResource.Group, groupResource.Resource).Set(-1)
-		if utilfeature.DefaultFeatureGate.Enabled(features.SizeBasedListCostEstimate) {
-			resourceSizeEstimate.WithLabelValues(groupResource.Group, groupResource.Resource).Set(-1)
-		}
-		return
-	}
-	objectCounts.WithLabelValues(groupResource.String()).Set(float64(stats.ObjectCount))
-	newObjectCounts.WithLabelValues(groupResource.Group, groupResource.Resource).Set(float64(stats.ObjectCount))
-	if utilfeature.DefaultFeatureGate.Enabled(features.SizeBasedListCostEstimate) {
-		if stats.ObjectCount > 0 && stats.EstimatedAverageObjectSizeBytes == 0 {
-			resourceSizeEstimate.WithLabelValues(groupResource.Group, groupResource.Resource).Set(-1)
-		} else {
-			resourceSizeEstimate.WithLabelValues(groupResource.Group, groupResource.Resource).Set(float64(stats.EstimatedAverageObjectSizeBytes * stats.ObjectCount))
-		}
-	}
-}
-
-// DeleteStoreStats delete the stats metrics.
-func DeleteStoreStats(groupResource schema.GroupResource) {
-	objectCounts.Delete(map[string]string{"resource": groupResource.String()})
-	newObjectCounts.Delete(map[string]string{"group": groupResource.Group, "resource": groupResource.Resource})
-	if utilfeature.DefaultFeatureGate.Enabled(features.SizeBasedListCostEstimate) {
-		resourceSizeEstimate.DeleteLabelValues(groupResource.Group, groupResource.Resource)
-	}
+// UpdateObjectCount sets the apiserver_storage_object_counts metric.
+func UpdateObjectCount(resourcePrefix string, count int64) {
+	objectCounts.WithLabelValues(resourcePrefix).Set(float64(count))
 }
 
 // RecordEtcdRequest updates and sets the etcd_request_duration_seconds,
 // etcd_request_total, etcd_request_errors_total metrics.
-func RecordEtcdRequest(verb string, groupResource schema.GroupResource, err error, startTime time.Time) {
-	etcdRequestLatency.WithLabelValues(verb, groupResource.Group, groupResource.Resource).Observe(sinceInSeconds(startTime))
-	etcdRequestCounts.WithLabelValues(verb, groupResource.Group, groupResource.Resource).Inc()
+func RecordEtcdRequest(verb, resource string, err error, startTime time.Time) {
+	v := []string{verb, resource}
+	etcdRequestLatency.WithLabelValues(v...).Observe(sinceInSeconds(startTime))
+	etcdRequestCounts.WithLabelValues(v...).Inc()
 	if err != nil {
-		etcdRequestErrorCounts.WithLabelValues(verb, groupResource.Group, groupResource.Resource).Inc()
+		etcdRequestErrorCounts.WithLabelValues(v...).Inc()
 	}
 }
 
 // RecordEtcdEvent updated the etcd_events_received_total metric.
-func RecordEtcdEvent(groupResource schema.GroupResource) {
-	etcdEventsReceivedCounts.WithLabelValues(groupResource.Group, groupResource.Resource).Inc()
+func RecordEtcdEvent(resource string) {
+	etcdEventsReceivedCounts.WithLabelValues(resource).Inc()
 }
 
 // RecordEtcdBookmark updates the etcd_bookmark_counts metric.
-func RecordEtcdBookmark(groupResource schema.GroupResource) {
-	etcdBookmarkCounts.WithLabelValues(groupResource.Group, groupResource.Resource).Inc()
+func RecordEtcdBookmark(resource string) {
+	etcdBookmarkCounts.WithLabelValues(resource).Inc()
 }
 
 // RecordDecodeError sets the storage_decode_errors metrics.
-func RecordDecodeError(groupResource schema.GroupResource) {
-	decodeErrorCounts.WithLabelValues(groupResource.Group, groupResource.Resource).Inc()
+func RecordDecodeError(resource string) {
+	decodeErrorCounts.WithLabelValues(resource).Inc()
 }
 
 // Reset resets the etcd_request_duration_seconds metric.
@@ -286,11 +240,11 @@ func UpdateLeaseObjectCount(count int64) {
 }
 
 // RecordListEtcd3Metrics notes various metrics of the cost to serve a LIST request
-func RecordStorageListMetrics(groupResource schema.GroupResource, numFetched, numEvald, numReturned int) {
-	listStorageCount.WithLabelValues(groupResource.Group, groupResource.Resource).Inc()
-	listStorageNumFetched.WithLabelValues(groupResource.Group, groupResource.Resource).Add(float64(numFetched))
-	listStorageNumSelectorEvals.WithLabelValues(groupResource.Group, groupResource.Resource).Add(float64(numEvald))
-	listStorageNumReturned.WithLabelValues(groupResource.Group, groupResource.Resource).Add(float64(numReturned))
+func RecordStorageListMetrics(resource string, numFetched, numEvald, numReturned int) {
+	listStorageCount.WithLabelValues(resource).Inc()
+	listStorageNumFetched.WithLabelValues(resource).Add(float64(numFetched))
+	listStorageNumSelectorEvals.WithLabelValues(resource).Add(float64(numEvald))
+	listStorageNumReturned.WithLabelValues(resource).Add(float64(numReturned))
 }
 
 type Monitor interface {

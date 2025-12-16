@@ -18,8 +18,8 @@ package routes
 
 import (
 	"fmt"
-	"html/template" //nolint:depguard
-	"io"
+	"html/template"
+	"io/ioutil"
 	"net/http"
 	"path"
 	"sync"
@@ -56,15 +56,12 @@ func (f DebugFlags) Install(c *mux.PathRecorderMux, flag string, handler func(ht
 func (f DebugFlags) Index(w http.ResponseWriter, r *http.Request) {
 	lock.RLock()
 	defer lock.RUnlock()
-	if err := indexTmpl(w, registeredFlags); err != nil {
+	if err := indexTmpl.Execute(w, registeredFlags); err != nil {
 		klog.Error(err)
 	}
 }
 
-func indexTmpl(w io.Writer, flags map[string]debugFlag) error {
-	// avoid using a template to avoid disabling dead code elimination
-	// https://github.com/golang/go/issues/72895
-	_, err := w.Write([]byte(`<html>
+var indexTmpl = template.Must(template.New("index").Parse(`<html>
 <head>
 <title>/debug/flags/</title>
 </head>
@@ -73,27 +70,15 @@ func indexTmpl(w io.Writer, flags map[string]debugFlag) error {
 <br>
 flags:<br>
 <table>
-`))
-	if err != nil {
-		return err
-	}
-
-	for _, flag := range flags {
-		_, err := fmt.Fprintf(w, `<tr>%s<br>
-`, template.HTMLEscapeString(flag.Flag))
-		if err != nil {
-			return err
-		}
-	}
-
-	_, err = w.Write([]byte(`</table>
+{{range .}}
+<tr>{{.Flag}}<br>
+{{end}}
+</table>
 <br>
 full flags configurable<br>
 </body>
 </html>
 `))
-	return err
-}
 
 type debugFlag struct {
 	Flag string
@@ -113,7 +98,7 @@ func StringFlagPutHandler(setter StringFlagSetterFunc) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		switch {
 		case req.Method == "PUT":
-			body, err := io.ReadAll(req.Body)
+			body, err := ioutil.ReadAll(req.Body)
 			if err != nil {
 				writePlainText(http.StatusBadRequest, "error reading request body: "+err.Error(), w)
 				return

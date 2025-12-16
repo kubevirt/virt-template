@@ -43,8 +43,8 @@ type mutatingWorkEstimator struct {
 func (e *mutatingWorkEstimator) estimate(r *http.Request, flowSchemaName, priorityLevelName string) WorkEstimate {
 	minSeats := e.config.MinimumSeats
 	maxSeats := e.maxSeatsFn(priorityLevelName)
-	if maxSeats == 0 || maxSeats > e.config.MaximumMutatingSeatsLimit {
-		maxSeats = e.config.MaximumMutatingSeatsLimit
+	if maxSeats == 0 || maxSeats > e.config.MaximumSeatsLimit {
+		maxSeats = e.config.MaximumSeatsLimit
 	}
 
 	// TODO(wojtekt): Remove once we tune the algorithm to not fail

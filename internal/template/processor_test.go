@@ -82,7 +82,7 @@ var _ = Describe("Processor", func() {
 		}
 
 		vm, msg, err := p.Process(t)
-		Expect(err).To(MatchError("spec.virtualMachine: Invalid value: null: virtualMachine is required and cannot be empty"))
+		Expect(err).To(MatchError(ContainSubstring("virtualMachine is required and cannot be empty")))
 		Expect(vm).To(BeNil())
 		Expect(msg).To(BeEmpty())
 	},

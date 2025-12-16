@@ -20,8 +20,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/google/cel-go/common/types/traits"
-	"github.com/google/cel-go/interpreter"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
 var _ ClaimsMapper = &mapper{}
@@ -58,8 +57,8 @@ func NewUserMapper(compilationResults []CompilationResult) UserMapper {
 }
 
 // EvalClaimMapping evaluates the given claim mapping expression and returns a EvaluationResult.
-func (m *mapper) EvalClaimMapping(ctx context.Context, claims traits.Mapper) (EvaluationResult, error) {
-	results, err := m.eval(ctx, &varNameActivation{name: claimsVarName, value: claims})
+func (m *mapper) EvalClaimMapping(ctx context.Context, claims *unstructured.Unstructured) (EvaluationResult, error) {
+	results, err := m.eval(ctx, map[string]interface{}{claimsVarName: claims.Object})
 	if err != nil {
 		return EvaluationResult{}, err
 	}
@@ -70,16 +69,16 @@ func (m *mapper) EvalClaimMapping(ctx context.Context, claims traits.Mapper) (Ev
 }
 
 // EvalClaimMappings evaluates the given expressions and returns a list of EvaluationResult.
-func (m *mapper) EvalClaimMappings(ctx context.Context, claims traits.Mapper) ([]EvaluationResult, error) {
-	return m.eval(ctx, &varNameActivation{name: claimsVarName, value: claims})
+func (m *mapper) EvalClaimMappings(ctx context.Context, claims *unstructured.Unstructured) ([]EvaluationResult, error) {
+	return m.eval(ctx, map[string]interface{}{claimsVarName: claims.Object})
 }
 
 // EvalUser evaluates the given user expressions and returns a list of EvaluationResult.
-func (m *mapper) EvalUser(ctx context.Context, userInfo traits.Mapper) ([]EvaluationResult, error) {
-	return m.eval(ctx, &varNameActivation{name: userVarName, value: userInfo})
+func (m *mapper) EvalUser(ctx context.Context, userInfo *unstructured.Unstructured) ([]EvaluationResult, error) {
+	return m.eval(ctx, map[string]interface{}{userVarName: userInfo.Object})
 }
 
-func (m *mapper) eval(ctx context.Context, input *varNameActivation) ([]EvaluationResult, error) {
+func (m *mapper) eval(ctx context.Context, input map[string]interface{}) ([]EvaluationResult, error) {
 	evaluations := make([]EvaluationResult, len(m.compilationResults))
 
 	for i, compilationResult := range m.compilationResults {
@@ -96,19 +95,3 @@ func (m *mapper) eval(ctx context.Context, input *varNameActivation) ([]Evaluati
 
 	return evaluations, nil
 }
-
-var _ interpreter.Activation = &varNameActivation{}
-
-type varNameActivation struct {
-	name  string
-	value traits.Mapper
-}
-
-func (v *varNameActivation) ResolveName(name string) (any, bool) {
-	if v.name != name {
-		return nil, false
-	}
-	return v.value, true
-}
-
-func (v *varNameActivation) Parent() interpreter.Activation { return nil }

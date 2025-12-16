@@ -17,8 +17,8 @@ require (
 	k8s.io/klog/v2 v2.130.1
 	k8s.io/kube-openapi v0.31.0
 	k8s.io/utils v0.0.0-20251002143259-bc988d571ff4
-	kubevirt.io/api v1.6.2
-	kubevirt.io/client-go v1.6.2
+	kubevirt.io/api v1.7.0
+	kubevirt.io/client-go v1.7.0
 	kubevirt.io/containerized-data-importer-api v1.63.1
 	kubevirt.io/qe-tools v0.1.8
 	kubevirt.io/virt-template-api v0.0.0-00010101000000-000000000000
@@ -332,6 +332,7 @@ require (
 	go.opentelemetry.io/otel/trace v1.38.0 // indirect
 	go.opentelemetry.io/proto/otlp v1.8.0 // indirect
 	go.uber.org/automaxprocs v1.6.0 // indirect
+	go.uber.org/mock v0.5.1 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.27.0 // indirect
 	go.yaml.in/yaml/v2 v2.4.3 // indirect
@@ -382,7 +383,7 @@ require (
 	sigs.k8s.io/kustomize/kustomize/v5 v5.6.0 // indirect
 	sigs.k8s.io/kustomize/kyaml v0.19.0 // indirect
 	sigs.k8s.io/randfill v1.0.0 // indirect
-	sigs.k8s.io/structured-merge-diff/v6 v6.3.0 // indirect
+	sigs.k8s.io/structured-merge-diff/v4 v4.7.0 // indirect
 )
 
 replace (
@@ -390,16 +391,17 @@ replace (
 	kubevirt.io/virt-template-client-go => ./staging/src/kubevirt.io/virt-template-client-go
 )
 
-// Fix compatibility with imports pulled in by kubevirt.io/api
-replace google.golang.org/genproto => google.golang.org/genproto v0.0.0-20250303144028-a0af3efb3deb
-
-// Fix compatibility with imports pulled in by kubevirt.io/client-go
-replace k8s.io/kube-openapi => k8s.io/kube-openapi v0.0.0-20250905212525-66792eed8611
-
-// Fix compatibility with kubevirt.io/client-go by removing the mocked client
-// that requires older API versions that are no longer present.
-// TODO: Remove this workaround once fixed upstream
-replace kubevirt.io/client-go => github.com/0xfelix/kubevirt-client-go v0.0.0-20250911115544-0de0a14ecd48
+// Fix compatibility with imports pulled in by kubevirt.io/client-go v1.7.0
+replace (
+	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc => go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.60.0
+	k8s.io/api => k8s.io/api v0.33.7
+	k8s.io/apimachinery => k8s.io/apimachinery v0.33.7
+	k8s.io/apiserver => k8s.io/apiserver v0.33.7
+	k8s.io/client-go => k8s.io/client-go v0.33.7
+	k8s.io/component-base => k8s.io/component-base v0.33.7
+	k8s.io/kube-openapi => k8s.io/kube-openapi v0.0.0-20250701173324-9bd5c66d9911
+	sigs.k8s.io/controller-runtime => sigs.k8s.io/controller-runtime v0.21.0
+)
 
 tool (
 	github.com/cert-manager/cmctl/v2

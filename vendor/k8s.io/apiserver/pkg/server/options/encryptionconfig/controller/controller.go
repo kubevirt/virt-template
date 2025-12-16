@@ -174,7 +174,7 @@ func (d *DynamicEncryptionConfigContent) processWorkItem(serverCtx context.Conte
 		}
 
 		if updatedEffectiveConfig && err == nil {
-			metrics.RecordEncryptionConfigAutomaticReloadSuccess(d.apiServerID, encryptionConfiguration.EncryptionFileContentHash)
+			metrics.RecordEncryptionConfigAutomaticReloadSuccess(d.apiServerID)
 		}
 
 		if err != nil {

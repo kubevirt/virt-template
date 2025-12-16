@@ -24,6 +24,7 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	auditinternal "k8s.io/apiserver/pkg/apis/audit"
 	"k8s.io/apiserver/pkg/audit"
 	"k8s.io/apiserver/pkg/endpoints/handlers/responsewriters"
 )
@@ -35,7 +36,7 @@ func WithFailedAuthenticationAudit(failedHandler http.Handler, sink audit.Sink, 
 		return failedHandler
 	}
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		ac, err := evaluatePolicyAndCreateAuditEvent(req, policy, sink)
+		ac, err := evaluatePolicyAndCreateAuditEvent(req, policy)
 		if err != nil {
 			utilruntime.HandleError(fmt.Errorf("failed to create audit event: %v", err))
 			responsewriters.InternalError(w, req, errors.New("failed to create audit event"))
@@ -46,11 +47,13 @@ func WithFailedAuthenticationAudit(failedHandler http.Handler, sink audit.Sink, 
 			failedHandler.ServeHTTP(w, req)
 			return
 		}
+		ev := &ac.Event
 
-		ac.SetEventResponseStatus(&metav1.Status{
-			Message: getAuthMethods(req),
-		})
-		rw := decorateResponseWriter(req.Context(), w, true)
+		ev.ResponseStatus = &metav1.Status{}
+		ev.ResponseStatus.Message = getAuthMethods(req)
+		ev.Stage = auditinternal.StageResponseStarted
+
+		rw := decorateResponseWriter(req.Context(), w, ev, sink, ac.RequestAuditConfig.OmitStages)
 		failedHandler.ServeHTTP(rw, req)
 	})
 }

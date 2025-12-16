@@ -20,7 +20,6 @@ import (
 	"context"
 	"sync"
 
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/component-base/metrics"
 	"k8s.io/component-base/metrics/legacyregistry"
 )
@@ -46,7 +45,7 @@ var (
 			Buckets:        metrics.LinearBuckets(50000, 100000, 31),
 			StabilityLevel: metrics.ALPHA,
 		},
-		[]string{"group", "resource", "verb"},
+		[]string{"resource", "verb"},
 	)
 )
 
@@ -59,6 +58,6 @@ func Register() {
 	})
 }
 
-func RecordRequestBodySize(ctx context.Context, groupResource schema.GroupResource, verb RequestBodyVerb, size int) {
-	RequestBodySizes.WithContext(ctx).WithLabelValues(groupResource.Group, groupResource.Resource, string(verb)).Observe(float64(size))
+func RecordRequestBodySize(ctx context.Context, resource string, verb RequestBodyVerb, size int) {
+	RequestBodySizes.WithContext(ctx).WithLabelValues(resource, string(verb)).Observe(float64(size))
 }
