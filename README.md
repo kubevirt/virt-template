@@ -58,7 +58,9 @@ virttemplatectl process fedora -p NAME=my-fedora --create
 directly within the cluster. The project provides native support for in-cluster
 templating through the `VirtualMachineTemplate` custom resource, which allows
 you to define reusable VM templates with configurable parameters that can be
-substituted at runtime to create VirtualMachine instances.
+substituted at runtime to create `VirtualMachine` instances. Additionally, the
+`VirtualMachineTemplateRequest` custom resource enables creating templates from
+existing VirtualMachines.
 
 Developed as a separate operator outside core KubeVirt, `virt-template` is
 influenced by OpenShift's Template CRD and designed to provide a more
@@ -67,7 +69,7 @@ traditional virtualization experience within Kubernetes.
 ### Components
 
 - `virt-template-controller`: Kubernetes controller that watches and validates
-  VirtualMachineTemplate resources
+  `VirtualMachineTemplate` and `VirtualMachineTemplateRequest` resources
 - `virt-template-apiserver`: API server providing subresource APIs for templates
 - `virttemplatectl`: CLI tool for local template processing and management
 
@@ -81,21 +83,26 @@ traditional virtualization experience within Kubernetes.
   subresource API
 - **Cross-Namespace Sharing**: Share and reuse templates across namespaces
   within your cluster
+- **Template Creation from VMs**: Create templates from existing
+  `VirtualMachines` using `VirtualMachineTemplateRequest`
 
 ## Getting Started
 
 ### Prerequisites
 
 **For development:**
+
 - Go version v1.24.0+
 - Container tool: Podman (default) or Docker
 - kubectl
 
 **For deployment on Kubernetes:**
+
 - cert-manager installed in the cluster
 - KubeVirt installed in the cluster
 
 **For deployment on OpenShift:**
+
 - OpenShift Virtualization installed in the cluster
 
 ### Development
@@ -138,7 +145,8 @@ make cluster-down      # Stop cluster
 virt-template supports two deployment configurations:
 
 - **`config/default`** - Standard Kubernetes deployment (requires cert-manager)
-- **`config/openshift`** - OpenShift deployment (uses built-in Service CA operator)
+- **`config/openshift`** - OpenShift deployment (uses built-in Service CA
+  operator)
 
 **Build and push container images:**
 
@@ -165,10 +173,11 @@ make install
 make deploy-openshift IMG_REGISTRY=<registry> IMG_TAG=<tag>
 ```
 
-**Create a sample VirtualMachineTemplate:**
+**Create sample resources:**
 
 ```sh
 kubectl apply -f config/samples/template_v1alpha1_virtualmachinetemplate.yaml
+kubectl apply -f config/samples/template_v1alpha1_virtualmachinetemplaterequest.yaml
 ```
 
 ### Uninstall
@@ -176,17 +185,17 @@ kubectl apply -f config/samples/template_v1alpha1_virtualmachinetemplate.yaml
 **Uninstall from Kubernetes:**
 
 ```sh
-kubectl delete vmt --all  # Delete sample instances
-make undeploy             # Remove controllers
-make uninstall            # Remove CRDs
+kubectl delete vmt,vmtr --all  # Delete sample instances
+make undeploy                  # Remove controllers
+make uninstall                 # Remove CRDs
 ```
 
 **Uninstall from OpenShift:**
 
 ```sh
-kubectl delete vmt --all     # Delete sample instances
-make undeploy-openshift      # Remove controllers
-make uninstall               # Remove CRDs
+kubectl delete vmt,vmtr --all  # Delete sample instances
+make undeploy-openshift        # Remove controllers
+make uninstall                 # Remove CRDs
 ```
 
 ### Using virttemplatectl
@@ -201,6 +210,12 @@ Convert OpenShift templates to VirtualMachineTemplate:
 
 ```sh
 virttemplatectl convert -f openshift-template.yaml
+```
+
+Create a VirtualMachineTemplate from an existing VirtualMachine:
+
+```sh
+virttemplatectl create --vm-name my-vm --name my-template
 ```
 
 ## Usage
@@ -299,6 +314,38 @@ cat my-template.yaml | virttemplatectl process -f - \
   -p NAME=myvm \
   -p MEMORY=4Gi
 ```
+
+### VirtualMachineTemplateRequest CRD
+
+The `VirtualMachineTemplateRequest` custom resource allows you to create a
+`VirtualMachineTemplate` from an existing `VirtualMachine`. This is useful for
+a golden image scenario where you want to convert an existing `VirtualMachine`
+into a reusable template.
+
+```yaml
+apiVersion: template.kubevirt.io/v1alpha1
+kind: VirtualMachineTemplateRequest
+metadata:
+  name: my-template-request
+spec:
+  templateName: my-template        # Optional: name for the created template
+  virtualMachineRef:
+    namespace: my-vm-namespace     # Namespace of the source VM
+    name: my-vm                    # Name of the source VM
+```
+
+Once created, the controller will generate a `VirtualMachineTemplate` based on
+the referenced `VirtualMachine` in the namespace of the
+`VirtualMachineTemplateRequest`.
+
+Wait for the template to be ready by running:
+
+```sh
+kubectl wait vmt my-template --for=condition=Ready
+```
+
+The created template can then be processed like any other
+`VirtualMachineTemplate`.
 
 ## Distribution
 
