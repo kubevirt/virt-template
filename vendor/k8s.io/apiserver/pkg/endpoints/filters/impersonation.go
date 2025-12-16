@@ -166,7 +166,8 @@ func WithImpersonation(handler http.Handler, a authorizer.Authorizer, s runtime.
 		oldUser, _ := request.UserFrom(ctx)
 		httplog.LogOf(req, w).Addf("%v is impersonating %v", userString(oldUser), userString(newUser))
 
-		audit.LogImpersonatedUser(audit.WithAuditContext(ctx), newUser)
+		ae := audit.AuditEventFrom(ctx)
+		audit.LogImpersonatedUser(ae, newUser)
 
 		// clear all the impersonation headers from the request
 		req.Header.Del(authenticationv1.ImpersonateUserHeader)

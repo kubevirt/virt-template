@@ -33,6 +33,7 @@ import (
 	"golang.org/x/sync/singleflight"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	auditinternal "k8s.io/apiserver/pkg/apis/audit"
 	"k8s.io/apiserver/pkg/audit"
 	"k8s.io/apiserver/pkg/authentication/authenticator"
 	"k8s.io/apiserver/pkg/warning"
@@ -198,9 +199,12 @@ func (a *cachedTokenAuthenticator) doAuthenticateToken(ctx context.Context, toke
 
 		ctx = audit.WithAuditContext(ctx)
 		ac := audit.AuditContextFrom(ctx)
+		// since this is shared work between multiple requests, we have no way of knowing if any
+		// particular request supports audit annotations.  thus we always attempt to record them.
+		ac.Event.Level = auditinternal.LevelMetadata
 
 		record.resp, record.ok, record.err = a.authenticator.AuthenticateToken(ctx, token)
-		record.annotations = ac.GetEventAnnotations()
+		record.annotations = ac.Event.Annotations
 		record.warnings = recorder.extractWarnings()
 
 		if !a.cacheErrs && record.err != nil {

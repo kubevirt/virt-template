@@ -23,43 +23,30 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	apirequest "k8s.io/apiserver/pkg/endpoints/request"
-	"k8s.io/apiserver/pkg/features"
-	"k8s.io/apiserver/pkg/storage"
 	"k8s.io/apiserver/pkg/storage/cacher/delegator"
-	utilfeature "k8s.io/apiserver/pkg/util/feature"
 	"k8s.io/klog/v2"
 )
 
-const (
-	bytesPerSeat                     = 100_000
-	cacheWithStreamingMaxMemoryUsage = 1_000_000
-	// 1.5MB is the recommended client request size in byte
-	// the etcd server should accept. See
-	// https://github.com/etcd-io/etcd/blob/release-3.4/embed/config.go#L56.
-	maxObjectSize       = 1_500_000
-	infiniteObjectCount = 1_000_000_000
-)
-
-func newListWorkEstimator(countFn statsGetterFunc, config *WorkEstimatorConfig, maxSeatsFn maxSeatsFunc) *listWorkEstimator {
+func newListWorkEstimator(countFn objectCountGetterFunc, config *WorkEstimatorConfig, maxSeatsFn maxSeatsFunc) WorkEstimatorFunc {
 	estimator := &listWorkEstimator{
 		config:        config,
-		statsGetterFn: countFn,
+		countGetterFn: countFn,
 		maxSeatsFn:    maxSeatsFn,
 	}
-	return estimator
+	return estimator.estimate
 }
 
 type listWorkEstimator struct {
 	config        *WorkEstimatorConfig
-	statsGetterFn statsGetterFunc
+	countGetterFn objectCountGetterFunc
 	maxSeatsFn    maxSeatsFunc
 }
 
 func (e *listWorkEstimator) estimate(r *http.Request, flowSchemaName, priorityLevelName string) WorkEstimate {
 	minSeats := e.config.MinimumSeats
 	maxSeats := e.maxSeatsFn(priorityLevelName)
-	if maxSeats == 0 || maxSeats > e.config.MaximumListSeatsLimit {
-		maxSeats = e.config.MaximumListSeatsLimit
+	if maxSeats == 0 || maxSeats > e.config.MaximumSeatsLimit {
+		maxSeats = e.config.MaximumSeatsLimit
 	}
 
 	requestInfo, ok := apirequest.RequestInfoFrom(r.Context())
@@ -69,12 +56,14 @@ func (e *listWorkEstimator) estimate(r *http.Request, flowSchemaName, priorityLe
 		return WorkEstimate{InitialSeats: maxSeats}
 	}
 
-	// Requests with metadata.name specified are usually executed as get
-	// requests in storage layer so their width should be 1.
-	// Example of such list requests:
-	// /apis/certificates.k8s.io/v1/certificatesigningrequests?fieldSelector=metadata.name%3Dcsr-xxs4m
-	// /api/v1/namespaces/test/configmaps?fieldSelector=metadata.name%3Dbig-deployment-1&limit=500&resourceVersion=0
-	matchesSingle := requestInfo.Name != ""
+	if requestInfo.Name != "" {
+		// Requests with metadata.name specified are usually executed as get
+		// requests in storage layer so their width should be 1.
+		// Example of such list requests:
+		// /apis/certificates.k8s.io/v1/certificatesigningrequests?fieldSelector=metadata.name%3Dcsr-xxs4m
+		// /api/v1/namespaces/test/configmaps?fieldSelector=metadata.name%3Dbig-deployment-1&limit=500&resourceVersion=0
+		return WorkEstimate{InitialSeats: minSeats}
+	}
 
 	query := r.URL.Query()
 	listOptions := metav1.ListOptions{}
@@ -94,24 +83,21 @@ func (e *listWorkEstimator) estimate(r *http.Request, flowSchemaName, priorityLe
 		}
 	}
 	// TODO: Check whether watchcache is enabled.
-	var listFromStorage bool
 	result, err := delegator.ShouldDelegateListMeta(&listOptions, delegator.CacheWithoutSnapshots{})
 	if err != nil {
-		// Assume worse case where we need to reach to etcd.
-		listFromStorage = true
-	} else {
-		listFromStorage = result.ShouldDelegate
+		return WorkEstimate{InitialSeats: maxSeats}
 	}
+	listFromStorage := result.ShouldDelegate
 	isListFromCache := requestInfo.Verb == "watch" || !listFromStorage
 
-	stats, err := e.statsGetterFn(key(requestInfo))
+	numStored, err := e.countGetterFn(key(requestInfo))
 	switch {
 	case err == ObjectCountStaleErr:
 		// object count going stale is indicative of degradation, so we should
-		// be conservative here and return maximum object count and size.
+		// be conservative here and allocate maximum seats to this list request.
 		// NOTE: if a CRD is removed, its count will go stale first and then the
 		// pruner will eventually remove the CRD from the cache.
-		stats = storage.Stats{ObjectCount: infiniteObjectCount, EstimatedAverageObjectSizeBytes: maxObjectSize}
+		return WorkEstimate{InitialSeats: maxSeats}
 	case err == ObjectCountNotFoundErr:
 		// there are multiple scenarios in which we can see this error:
 		//  a. the type is truly unknown, a typo on the caller's part.
@@ -128,30 +114,11 @@ func (e *listWorkEstimator) estimate(r *http.Request, flowSchemaName, priorityLe
 		return WorkEstimate{InitialSeats: minSeats}
 	case err != nil:
 		// we should never be here since Get returns either ObjectCountStaleErr or
-		// ObjectCountNotFoundErr, return maximum object count and size.
+		// ObjectCountNotFoundErr, return maximumSeats to be on the safe side.
 		klog.ErrorS(err, "Unexpected error from object count tracker")
-		stats = storage.Stats{ObjectCount: infiniteObjectCount, EstimatedAverageObjectSizeBytes: maxObjectSize}
+		return WorkEstimate{InitialSeats: maxSeats}
 	}
 
-	var seats uint64
-	if utilfeature.DefaultFeatureGate.Enabled(features.SizeBasedListCostEstimate) {
-		seats = e.seatsBasedOnObjectSize(stats, listOptions, isListFromCache, matchesSingle)
-	} else {
-		seats = e.seatsBasedOnObjectCount(stats, listOptions, isListFromCache, matchesSingle)
-	}
-
-	// make sure we never return a seat of zero
-	if seats < minSeats {
-		seats = minSeats
-	}
-	if seats > maxSeats {
-		seats = maxSeats
-	}
-	return WorkEstimate{InitialSeats: seats}
-}
-
-func (e *listWorkEstimator) seatsBasedOnObjectCount(stats storage.Stats, listOptions metav1.ListOptions, isListFromCache bool, matchesSingle bool) uint64 {
-	numStored := stats.ObjectCount
 	limit := numStored
 	if listOptions.Limit > 0 && listOptions.Limit < numStored {
 		limit = listOptions.Limit
@@ -160,8 +127,6 @@ func (e *listWorkEstimator) seatsBasedOnObjectCount(stats storage.Stats, listOpt
 	var estimatedObjectsToBeProcessed int64
 
 	switch {
-	case matchesSingle:
-		estimatedObjectsToBeProcessed = 1
 	case isListFromCache:
 		// TODO: For resources that implement indexes at the watchcache level,
 		//  we need to adjust the cost accordingly
@@ -176,35 +141,16 @@ func (e *listWorkEstimator) seatsBasedOnObjectCount(stats storage.Stats, listOpt
 	// will be processed by the list request.
 	// we will come up with a different formula for the transformation function and/or
 	// fine tune this number in future iteratons.
-	return uint64(math.Ceil(float64(estimatedObjectsToBeProcessed) / e.config.ObjectsPerSeat))
-}
+	seats := uint64(math.Ceil(float64(estimatedObjectsToBeProcessed) / e.config.ObjectsPerSeat))
 
-func (e *listWorkEstimator) seatsBasedOnObjectSize(stats storage.Stats, listOptions metav1.ListOptions, isListFromCache bool, matchesSingle bool) uint64 {
-	if stats.EstimatedAverageObjectSizeBytes <= 0 && stats.ObjectCount != 0 {
-		stats.EstimatedAverageObjectSizeBytes = maxObjectSize
+	// make sure we never return a seat of zero
+	if seats < minSeats {
+		seats = minSeats
 	}
-	limited := stats.ObjectCount
-	if listOptions.Limit > 0 && listOptions.Limit < limited {
-		limited = listOptions.Limit
+	if seats > maxSeats {
+		seats = maxSeats
 	}
-	var objectsLoadedInMemory int64
-	switch {
-	case matchesSingle:
-		objectsLoadedInMemory = 1
-	case isListFromCache:
-		objectsLoadedInMemory = limited
-	case listOptions.FieldSelector != "" || listOptions.LabelSelector != "":
-		objectsLoadedInMemory = max(limited, stats.ObjectCount/2)
-	default:
-		objectsLoadedInMemory = limited
-	}
-
-	memoryUsedAtOnce := objectsLoadedInMemory * stats.EstimatedAverageObjectSizeBytes
-	if isListFromCache {
-		// TODO: Identify if the resource is streamed
-		memoryUsedAtOnce = min(memoryUsedAtOnce, cacheWithStreamingMaxMemoryUsage)
-	}
-	return uint64(math.Ceil(float64(memoryUsedAtOnce) / bytesPerSeat))
+	return WorkEstimate{InitialSeats: seats}
 }
 
 func key(requestInfo *apirequest.RequestInfo) string {

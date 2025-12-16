@@ -176,7 +176,7 @@ var (
 			Help:           "Number of events sent in watch clients",
 			StabilityLevel: compbasemetrics.ALPHA,
 		},
-		[]string{"group", "version", "resource"},
+		[]string{"group", "version", "kind"},
 	)
 	WatchEventsSizes = compbasemetrics.NewHistogramVec(
 		&compbasemetrics.HistogramOpts{
@@ -186,7 +186,7 @@ var (
 			Buckets:        compbasemetrics.ExponentialBuckets(1024, 2.0, 8), // 1K, 2K, 4K, 8K, ..., 128K.
 			StabilityLevel: compbasemetrics.ALPHA,
 		},
-		[]string{"group", "version", "resource"},
+		[]string{"group", "version", "kind"},
 	)
 	// Because of volatility of the base metric this is pre-aggregated one. Instead of reporting current usage all the time
 	// it reports maximal usage during the last second.
@@ -226,7 +226,7 @@ var (
 			Help:           "Counter of apiserver self-requests broken out for each verb, API resource and subresource.",
 			StabilityLevel: compbasemetrics.ALPHA,
 		},
-		[]string{"verb", "group", "resource", "subresource"},
+		[]string{"verb", "resource", "subresource"},
 	)
 
 	requestFilterDuration = compbasemetrics.NewHistogramVec(
@@ -322,20 +322,20 @@ var (
 	// these are the valid request methods which we report in our metrics. Any other request methods
 	// will be aggregated under 'unknown'
 	validRequestMethods = utilsets.NewString(
-		MethodApply,
-		MethodConnect,
-		MethodCreate,
-		MethodDelete,
-		MethodDeleteCollection,
-		MethodGet,
-		MethodList,
-		MethodPatch,
-		MethodPost,
-		MethodProxy,
-		MethodPut,
-		MethodUpdate,
-		MethodWatch,
-		MethodWatchList)
+		"APPLY",
+		"CONNECT",
+		"CREATE",
+		"DELETE",
+		"DELETECOLLECTION",
+		"GET",
+		"LIST",
+		"PATCH",
+		"POST",
+		"PROXY",
+		"PUT",
+		"UPDATE",
+		"WATCH",
+		"WATCHLIST")
 
 	// These are the valid connect requests which we report in our metrics.
 	validConnectRequests = utilsets.NewString(
@@ -344,24 +344,6 @@ var (
 		"portforward",
 		"attach",
 		"proxy")
-)
-
-const (
-	MethodApply            string = request.MethodApply
-	MethodConnect          string = request.MethodConnect
-	MethodCreate           string = request.MethodCreate
-	MethodDelete           string = request.MethodDelete
-	MethodDeleteCollection string = request.MethodDeleteCollection
-	MethodGet              string = request.MethodGet
-	MethodHead             string = request.MethodHead // TODO: why not in validRequestMethods?
-	MethodList             string = request.MethodList
-	MethodPatch            string = request.MethodPatch
-	MethodPost             string = request.MethodPost
-	MethodProxy            string = request.MethodProxy
-	MethodPut              string = request.MethodPut
-	MethodUpdate           string = request.MethodUpdate
-	MethodWatch            string = request.MethodWatch
-	MethodWatchList        string = request.MethodWatchList
 )
 
 const (
@@ -604,7 +586,7 @@ func MonitorRequest(req *http.Request, verb, group, version, resource, subresour
 	// MonitorRequest happens after authentication, so we can trust the username given by the request
 	info, ok := request.UserFrom(req.Context())
 	if ok && info.GetName() == user.APIServerUser {
-		apiSelfRequestCounter.WithContext(req.Context()).WithLabelValues(reportedVerb, group, resource, subresource).Inc()
+		apiSelfRequestCounter.WithContext(req.Context()).WithLabelValues(reportedVerb, resource, subresource).Inc()
 	}
 	if deprecated {
 		deprecatedRequestGauge.WithContext(req.Context()).WithLabelValues(group, version, resource, subresource, removedRelease).Set(1)
@@ -623,7 +605,7 @@ func MonitorRequest(req *http.Request, verb, group, version, resource, subresour
 		requestSliLatencies.WithContext(req.Context()).WithLabelValues(reportedVerb, group, version, resource, subresource, scope, component).Observe(sliLatency)
 	}
 	// We are only interested in response sizes of read requests.
-	if verb == MethodGet || verb == MethodList {
+	if verb == "GET" || verb == "LIST" {
 		responseSizes.WithContext(req.Context()).WithLabelValues(reportedVerb, group, version, resource, subresource, scope, component).Observe(float64(respSize))
 	}
 }
@@ -719,11 +701,11 @@ func CleanListScope(ctx context.Context, opts *metainternalversion.ListOptions) 
 // UPPERCASE.
 func CanonicalVerb(verb string, scope string) string {
 	switch verb {
-	case MethodGet, MethodHead:
+	case "GET", "HEAD":
 		if scope != "resource" && scope != "" {
-			return request.MethodList
+			return "LIST"
 		}
-		return MethodGet
+		return "GET"
 	default:
 		return verb
 	}
@@ -733,18 +715,18 @@ func CanonicalVerb(verb string, scope string) string {
 // LIST, APPLY from PATCH and CONNECT from others.
 func CleanVerb(verb string, request *http.Request, requestInfo *request.RequestInfo) string {
 	reportedVerb := verb
-	if suggestedVerb := getVerbIfWatch(request); suggestedVerb == MethodWatch {
-		reportedVerb = MethodWatch
+	if suggestedVerb := getVerbIfWatch(request); suggestedVerb == "WATCH" {
+		reportedVerb = "WATCH"
 	}
 	// normalize the legacy WATCHLIST to WATCH to ensure users aren't surprised by metrics
-	if verb == MethodWatchList {
-		reportedVerb = MethodWatch
+	if verb == "WATCHLIST" {
+		reportedVerb = "WATCH"
 	}
-	if verb == MethodPatch && request.Header.Get("Content-Type") == string(types.ApplyPatchType) {
-		reportedVerb = MethodApply
+	if verb == "PATCH" && request.Header.Get("Content-Type") == string(types.ApplyPatchType) {
+		reportedVerb = "APPLY"
 	}
 	if requestInfo != nil && requestInfo.IsResourceRequest && len(requestInfo.Subresource) > 0 && validConnectRequests.Has(requestInfo.Subresource) {
-		reportedVerb = MethodConnect
+		reportedVerb = "CONNECT"
 	}
 	return reportedVerb
 }
@@ -779,8 +761,8 @@ func cleanVerb(verb, suggestedVerb string, request *http.Request, requestInfo *r
 	// deprecated path pattern for watch of:
 	//   GET /api/{version}/watch/{resource}
 	// We correct it manually based on the pass verb from the installer.
-	if suggestedVerb == MethodWatch || suggestedVerb == MethodWatchList {
-		return MethodWatch
+	if suggestedVerb == "WATCH" || suggestedVerb == "WATCHLIST" {
+		return "WATCH"
 	}
 	reportedVerb := CleanVerb(verb, request, requestInfo)
 	if validRequestMethods.Has(reportedVerb) {
@@ -791,11 +773,11 @@ func cleanVerb(verb, suggestedVerb string, request *http.Request, requestInfo *r
 
 // getVerbIfWatch additionally ensures that GET or List would be transformed to WATCH
 func getVerbIfWatch(req *http.Request) string {
-	if strings.ToUpper(req.Method) == MethodGet || strings.ToUpper(req.Method) == request.MethodList {
+	if strings.ToUpper(req.Method) == "GET" || strings.ToUpper(req.Method) == "LIST" {
 		// see apimachinery/pkg/runtime/conversion.go Convert_Slice_string_To_bool
 		if values := req.URL.Query()["watch"]; len(values) > 0 {
 			if value := strings.ToLower(values[0]); value != "0" && value != "false" {
-				return request.MethodWatch
+				return "WATCH"
 			}
 		}
 	}
