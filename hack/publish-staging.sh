@@ -77,12 +77,12 @@ function commit_repo() {
     git config user.email "${GIT_AUTHOR_EMAIL:-kubevirtbot@redhat.com}"
     git config user.name "${GIT_AUTHOR_NAME:-kubevirt-bot}"
 
-    if [[ -z "$(git status --porcelain)" ]]; then
+    git add -A
+    if git diff --cached --quiet; then
       echo "${name} hasn't changed."
       return 0
     fi
 
-    git add -A
     git commit --message "${name} update by KubeVirt Prow build ${BUILD_ID}"
   )
 }
