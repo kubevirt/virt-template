@@ -25,11 +25,10 @@ readonly TEMP_BASE
 trap 'rm -rf "${TEMP_BASE}"' EXIT
 
 # Validate required variables early
-: "${PULL_BASE_REF:?PULL_BASE_REF must be set}"
 : "${BUILD_ID:?BUILD_ID must be set}"
 
-TARGET_BRANCH="${PULL_BASE_REF}"
-TARGET_TAG="${DOCKER_TAG:-}"
+TARGET_BRANCH="${TARGET_BRANCH:-$(git rev-parse --abbrev-ref HEAD)}"
+TARGET_TAG="${TARGET_TAG:-}"
 
 # if we are not on default branch and there is no tag, do nothing
 if [ -z "${TARGET_TAG}" ] && [ "${TARGET_BRANCH}" != "main" ]; then
