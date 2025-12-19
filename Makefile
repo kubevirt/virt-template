@@ -5,13 +5,6 @@ CLI_PLATFORMS ?= $(IMG_PLATFORMS),darwin/amd64,darwin/arm64,windows/amd64
 IMG_CONTROLLER ?= ${IMG_REGISTRY}/virt-template-controller:${IMG_TAG}
 IMG_APISERVER ?= ${IMG_REGISTRY}/virt-template-apiserver:${IMG_TAG}
 
-# Use the VIRT_TEMPLATE_CRI env variable to control if some targets are executed within a container.
-# Supported runtimes are docker and podman. By default targets run directly on the host.
-IMG_BUILDER_TAG ?= v20251013-a2c948e
-export IMG_BUILDER_TAG
-IMG_BUILDER ?= quay.io/kubevirtci/golang
-export IMG_BUILDER
-
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
 GOBIN=$(shell go env GOPATH)/bin
@@ -77,7 +70,7 @@ vet: ## Run go vet against code.
 .PHONY: lint
 lint: golangci-lint ## Run golangci-lint linter and lint.sh script
 	$(GOLANGCI_LINT) run
-	./hack/cri.sh "./hack/lint.sh"
+	./hack/lint.sh
 	./hack/license-header-check.sh
 
 .PHONY: vendor
