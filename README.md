@@ -129,6 +129,32 @@ make test
 
 ### Deployment
 
+#### Installing a release version on your existing cluster
+
+The easiest way to deploy `virt-template` to your existing cluster is using a
+released version.
+
+**On Kubernetes (requires cert-manager):**
+
+This will deploy `virt-template` into the `kubevirt` namespace.
+
+```sh
+export VERSION=v0.1.1
+kubectl apply -f "https://github.com/kubevirt/virt-template/releases/download/${VERSION}/install.yaml"
+```
+
+**On OpenShift:**
+
+This will deploy `virt-template` into the `openshift-cnv` namespace.
+
+```sh
+export VERSION=v0.1.1
+kubectl apply -f "https://github.com/kubevirt/virt-template/releases/download/${VERSION}/install-openshift.yaml"
+```
+
+See the [releases page](https://github.com/kubevirt/virt-template/releases)
+for available versions.
+
 #### Quick Start with kubevirtci
 
 The easiest way to develop and test is using kubevirtci:
