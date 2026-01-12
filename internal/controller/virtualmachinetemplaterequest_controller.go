@@ -96,7 +96,7 @@ type VirtualMachineTemplateRequestReconciler struct {
 
 // +kubebuilder:rbac:groups="",resources=persistentvolumeclaims,verbs=create
 // +kubebuilder:rbac:groups="",resources=pods,verbs=create
-// +kubebuilder:rbac:groups=cdi.kubevirt.io,resources=datavolumes,verbs=get;list;watch;create;patch
+// +kubebuilder:rbac:groups=cdi.kubevirt.io,resources=datavolumes,verbs=get;list;watch;create;patch;delete
 // +kubebuilder:rbac:groups=cdi.kubevirt.io,resources=datavolumes/source,verbs=create
 // +kubebuilder:rbac:groups=template.kubevirt.io,resources=virtualmachinetemplates,verbs=get;list;watch;create
 // +kubebuilder:rbac:groups=template.kubevirt.io,resources=virtualmachinetemplaterequests,verbs=get;list;watch;patch
