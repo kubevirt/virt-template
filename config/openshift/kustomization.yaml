@@ -129,13 +129,23 @@ patches:
     name: v1alpha1.subresources.template.kubevirt.io
 
 transformers:
-# Keep kube-system namespace in the api-auth-reader RoleBinding
+# Keep kube-system namespace in the api-auth-reader RoleBinding and openshift-cnv as target namespace
 - |-
   apiVersion: builtin
   kind: PatchTransformer
   metadata:
     name: fix-rolebinding-namespace
   patch: '[{"op": "replace", "path": "/metadata/namespace", "value": "kube-system"}]'
+  target:
+    group: rbac.authorization.k8s.io
+    kind: RoleBinding
+    name: apiserver-auth-reader
+- |-
+  apiVersion: builtin
+  kind: PatchTransformer
+  metadata:
+    name: fix-target-namespace
+  patch: '[{"op": "replace", "path": "/subjects/0/namespace", "value": "openshift-cnv"}]'
   target:
     group: rbac.authorization.k8s.io
     kind: RoleBinding
