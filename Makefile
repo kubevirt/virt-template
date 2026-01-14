@@ -204,6 +204,14 @@ build-installer-openshift: manifests generate kustomize ## Generate a consolidat
 	$(KUSTOMIZE) build config/openshift > dist/install-openshift.yaml
 	hack/strip-namespace.sh dist/install-openshift.yaml
 
+.PHONY: build-installer-virt-operator
+build-installer-virt-operator: manifests generate kustomize ## Generate a consolidated YAML with CRDs and deployment for virt-operator.
+	mkdir -p dist
+	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG_CONTROLLER}
+	cd config/apiserver && $(KUSTOMIZE) edit set image apiserver=${IMG_APISERVER}
+	$(KUSTOMIZE) build config/virt-operator > dist/install-virt-operator.yaml
+	hack/strip-namespace.sh dist/install-virt-operator.yaml
+
 ##@ Deployment
 
 ifndef IGNORE_NOT_FOUND
