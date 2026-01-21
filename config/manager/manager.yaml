@@ -12,7 +12,7 @@ spec:
     matchLabels:
       control-plane: controller-manager
       app.kubernetes.io/name: virt-template
-  replicas: 1
+  replicas: 2
   template:
     metadata:
       annotations:
