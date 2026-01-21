@@ -194,6 +194,7 @@ build-installer: manifests generate kustomize ## Generate a consolidated YAML wi
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG_CONTROLLER}
 	cd config/apiserver && $(KUSTOMIZE) edit set image apiserver=${IMG_APISERVER}
 	$(KUSTOMIZE) build config/default > dist/install.yaml
+	hack/strip-namespace.sh dist/install.yaml
 
 .PHONY: build-installer-openshift
 build-installer-openshift: manifests generate kustomize ## Generate a consolidated YAML with CRDs and deployment for OpenShift.
@@ -201,6 +202,7 @@ build-installer-openshift: manifests generate kustomize ## Generate a consolidat
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG_CONTROLLER}
 	cd config/apiserver && $(KUSTOMIZE) edit set image apiserver=${IMG_APISERVER}
 	$(KUSTOMIZE) build config/openshift > dist/install-openshift.yaml
+	hack/strip-namespace.sh dist/install-openshift.yaml
 
 ##@ Deployment
 
