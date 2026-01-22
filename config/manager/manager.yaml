@@ -7,6 +7,7 @@ metadata:
     control-plane: controller-manager
     app.kubernetes.io/name: virt-template
     app.kubernetes.io/managed-by: kustomize
+    kubevirt.io: virt-template-controller
 spec:
   selector:
     matchLabels:
