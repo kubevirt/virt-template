@@ -3,6 +3,10 @@ kind: RoleBinding
 metadata:
   name: apiserver-auth-reader
   namespace: kube-system
+  labels:
+    app.kubernetes.io/name: virt-template
+    app.kubernetes.io/managed-by: kustomize
+    kubevirt.io: virt-template-apiserver-auth-reader
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role

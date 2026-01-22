@@ -6,6 +6,7 @@ metadata:
   labels:
     app.kubernetes.io/name: virt-template
     app.kubernetes.io/managed-by: kustomize
+    kubevirt.io: virt-template-allow-controller-egress
 spec:
   podSelector:
     matchLabels:
