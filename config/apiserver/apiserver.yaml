@@ -7,12 +7,13 @@ metadata:
     control-plane: apiserver
     app.kubernetes.io/name: virt-template
     app.kubernetes.io/managed-by: kustomize
+    kubevirt.io: virt-template-apiserver
 spec:
   selector:
     matchLabels:
       control-plane: apiserver
       app.kubernetes.io/name: virt-template
-  replicas: 1
+  replicas: 2
   template:
     metadata:
       annotations:

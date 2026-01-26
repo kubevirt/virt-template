@@ -1,10 +1,11 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
+  name: leader-election-rolebinding
   labels:
     app.kubernetes.io/name: virt-template
     app.kubernetes.io/managed-by: kustomize
-  name: leader-election-rolebinding
+    kubevirt.io: virt-template-leader-election-rolebinding
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role

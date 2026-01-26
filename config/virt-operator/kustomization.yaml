@@ -1,0 +1,127 @@
+# virt-operator-specific kustomization that does not contain cert configuration.
+# This configuration is derived from config/default but contains no cert configuration,
+# making virt-operator responsible to create and inject the required certificates.
+
+# Adds namespace to all resources.
+namespace: kubevirt
+
+# Value of this field is prepended to the
+# names of all resources, e.g. a deployment named
+# "wordpress" becomes "alices-wordpress".
+# Note that it should also match with the prefix (text before '-') of the namespace
+# field above.
+namePrefix: virt-template-
+
+# Labels to add to all resources and selectors.
+#labels:
+#- includeSelectors: true
+#  pairs:
+#    someName: someValue
+
+resources:
+- ../crd
+- ../rbac
+- ../manager
+# [WEBHOOK] To enable webhook, uncomment all the sections with [WEBHOOK] prefix including the one in
+# crd/kustomization.yaml
+- ../webhook
+# [PROMETHEUS] To enable prometheus monitor, uncomment all sections with 'PROMETHEUS'.
+#- ../prometheus
+# [METRICS] Expose the controller manager metrics service.
+- ../metrics
+# [NETWORK POLICY] Protect the /metrics endpoint and Webhook Server with NetworkPolicy.
+# Only Pod(s) running a namespace labeled with 'metrics: enabled' will be able to gather the metrics.
+# Only CR(s) which requires webhooks and are applied on namespaces labeled with 'webhooks: enabled' will
+# be able to communicate with the Webhook Server.
+- ../network-policy/ingress
+# Enable the virt-template-api server
+- ../apiserver
+  # Enable admission policies
+- ../admission
+
+# Shared deployment patches for controller and apiserver
+components:
+- ../components/deployment-patches
+
+# Add label to controller and apiserver pods for virt-operator network policy
+# and rename secret references for virt-operator certificate management
+patches:
+- target:
+    kind: Deployment
+    name: controller
+  patch: |-
+    - op: add
+      path: /spec/template/metadata/labels/np.kubevirt.io~1allow-access-cluster-services
+      value: "true"
+
+- target:
+    kind: Deployment
+    name: apiserver
+  patch: |-
+    - op: add
+      path: /spec/template/metadata/labels/np.kubevirt.io~1allow-access-cluster-services
+      value: "true"
+
+# Rename controller metrics cert secret
+- target:
+    kind: Deployment
+    name: controller
+  patch: |-
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: controller
+    spec:
+      template:
+        spec:
+          volumes:
+            - name: metrics-certs
+              secret:
+                secretName: kubevirt-virt-template-controller-metrics-certs
+
+  # Rename controller webhook cert secret
+- target:
+    kind: Deployment
+    name: controller
+  patch: |-
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: controller
+    spec:
+      template:
+        spec:
+          volumes:
+            - name: webhook-certs
+              secret:
+                secretName: kubevirt-virt-template-webhook-certs
+
+  # Rename apiserver api cert secret
+- target:
+    kind: Deployment
+    name: apiserver
+  patch: |-
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: apiserver
+    spec:
+      template:
+        spec:
+          volumes:
+            - name: api-cert
+              secret:
+                secretName: kubevirt-virt-template-api-certs
+
+transformers:
+# Keep kube-system namespace in the api-auth-reader RoleBinding
+- |-
+  apiVersion: builtin
+  kind: PatchTransformer
+  metadata:
+    name: fix-rolebinding-namespace
+  patch: '[{"op": "replace", "path": "/metadata/namespace", "value": "kube-system"}]'
+  target:
+    group: rbac.authorization.k8s.io
+    kind: RoleBinding
+    name: apiserver-auth-reader
