@@ -29,8 +29,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	templatev1alpha1 "kubevirt.io/virt-template-api/core/v1alpha1"
-
-	"kubevirt.io/virt-template/internal/template"
+	"kubevirt.io/virt-template-engine/template"
 )
 
 // SetupVirtualMachineTemplateWebhookWithManager registers the webhook for VirtualMachineTemplate in the manager.
