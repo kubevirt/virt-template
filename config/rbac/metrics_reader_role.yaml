@@ -2,6 +2,10 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   name: metrics-reader
+  labels:
+    app.kubernetes.io/name: virt-template
+    app.kubernetes.io/managed-by: kustomize
+    kubevirt.io: virt-template-metrics-reader
 rules:
 - nonResourceURLs:
   - "/metrics"

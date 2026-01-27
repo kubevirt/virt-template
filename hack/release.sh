@@ -56,6 +56,7 @@ function build_release_artifacts() {
     make
     make build-installer
     make build-installer-openshift
+    make build-installer-virt-operator
     make build-virttemplatectl
     make container-build
     make container-push
@@ -76,7 +77,8 @@ function update_github_release() {
     gh release upload --repo "${GITHUB_REPOSITORY}" --clobber "${TARGET_TAG}" \
         bin/virttemplatectl-"${TARGET_TAG}"-* \
         dist/install.yaml \
-        dist/install-openshift.yaml
+        dist/install-openshift.yaml \
+        dist/install-virt-operator.yaml
 }
 
 function update_github_source_tarball_signature() {

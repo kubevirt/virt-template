@@ -1,21 +1,20 @@
-# This NetworkPolicy allows ingress traffic to your webhook server running
-# as part of the controller-manager.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
+  name: allow-apiserver-ingress
+  namespace: system
   labels:
     app.kubernetes.io/name: virt-template
     app.kubernetes.io/managed-by: kustomize
-  name: allow-webhook-traffic
-  namespace: system
+    kubevirt.io: virt-template-allow-apiserver-ingress
 spec:
   podSelector:
     matchLabels:
-      control-plane: controller-manager
+      control-plane: apiserver
       app.kubernetes.io/name: virt-template
   policyTypes:
     - Ingress
   ingress:
     - ports:
-      - port: 9443
-        protocol: TCP
+      - protocol: TCP
+        port: 9443
