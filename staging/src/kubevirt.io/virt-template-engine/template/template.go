@@ -32,8 +32,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/validation/field"
 
 	"kubevirt.io/virt-template-api/core/v1alpha1"
-
-	"kubevirt.io/virt-template/internal/template/generator"
+	"kubevirt.io/virt-template-engine/template/generator"
 )
 
 var (

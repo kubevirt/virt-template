@@ -31,8 +31,7 @@ import (
 	virtv1 "kubevirt.io/api/core/v1"
 
 	"kubevirt.io/virt-template-api/core/v1alpha1"
-
-	"kubevirt.io/virt-template/internal/template/generator"
+	"kubevirt.io/virt-template-engine/template/generator"
 )
 
 var _ = Describe("Template", func() {

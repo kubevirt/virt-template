@@ -28,7 +28,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 
 	"kubevirt.io/virt-template-api/core/v1alpha1"
-	"kubevirt.io/virt-template/internal/template"
+	"kubevirt.io/virt-template-engine/template"
 )
 
 var _ = Describe("Parameters", func() {

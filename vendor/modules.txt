@@ -2991,6 +2991,8 @@ kubevirt.io/qe-tools/pkg/polarion-xml
 ## explicit; go 1.24.0
 # kubevirt.io/virt-template-client-go v0.0.0-00010101000000-000000000000 => ./staging/src/kubevirt.io/virt-template-client-go
 ## explicit; go 1.24.0
+# kubevirt.io/virt-template-engine v0.0.0-00010101000000-000000000000 => ./staging/src/kubevirt.io/virt-template-engine
+## explicit; go 1.24.0
 # mvdan.cc/gofumpt v0.9.1
 ## explicit; go 1.24.0
 mvdan.cc/gofumpt
