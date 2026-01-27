@@ -11,6 +11,7 @@ metadata:
   labels:
     app.kubernetes.io/name: virt-template
     app.kubernetes.io/managed-by: kustomize
+    rbac.authorization.k8s.io/aggregate-to-admin: "true"
   name: virtualmachinetemplaterequest-admin-role
 rules:
 - apiGroups:
