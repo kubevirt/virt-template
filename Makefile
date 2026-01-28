@@ -76,6 +76,7 @@ lint: golangci-lint ## Run golangci-lint linter and lint.sh script
 .PHONY: vendor
 vendor: ## Update vendored modules
 	cd api && go mod tidy
+	cd staging/src/kubevirt.io/virt-template-engine && go mod tidy
 	cd staging/src/kubevirt.io/virt-template-client-go && go mod tidy
 	go mod tidy
 	go work sync
@@ -87,7 +88,7 @@ check-uncommitted: ## Check for uncommitted changes.
 
 .PHONY: test
 test: manifests generate fmt vet setup-envtest ## Run tests.
-	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test $$(go list ./... | grep -v /tests) -coverprofile cover.out
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test $$(go list ./... ./staging/src/kubevirt.io/virt-template-engine/... | grep -v /tests) -coverprofile cover.out
 
 .PHONY: functest
 functest: manifests generate fmt vet ## Run the functional tests.

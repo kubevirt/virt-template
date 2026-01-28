@@ -31,7 +31,7 @@ import (
 	virtv1 "kubevirt.io/api/core/v1"
 
 	"kubevirt.io/virt-template-api/core/v1alpha1"
-	"kubevirt.io/virt-template/internal/template"
+	"kubevirt.io/virt-template-engine/template"
 )
 
 var _ = Describe("Processor", func() {
