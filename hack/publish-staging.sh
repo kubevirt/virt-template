@@ -119,6 +119,13 @@ function push_repo() {
   )
 }
 
+function remove_test_files() {
+  local -r name=${1:?name required}
+  local -r repo_dir="${TEMP_BASE}/${name}"
+
+  find "${repo_dir}" -name "*_test.go" -delete
+}
+
 function go_mod_remove_staging() {
   local -r name=${1:?name required}
   local -r repo_dir="${TEMP_BASE}/${name}"
@@ -156,6 +163,14 @@ pseudo_tag=$(get_pseudo_tag virt-template-api) || {
 go_mod_populate_pseudoversion virt-template-client-go kubevirt.io/virt-template-api "${pseudo_tag}"
 commit_repo virt-template-client-go
 
+# prepare kubevirt.io/virt-template-engine
+prepare_repo virt-template-engine staging/src/kubevirt.io/virt-template-engine
+remove_test_files virt-template-engine
+go_mod_remove_staging virt-template-engine kubevirt.io/virt-template-api
+go_mod_populate_pseudoversion virt-template-engine kubevirt.io/virt-template-api "${pseudo_tag}"
+commit_repo virt-template-engine
+
 # push the prepared repos
 push_repo virt-template-api
 push_repo virt-template-client-go
+push_repo virt-template-engine
