@@ -52,6 +52,7 @@ func TestRBACRoles(t *testing.T) {
 var (
 	testEnv       *envtest.Environment
 	cfg           *rest.Config
+	k8sClient     kubernetes.Interface
 	testNamespace string
 )
 
@@ -77,6 +78,10 @@ var _ = BeforeSuite(func() {
 	cfg, err = testEnv.Start()
 	Expect(err).NotTo(HaveOccurred())
 	Expect(cfg).NotTo(BeNil())
+
+	k8sClient, err = kubernetes.NewForConfig(cfg)
+	Expect(err).NotTo(HaveOccurred())
+	Expect(k8sClient).NotTo(BeNil())
 })
 
 var _ = AfterSuite(func() {
@@ -92,18 +97,12 @@ var _ = Describe("RBAC Roles", func() {
 				Name: testNamespace,
 			},
 		}
-		cfgCopy := rest.CopyConfig(cfg)
-		k8sClient, err := kubernetes.NewForConfig(cfgCopy)
-		Expect(err).NotTo(HaveOccurred())
-		_, err = k8sClient.CoreV1().Namespaces().Create(context.Background(), ns, metav1.CreateOptions{})
+		_, err := k8sClient.CoreV1().Namespaces().Create(context.Background(), ns, metav1.CreateOptions{})
 		Expect(err).NotTo(HaveOccurred())
 	})
 
 	AfterEach(func() {
-		cfgCopy := rest.CopyConfig(cfg)
-		k8sClient, err := kubernetes.NewForConfig(cfgCopy)
-		Expect(err).NotTo(HaveOccurred())
-		err = k8sClient.CoreV1().Namespaces().Delete(context.Background(), testNamespace, metav1.DeleteOptions{})
+		err := k8sClient.CoreV1().Namespaces().Delete(context.Background(), testNamespace, metav1.DeleteOptions{})
 		if err != nil && !k8serrors.IsNotFound(err) {
 			Expect(err).NotTo(HaveOccurred())
 		}
@@ -120,26 +119,18 @@ var _ = Describe("RBAC Roles", func() {
 	}
 
 	createServiceAccount := func(name string) *corev1.ServiceAccount {
-		cfgCopy := rest.CopyConfig(cfg)
-		k8sClient, err := kubernetes.NewForConfig(cfgCopy)
-		Expect(err).NotTo(HaveOccurred())
-
 		sa := &corev1.ServiceAccount{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      name,
 				Namespace: testNamespace,
 			},
 		}
-		sa, err = k8sClient.CoreV1().ServiceAccounts(testNamespace).Create(context.Background(), sa, metav1.CreateOptions{})
+		sa, err := k8sClient.CoreV1().ServiceAccounts(testNamespace).Create(context.Background(), sa, metav1.CreateOptions{})
 		Expect(err).NotTo(HaveOccurred())
 		return sa
 	}
 
 	createClusterRoleBinding := func(name, roleName string, sa *corev1.ServiceAccount) *rbacv1.ClusterRoleBinding {
-		cfgCopy := rest.CopyConfig(cfg)
-		k8sClient, err := kubernetes.NewForConfig(cfgCopy)
-		Expect(err).NotTo(HaveOccurred())
-
 		crb := &rbacv1.ClusterRoleBinding{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: name,
@@ -157,7 +148,7 @@ var _ = Describe("RBAC Roles", func() {
 				},
 			},
 		}
-		crb, err = k8sClient.RbacV1().ClusterRoleBindings().Create(context.Background(), crb, metav1.CreateOptions{})
+		crb, err := k8sClient.RbacV1().ClusterRoleBindings().Create(context.Background(), crb, metav1.CreateOptions{})
 		Expect(err).NotTo(HaveOccurred())
 		return crb
 	}
@@ -231,12 +222,8 @@ var _ = Describe("RBAC Roles", func() {
 			roles[i] = loadClusterRole(filename)
 		}
 
-		cfgCopy := rest.CopyConfig(cfg)
-		k8sClient, err := kubernetes.NewForConfig(cfgCopy)
-		Expect(err).NotTo(HaveOccurred())
-
 		for _, role := range roles {
-			_, err = k8sClient.RbacV1().ClusterRoles().Create(context.Background(), role, metav1.CreateOptions{})
+			_, err := k8sClient.RbacV1().ClusterRoles().Create(context.Background(), role, metav1.CreateOptions{})
 			if err != nil && !k8serrors.IsAlreadyExists(err) {
 				Expect(err).NotTo(HaveOccurred())
 			}
@@ -251,8 +238,6 @@ var _ = Describe("RBAC Roles", func() {
 			sa := createServiceAccount(rolePrefix + "-sa")
 			crb := createClusterRoleBinding(rolePrefix+"-crb", role.Name, sa)
 			defer func() {
-				cfgCopy := rest.CopyConfig(cfg)
-				k8sClient, _ := kubernetes.NewForConfig(cfgCopy)
 				_ = k8sClient.RbacV1().ClusterRoleBindings().Delete(context.Background(), crb.Name, metav1.DeleteOptions{})
 			}()
 
@@ -265,8 +250,6 @@ var _ = Describe("RBAC Roles", func() {
 			sa := createServiceAccount(rolePrefix + "-sa-update")
 			crb := createClusterRoleBinding(rolePrefix+"-crb-update", role.Name, sa)
 			defer func() {
-				cfgCopy := rest.CopyConfig(cfg)
-				k8sClient, _ := kubernetes.NewForConfig(cfgCopy)
 				_ = k8sClient.RbacV1().ClusterRoleBindings().Delete(context.Background(), crb.Name, metav1.DeleteOptions{})
 			}()
 
@@ -288,8 +271,6 @@ var _ = Describe("RBAC Roles", func() {
 			sa := createServiceAccount(rolePrefix + "-sa-delete")
 			crb := createClusterRoleBinding(rolePrefix+"-crb-delete", role.Name, sa)
 			defer func() {
-				cfgCopy := rest.CopyConfig(cfg)
-				k8sClient, _ := kubernetes.NewForConfig(cfgCopy)
 				_ = k8sClient.RbacV1().ClusterRoleBindings().Delete(context.Background(), crb.Name, metav1.DeleteOptions{})
 			}()
 
@@ -309,8 +290,6 @@ var _ = Describe("RBAC Roles", func() {
 			sa := createServiceAccount("vmtr-" + rolePrefix + "-sa")
 			crb := createClusterRoleBinding("vmtr-"+rolePrefix+"-crb", role.Name, sa)
 			defer func() {
-				cfgCopy := rest.CopyConfig(cfg)
-				k8sClient, _ := kubernetes.NewForConfig(cfgCopy)
 				_ = k8sClient.RbacV1().ClusterRoleBindings().Delete(context.Background(), crb.Name, metav1.DeleteOptions{})
 			}()
 
@@ -346,8 +325,6 @@ var _ = Describe("RBAC Roles", func() {
 				adminSA := createServiceAccount("admin-sa-viewer-setup")
 				adminCRB := createClusterRoleBinding("admin-crb-viewer-setup", adminRole.Name, adminSA)
 				defer func() {
-					cfgCopy := rest.CopyConfig(cfg)
-					k8sClient, _ := kubernetes.NewForConfig(cfgCopy)
 					_ = k8sClient.RbacV1().ClusterRoleBindings().Delete(context.Background(), adminCRB.Name, metav1.DeleteOptions{})
 				}()
 
@@ -357,8 +334,6 @@ var _ = Describe("RBAC Roles", func() {
 				viewerSA := createServiceAccount("viewer-sa")
 				viewerCRB := createClusterRoleBinding("viewer-crb", viewerRole.Name, viewerSA)
 				defer func() {
-					cfgCopy := rest.CopyConfig(cfg)
-					k8sClient, _ := kubernetes.NewForConfig(cfgCopy)
 					_ = k8sClient.RbacV1().ClusterRoleBindings().Delete(context.Background(), viewerCRB.Name, metav1.DeleteOptions{})
 				}()
 
@@ -372,8 +347,6 @@ var _ = Describe("RBAC Roles", func() {
 				viewerSA := createServiceAccount("viewer-sa-list")
 				viewerCRB := createClusterRoleBinding("viewer-crb-list", viewerRole.Name, viewerSA)
 				defer func() {
-					cfgCopy := rest.CopyConfig(cfg)
-					k8sClient, _ := kubernetes.NewForConfig(cfgCopy)
 					_ = k8sClient.RbacV1().ClusterRoleBindings().Delete(context.Background(), viewerCRB.Name, metav1.DeleteOptions{})
 				}()
 
@@ -387,8 +360,6 @@ var _ = Describe("RBAC Roles", func() {
 				viewerSA := createServiceAccount("viewer-sa-create")
 				viewerCRB := createClusterRoleBinding("viewer-crb-create", viewerRole.Name, viewerSA)
 				defer func() {
-					cfgCopy := rest.CopyConfig(cfg)
-					k8sClient, _ := kubernetes.NewForConfig(cfgCopy)
 					_ = k8sClient.RbacV1().ClusterRoleBindings().Delete(context.Background(), viewerCRB.Name, metav1.DeleteOptions{})
 				}()
 
@@ -444,8 +415,6 @@ var _ = Describe("RBAC Roles", func() {
 				viewerSA := createServiceAccount("vmtr-viewer-sa")
 				viewerCRB := createClusterRoleBinding("vmtr-viewer-crb", viewerRole.Name, viewerSA)
 				defer func() {
-					cfgCopy := rest.CopyConfig(cfg)
-					k8sClient, _ := kubernetes.NewForConfig(cfgCopy)
 					_ = k8sClient.RbacV1().ClusterRoleBindings().Delete(context.Background(), viewerCRB.Name, metav1.DeleteOptions{})
 				}()
 
