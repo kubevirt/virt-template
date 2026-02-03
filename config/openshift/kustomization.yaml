@@ -42,6 +42,7 @@ resources:
 # Shared deployment patches for controller and apiserver
 components:
 - ../components/deployment-patches
+- ../components/version
 
 # OpenShift-specific patches for Service CA operator
 patches:
