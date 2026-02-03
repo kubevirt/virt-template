@@ -193,6 +193,7 @@ build-installer: manifests generate kustomize ## Generate a consolidated YAML wi
 	mkdir -p dist
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG_CONTROLLER}
 	cd config/apiserver && $(KUSTOMIZE) edit set image apiserver=${IMG_APISERVER}
+	cd config/components/version && $(KUSTOMIZE) edit set annotation template.kubevirt.io/virt-template-version:${VERSION}
 	$(KUSTOMIZE) build config/default > dist/install.yaml
 	hack/strip-namespace.sh dist/install.yaml
 
@@ -201,6 +202,7 @@ build-installer-openshift: manifests generate kustomize ## Generate a consolidat
 	mkdir -p dist
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG_CONTROLLER}
 	cd config/apiserver && $(KUSTOMIZE) edit set image apiserver=${IMG_APISERVER}
+	cd config/components/version && $(KUSTOMIZE) edit set annotation template.kubevirt.io/virt-template-version:${VERSION}
 	$(KUSTOMIZE) build config/openshift > dist/install-openshift.yaml
 	hack/strip-namespace.sh dist/install-openshift.yaml
 
@@ -209,6 +211,7 @@ build-installer-virt-operator: manifests generate kustomize ## Generate a consol
 	mkdir -p dist
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG_CONTROLLER}
 	cd config/apiserver && $(KUSTOMIZE) edit set image apiserver=${IMG_APISERVER}
+	cd config/components/version && $(KUSTOMIZE) edit set annotation template.kubevirt.io/virt-template-version:${VERSION}
 	$(KUSTOMIZE) build config/virt-operator > dist/install-virt-operator.yaml
 	hack/strip-namespace.sh dist/install-virt-operator.yaml
 
