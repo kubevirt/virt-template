@@ -39,6 +39,9 @@ var _ = Describe("VirtualMachineTemplate Webhook", func() {
 		param1Name = "NAME"
 		param2Name = "PREFERENCE"
 		param3Name = "COUNT"
+
+		invalidVMWithoutParam = `{"metadata":{"something":"something"}}`
+		invalidVMWithParam    = `{"metadata":{"something":"${NAME}"}}`
 	)
 
 	var validator webhookv1alpha1.VirtualMachineTemplateCustomValidator
@@ -154,6 +157,63 @@ var _ = Describe("VirtualMachineTemplate Webhook", func() {
 		},
 		Entry("on create", validateOnCreate),
 		Entry("on update", validateOnUpdate),
+	)
+
+	DescribeTable("should skip processing validation and warn when required parameter has no value or generator",
+		func(validate func(tpl *v1alpha1.VirtualMachineTemplate) (admission.Warnings, error), params []v1alpha1.Parameter) {
+			tpl := newVirtualMachineTemplateWithSpec(
+				&v1alpha1.VirtualMachineTemplateSpec{
+					Parameters:     params,
+					VirtualMachine: &runtime.RawExtension{Raw: []byte(invalidVMWithParam)},
+				},
+			)
+
+			warnings, err := validate(tpl)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(len(warnings)).To(BeNumerically(">=", len(params)))
+			for _, param := range params {
+				Expect(warnings).To(ContainElement(And(ContainSubstring("processing validation skipped"), ContainSubstring(param.Name))))
+			}
+		},
+		Entry("single param on create", validateOnCreate,
+			[]v1alpha1.Parameter{{Name: param1Name, Required: true}}),
+		Entry("single param on update", validateOnUpdate,
+			[]v1alpha1.Parameter{{Name: param1Name, Required: true}}),
+		Entry("multiple params on create", validateOnCreate,
+			[]v1alpha1.Parameter{{Name: param1Name, Required: true}, {Name: param2Name, Required: true}}),
+		Entry("multiple params on update", validateOnUpdate,
+			[]v1alpha1.Parameter{{Name: param1Name, Required: true}, {Name: param2Name, Required: true}}),
+	)
+
+	DescribeTable("should reject invalid template when processing validation runs",
+		func(validate func(tpl *v1alpha1.VirtualMachineTemplate) (admission.Warnings, error), raw string, params []v1alpha1.Parameter) {
+			tpl := newVirtualMachineTemplateWithSpec(
+				&v1alpha1.VirtualMachineTemplateSpec{
+					Parameters: params,
+					VirtualMachine: &runtime.RawExtension{
+						Raw: []byte(raw),
+					},
+				},
+			)
+
+			warnings, err := validate(tpl)
+			Expect(err).To(MatchError(ContainSubstring("processing validation failed")))
+			Expect(warnings).To(BeEmpty())
+		},
+		Entry("no params on create", validateOnCreate, invalidVMWithoutParam, nil),
+		Entry("no params on update", validateOnUpdate, invalidVMWithoutParam, nil),
+		Entry("required param with value on create", validateOnCreate, invalidVMWithParam, []v1alpha1.Parameter{
+			{Name: param1Name, Required: true, Value: "test-vm"},
+		}),
+		Entry("required param with value on update", validateOnUpdate, invalidVMWithParam, []v1alpha1.Parameter{
+			{Name: param1Name, Required: true, Value: "test-vm"},
+		}),
+		Entry("required param with generator on create", validateOnCreate, invalidVMWithParam, []v1alpha1.Parameter{
+			{Name: param1Name, Required: true, Generate: "expression", From: "[a-z]{8}"},
+		}),
+		Entry("required param with generator on update", validateOnUpdate, invalidVMWithParam, []v1alpha1.Parameter{
+			{Name: param1Name, Required: true, Generate: "expression", From: "[a-z]{8}"},
+		}),
 	)
 })
 

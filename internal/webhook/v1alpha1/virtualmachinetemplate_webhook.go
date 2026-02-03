@@ -62,7 +62,10 @@ func (v *VirtualMachineTemplateCustomValidator) ValidateCreate(_ context.Context
 		return warnings, errs.ToAggregate()
 	}
 
-	return warnings, nil
+	processingWarnings, err := validateProcessing(virtualmachinetemplate)
+	warnings = append(warnings, processingWarnings...)
+
+	return warnings, err
 }
 
 // ValidateUpdate implements webhook.CustomValidator so a webhook will be registered for the type VirtualMachineTemplate.
@@ -77,10 +80,36 @@ func (v *VirtualMachineTemplateCustomValidator) ValidateUpdate(_ context.Context
 		return warnings, errs.ToAggregate()
 	}
 
-	return warnings, nil
+	processingWarnings, err := validateProcessing(virtualmachinetemplate)
+	warnings = append(warnings, processingWarnings...)
+
+	return warnings, err
 }
 
 // ValidateDelete implements webhook.CustomValidator so a webhook will be registered for the type VirtualMachineTemplate.
 func (v *VirtualMachineTemplateCustomValidator) ValidateDelete(_ context.Context, _ runtime.Object) (admission.Warnings, error) {
+	return nil, nil
+}
+
+// validateProcessing attempts to process the template to verify it produces
+// a valid VirtualMachine definition. Only performs full processing validation when
+// all required parameters have values (or generators), to avoid type mismatches from
+// placeholder values. Returns warnings for each required parameter without a value or generator.
+func validateProcessing(tpl *templatev1alpha1.VirtualMachineTemplate) ([]string, error) {
+	var warnings []string
+	for _, param := range tpl.Spec.Parameters {
+		if param.Required && param.Value == "" && param.Generate == "" {
+			warnings = append(warnings,
+				fmt.Sprintf("processing validation skipped: required parameter %q has no value or generator", param.Name))
+		}
+	}
+	if len(warnings) > 0 {
+		return warnings, nil
+	}
+
+	if _, _, err := template.GetDefaultProcessor().Process(tpl); err != nil {
+		return nil, fmt.Errorf("processing validation failed: %w", err)
+	}
+
 	return nil, nil
 }
