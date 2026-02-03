@@ -1,9 +1,9 @@
-IMG_TAG ?= latest
+VERSION ?= latest
 IMG_REGISTRY ?= quay.io/kubevirt
 IMG_PLATFORMS ?= linux/amd64,linux/arm64,linux/s390x
 CLI_PLATFORMS ?= $(IMG_PLATFORMS),darwin/amd64,darwin/arm64,windows/amd64
-IMG_CONTROLLER ?= ${IMG_REGISTRY}/virt-template-controller:${IMG_TAG}
-IMG_APISERVER ?= ${IMG_REGISTRY}/virt-template-apiserver:${IMG_TAG}
+IMG_CONTROLLER ?= ${IMG_REGISTRY}/virt-template-controller:${VERSION}
+IMG_APISERVER ?= ${IMG_REGISTRY}/virt-template-apiserver:${VERSION}
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -144,7 +144,7 @@ build-apiserver: manifests generate fmt vet ## Build apiserver binary.
 
 .PHONY: build-virttemplatectl
 build-virttemplatectl: manifests generate fmt vet ## Build virttemplatectl binaries for all platforms in CLI_PLATFORMS.
-	CLI_PLATFORMS=$(CLI_PLATFORMS) IMG_TAG=$(IMG_TAG) ./hack/cli-build.sh
+	CLI_PLATFORMS=$(CLI_PLATFORMS) VERSION=$(VERSION) ./hack/cli-build.sh
 
 .PHONY: run
 run: manifests generate fmt vet ## Run a controller from your host.
@@ -194,6 +194,7 @@ build-installer: manifests generate kustomize ## Generate a consolidated YAML wi
 	mkdir -p dist
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG_CONTROLLER}
 	cd config/apiserver && $(KUSTOMIZE) edit set image apiserver=${IMG_APISERVER}
+	cd config/components/version && $(KUSTOMIZE) edit set annotation template.kubevirt.io/virt-template-version:${VERSION}
 	$(KUSTOMIZE) build config/default > dist/install.yaml
 	hack/strip-namespace.sh dist/install.yaml
 
@@ -202,6 +203,7 @@ build-installer-openshift: manifests generate kustomize ## Generate a consolidat
 	mkdir -p dist
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG_CONTROLLER}
 	cd config/apiserver && $(KUSTOMIZE) edit set image apiserver=${IMG_APISERVER}
+	cd config/components/version && $(KUSTOMIZE) edit set annotation template.kubevirt.io/virt-template-version:${VERSION}
 	$(KUSTOMIZE) build config/openshift > dist/install-openshift.yaml
 	hack/strip-namespace.sh dist/install-openshift.yaml
 
@@ -210,6 +212,7 @@ build-installer-virt-operator: manifests generate kustomize ## Generate a consol
 	mkdir -p dist
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG_CONTROLLER}
 	cd config/apiserver && $(KUSTOMIZE) edit set image apiserver=${IMG_APISERVER}
+	cd config/components/version && $(KUSTOMIZE) edit set annotation template.kubevirt.io/virt-template-version:${VERSION}
 	$(KUSTOMIZE) build config/virt-operator > dist/install-virt-operator.yaml
 	hack/strip-namespace.sh dist/install-virt-operator.yaml
 

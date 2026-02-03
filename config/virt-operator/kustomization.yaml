@@ -42,6 +42,7 @@ resources:
 # Shared deployment patches for controller and apiserver
 components:
 - ../components/deployment-patches
+- ../components/version
 
 # Add label to controller and apiserver pods for virt-operator network policy
 # and rename secret references for virt-operator certificate management

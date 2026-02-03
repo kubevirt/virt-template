@@ -52,7 +52,7 @@ function ensure_gh_cli_installed() {
 }
 
 function build_release_artifacts() {
-    export IMG_TAG="${TARGET_TAG}"
+    export VERSION="${TARGET_TAG}"
     make
     make build-installer
     make build-installer-openshift
