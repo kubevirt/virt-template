@@ -100,7 +100,7 @@ func validateProcessing(tpl *templatev1alpha1.VirtualMachineTemplate) ([]string,
 	for _, param := range tpl.Spec.Parameters {
 		if param.Required && param.Value == "" && param.Generate == "" {
 			warnings = append(warnings,
-				fmt.Sprintf("processing validation skipped: required parameter %q has no value or generator", param.Name))
+				fmt.Sprintf("processing validation skipped: required parameter %q has neither value nor generator", param.Name))
 		}
 	}
 	if len(warnings) > 0 {
