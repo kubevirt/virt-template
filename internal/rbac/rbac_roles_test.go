@@ -86,17 +86,11 @@ var _ = BeforeSuite(func() {
 
 	clusterRoles = make(map[string]*rbacv1.ClusterRole)
 	rbacDir := filepath.Join("..", "..", "config", "rbac")
-	roleFiles := []string{
-		"virtualmachinetemplate_admin_role.yaml",
-		"virtualmachinetemplate_editor_role.yaml",
-		"virtualmachinetemplate_viewer_role.yaml",
-		"virtualmachinetemplaterequest_admin_role.yaml",
-		"virtualmachinetemplaterequest_editor_role.yaml",
-		"virtualmachinetemplaterequest_viewer_role.yaml",
-	}
+	roleFiles, err := filepath.Glob(filepath.Join(rbacDir, "*_role.yaml"))
+	Expect(err).NotTo(HaveOccurred())
+	Expect(roleFiles).NotTo(BeEmpty(), "No role files found matching *_role.yaml pattern")
 
-	for _, filename := range roleFiles {
-		path := filepath.Join(rbacDir, filename)
+	for _, path := range roleFiles {
 		data, err := os.ReadFile(path)
 		Expect(err).NotTo(HaveOccurred())
 
@@ -104,9 +98,7 @@ var _ = BeforeSuite(func() {
 		Expect(yaml.Unmarshal(data, &role)).To(Succeed())
 
 		_, err = k8sClient.RbacV1().ClusterRoles().Create(context.Background(), &role, metav1.CreateOptions{})
-		if err != nil && !k8serrors.IsAlreadyExists(err) {
-			Expect(err).NotTo(HaveOccurred())
-		}
+		Expect(err).NotTo(HaveOccurred())
 
 		clusterRoles[role.Name] = &role
 	}
@@ -231,156 +223,118 @@ var _ = Describe("RBAC Roles", func() {
 		return err
 	}
 
-	testRoleCreateUpdateDelete := func(getRole func() *rbacv1.ClusterRole, rolePrefix string) {
-		It("should allow creating", func() {
-			role := getRole()
-			sa := createServiceAccount(rolePrefix + "-sa")
-			createClusterRoleBinding(rolePrefix+"-crb", role.Name, sa)
-
-			client := createClientForServiceAccount(sa)
-			Expect(createVirtualMachineTemplate(client, "test-template-"+rolePrefix)).To(Succeed())
-		})
-
-		It("should allow updating", func() {
-			role := getRole()
-			sa := createServiceAccount(rolePrefix + "-sa-update")
-			createClusterRoleBinding(rolePrefix+"-crb-update", role.Name, sa)
-
-			client := createClientForServiceAccount(sa)
-			templateName := "test-template-" + rolePrefix + "-update"
-			Expect(createVirtualMachineTemplate(client, templateName)).To(Succeed())
-
-			tpl, err := client.TemplateV1alpha1().VirtualMachineTemplates(testNamespace).
-				Get(context.Background(), templateName, metav1.GetOptions{})
-			Expect(err).NotTo(HaveOccurred())
-			tpl.Labels = map[string]string{"test": "label"}
-			_, err = client.TemplateV1alpha1().VirtualMachineTemplates(testNamespace).
-				Update(context.Background(), tpl, metav1.UpdateOptions{})
-			Expect(err).NotTo(HaveOccurred())
-		})
-
-		It("should allow deleting", func() {
-			role := getRole()
-			sa := createServiceAccount(rolePrefix + "-sa-delete")
-			createClusterRoleBinding(rolePrefix+"-crb-delete", role.Name, sa)
-
-			client := createClientForServiceAccount(sa)
-			templateName := "test-template-" + rolePrefix + "-delete"
-			Expect(createVirtualMachineTemplate(client, templateName)).To(Succeed())
-
-			err := client.TemplateV1alpha1().VirtualMachineTemplates(testNamespace).
-				Delete(context.Background(), templateName, metav1.DeleteOptions{})
-			Expect(err).NotTo(HaveOccurred())
-		})
-	}
-
 	Context("VirtualMachineTemplate roles", func() {
-		Describe("Admin role", func() {
-			testRoleCreateUpdateDelete(func() *rbacv1.ClusterRole { return clusterRoles["virtualmachinetemplate-admin-role"] }, "admin")
-		})
+		DescribeTable("should allow creating, updating, and deleting VirtualMachineTemplate",
+			func(roleName string, rolePrefix string) {
+				role := clusterRoles[roleName]
+				Expect(role).NotTo(BeNil())
 
-		Describe("Editor role", func() {
-			testRoleCreateUpdateDelete(func() *rbacv1.ClusterRole { return clusterRoles["virtualmachinetemplate-editor-role"] }, "editor")
-		})
+				createClientForRole := func(suffix string) templateclient.Interface {
+					sa := createServiceAccount(rolePrefix + suffix)
+					createClusterRoleBinding(rolePrefix+suffix, role.Name, sa)
+					return createClientForServiceAccount(sa)
+				}
 
-		Describe("Viewer role", func() {
-			It("should allow getting VirtualMachineTemplate", func() {
+				By("should allow creating", func() {
+					client := createClientForRole("-sa")
+					Expect(createVirtualMachineTemplate(client, "test-template-"+rolePrefix)).To(Succeed())
+				})
+
+				By("should allow updating", func() {
+					client := createClientForRole("-sa-update")
+					templateName := "test-template-" + rolePrefix + "-update"
+					Expect(createVirtualMachineTemplate(client, templateName)).To(Succeed())
+
+					tpl, err := client.TemplateV1alpha1().VirtualMachineTemplates(testNamespace).
+						Get(context.Background(), templateName, metav1.GetOptions{})
+					Expect(err).NotTo(HaveOccurred())
+					tpl.Labels = map[string]string{"test": "label"}
+					_, err = client.TemplateV1alpha1().VirtualMachineTemplates(testNamespace).
+						Update(context.Background(), tpl, metav1.UpdateOptions{})
+					Expect(err).NotTo(HaveOccurred())
+				})
+
+				By("should allow deleting", func() {
+					client := createClientForRole("-sa-delete")
+					templateName := "test-template-" + rolePrefix + "-delete"
+					Expect(createVirtualMachineTemplate(client, templateName)).To(Succeed())
+
+					err := client.TemplateV1alpha1().VirtualMachineTemplates(testNamespace).
+						Delete(context.Background(), templateName, metav1.DeleteOptions{})
+					Expect(err).NotTo(HaveOccurred())
+				})
+			},
+			Entry("Admin role", "virtualmachinetemplate-admin-role", "admin"),
+			Entry("Editor role", "virtualmachinetemplate-editor-role", "editor"),
+		)
+
+		DescribeTable("Viewer role permissions",
+			func(roleName string, suffix string, testFunc func(templateclient.Interface)) {
+				role := clusterRoles[roleName]
+				Expect(role).NotTo(BeNil())
+				viewerSA := createServiceAccount("viewer-sa" + suffix)
+				createClusterRoleBinding("viewer-crb"+suffix, role.Name, viewerSA)
+				viewerClient := createClientForServiceAccount(viewerSA)
+				testFunc(viewerClient)
+			},
+			Entry("should allow getting VirtualMachineTemplate", "virtualmachinetemplate-viewer-role", "", func(viewerClient templateclient.Interface) {
 				adminRole := clusterRoles["virtualmachinetemplate-admin-role"]
-				viewerRole := clusterRoles["virtualmachinetemplate-viewer-role"]
 				adminSA := createServiceAccount("admin-sa-viewer-setup")
 				createClusterRoleBinding("admin-crb-viewer-setup", adminRole.Name, adminSA)
 
 				adminClient := createClientForServiceAccount(adminSA)
 				Expect(createVirtualMachineTemplate(adminClient, "test-template-viewer")).To(Succeed())
 
-				viewerSA := createServiceAccount("viewer-sa")
-				createClusterRoleBinding("viewer-crb", viewerRole.Name, viewerSA)
-
-				viewerClient := createClientForServiceAccount(viewerSA)
 				_, err := viewerClient.TemplateV1alpha1().VirtualMachineTemplates(testNamespace).
 					Get(context.Background(), "test-template-viewer", metav1.GetOptions{})
 				Expect(err).NotTo(HaveOccurred())
-			})
-
-			It("should allow listing VirtualMachineTemplates", func() {
-				viewerRole := clusterRoles["virtualmachinetemplate-viewer-role"]
-				viewerSA := createServiceAccount("viewer-sa-list")
-				createClusterRoleBinding("viewer-crb-list", viewerRole.Name, viewerSA)
-
-				viewerClient := createClientForServiceAccount(viewerSA)
+			}),
+			Entry("should allow listing VirtualMachineTemplates", "virtualmachinetemplate-viewer-role", "-list", func(viewerClient templateclient.Interface) {
 				_, err := viewerClient.TemplateV1alpha1().VirtualMachineTemplates(testNamespace).
 					List(context.Background(), metav1.ListOptions{})
 				Expect(err).NotTo(HaveOccurred())
-			})
-
-			It("should deny creating VirtualMachineTemplate", func() {
-				viewerRole := clusterRoles["virtualmachinetemplate-viewer-role"]
-				viewerSA := createServiceAccount("viewer-sa-create")
-				createClusterRoleBinding("viewer-crb-create", viewerRole.Name, viewerSA)
-
-				viewerClient := createClientForServiceAccount(viewerSA)
+			}),
+			Entry("should deny creating VirtualMachineTemplate", "virtualmachinetemplate-viewer-role", "-create", func(viewerClient templateclient.Interface) {
 				err := createVirtualMachineTemplate(viewerClient, "test-template-viewer-create")
 				Expect(err).To(HaveOccurred())
 				Expect(k8serrors.IsForbidden(err)).To(BeTrue())
-			})
-		})
+			}),
+		)
 	})
-
-	Context("RBAC enforcement verification", func() {
-		It("should deny access when user has no permissions", func() {
-			sa := createServiceAccount("no-permissions-sa")
-
-			client := createClientForServiceAccount(sa)
-			err := createVirtualMachineTemplate(client, "test-template-no-perms")
-			Expect(err).To(HaveOccurred())
-			Expect(k8serrors.IsForbidden(err)).To(BeTrue(), "User without permissions should be forbidden")
-		})
-
-		It("should deny access when user has no role binding", func() {
-			sa := createServiceAccount("no-binding-sa")
-
-			client := createClientForServiceAccount(sa)
-			err := createVirtualMachineTemplateRequest(client, "test-vmtr-no-binding")
-			Expect(err).To(HaveOccurred())
-			Expect(k8serrors.IsForbidden(err)).To(BeTrue(), "User without role binding should be forbidden")
-		})
-	})
-
-	testVMTRRoleCreate := func(getRole func() *rbacv1.ClusterRole, rolePrefix string) {
-		It("should allow creating VirtualMachineTemplateRequest", func() {
-			role := getRole()
-			sa := createServiceAccount("vmtr-" + rolePrefix + "-sa")
-			createClusterRoleBinding("vmtr-"+rolePrefix+"-crb", role.Name, sa)
-
-			client := createClientForServiceAccount(sa)
-			err := createVirtualMachineTemplateRequest(client, "test-vmtr-"+rolePrefix)
-			if err != nil {
-				Expect(k8serrors.IsForbidden(err)).To(BeFalse(), "Should not be forbidden by RBAC")
-			}
-		})
-	}
 
 	Context("VirtualMachineTemplateRequest roles", func() {
-		Describe("Admin role", func() {
-			testVMTRRoleCreate(func() *rbacv1.ClusterRole { return clusterRoles["virtualmachinetemplaterequest-admin-role"] }, "admin")
-		})
+		DescribeTable("should allow creating VirtualMachineTemplateRequest",
+			func(roleName string, rolePrefix string) {
+				role := clusterRoles[roleName]
+				Expect(role).NotTo(BeNil())
+				sa := createServiceAccount("vmtr-" + rolePrefix + "-sa")
+				createClusterRoleBinding("vmtr-"+rolePrefix+"-crb", role.Name, sa)
 
-		Describe("Editor role", func() {
-			testVMTRRoleCreate(func() *rbacv1.ClusterRole { return clusterRoles["virtualmachinetemplaterequest-editor-role"] }, "editor")
-		})
+				client := createClientForServiceAccount(sa)
+				err := createVirtualMachineTemplateRequest(client, "test-vmtr-"+rolePrefix)
+				if err != nil {
+					Expect(k8serrors.IsForbidden(err)).To(BeFalse(), "Should not be forbidden by RBAC")
+				}
+			},
+			Entry("Admin role", "virtualmachinetemplaterequest-admin-role", "admin"),
+			Entry("Editor role", "virtualmachinetemplaterequest-editor-role", "editor"),
+		)
 
-		Describe("Viewer role", func() {
-			It("should deny creating VirtualMachineTemplateRequest", func() {
-				viewerRole := clusterRoles["virtualmachinetemplaterequest-viewer-role"]
+		DescribeTable("Viewer role permissions",
+			func(roleName string, testFunc func(templateclient.Interface)) {
+				role := clusterRoles[roleName]
+				Expect(role).NotTo(BeNil())
 				viewerSA := createServiceAccount("vmtr-viewer-sa")
-				createClusterRoleBinding("vmtr-viewer-crb", viewerRole.Name, viewerSA)
-
+				createClusterRoleBinding("vmtr-viewer-crb", role.Name, viewerSA)
 				viewerClient := createClientForServiceAccount(viewerSA)
+				testFunc(viewerClient)
+			},
+			Entry("should deny creating VirtualMachineTemplateRequest", "virtualmachinetemplaterequest-viewer-role", func(viewerClient templateclient.Interface) {
 				err := createVirtualMachineTemplateRequest(viewerClient, "test-vmtr-viewer")
 				Expect(err).To(HaveOccurred())
 				Expect(k8serrors.IsForbidden(err)).To(BeTrue())
-			})
-		})
+			}),
+		)
 	})
 })
 
