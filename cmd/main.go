@@ -178,6 +178,8 @@ func main() {
 		// after the manager stops then its usage might be unsafe.
 		// LeaderElectionReleaseOnCancel: true,
 		Cache: cache.Options{
+			ReaderFailOnMissingInformer: true,
+			DefaultTransform:            cache.TransformStripManagedFields(),
 			ByObject: map[client.Object]cache.ByObject{
 				&snapshotv1beta1.VirtualMachineSnapshot{}: {
 					Label: uidSelector,
