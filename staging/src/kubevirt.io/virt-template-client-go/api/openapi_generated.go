@@ -669,7 +669,6 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"kubevirt.io/virt-template-api/core/subresourcesv1alpha1.ProcessOptions":                          schema_kubevirtio_virt_template_api_core_subresourcesv1alpha1_ProcessOptions(ref),
 		"kubevirt.io/virt-template-api/core/subresourcesv1alpha1.ProcessedVirtualMachineTemplate":         schema_kubevirtio_virt_template_api_core_subresourcesv1alpha1_ProcessedVirtualMachineTemplate(ref),
 		"kubevirt.io/virt-template-api/core/subresourcesv1alpha1.VirtualMachineTemplate":                  schema_kubevirtio_virt_template_api_core_subresourcesv1alpha1_VirtualMachineTemplate(ref),
-		"kubevirt.io/virt-template-api/core/v1alpha1.DataVolumeTemplateStatus":                            schema_kubevirtio_virt_template_api_core_v1alpha1_DataVolumeTemplateStatus(ref),
 		"kubevirt.io/virt-template-api/core/v1alpha1.Parameter":                                           schema_kubevirtio_virt_template_api_core_v1alpha1_Parameter(ref),
 		"kubevirt.io/virt-template-api/core/v1alpha1.VirtualMachineReference":                             schema_kubevirtio_virt_template_api_core_v1alpha1_VirtualMachineReference(ref),
 		"kubevirt.io/virt-template-api/core/v1alpha1.VirtualMachineTemplate":                              schema_kubevirtio_virt_template_api_core_v1alpha1_VirtualMachineTemplate(ref),
@@ -32018,64 +32017,6 @@ func schema_kubevirtio_virt_template_api_core_subresourcesv1alpha1_VirtualMachin
 	}
 }
 
-func schema_kubevirtio_virt_template_api_core_v1alpha1_DataVolumeTemplateStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Description: "DataVolumeTemplateStatus represents the status of a DataVolumeTemplate in a VirtualMachineTemplate.",
-				Type:        []string{"object"},
-				Properties: map[string]spec.Schema{
-					"name": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Name is the name of the DataVolumeTemplate.",
-							Default:     "",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"sourceNamespace": {
-						SchemaProps: spec.SchemaProps{
-							Description: "SourceNamespace is the namespace where the source volume resides (if applicable).",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"sourceName": {
-						SchemaProps: spec.SchemaProps{
-							Description: "SourceName is the name of the source (PVC, VolumeSnapshot, etc.).",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"sourceType": {
-						SchemaProps: spec.SchemaProps{
-							Description: "SourceType indicates the type of volume source (PVC, Snapshot, HTTP, Blank, etc.).",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"ready": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Ready indicates whether the source volume is ready.",
-							Default:     false,
-							Type:        []string{"boolean"},
-							Format:      "",
-						},
-					},
-					"message": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Message provides additional status information.",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-				},
-				Required: []string{"name", "ready"},
-			},
-		},
-	}
-}
-
 func schema_kubevirtio_virt_template_api_core_v1alpha1_Parameter(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -32511,32 +32452,10 @@ func schema_kubevirtio_virt_template_api_core_v1alpha1_VirtualMachineTemplateSta
 							},
 						},
 					},
-					"dataVolumeTemplateStatuses": {
-						VendorExtensible: spec.VendorExtensible{
-							Extensions: spec.Extensions{
-								"x-kubernetes-list-map-keys": []interface{}{
-									"name",
-								},
-								"x-kubernetes-list-type": "map",
-							},
-						},
-						SchemaProps: spec.SchemaProps{
-							Description: "DataVolumeTemplateStatuses contains the status of DataVolumeTemplates in this template.",
-							Type:        []string{"array"},
-							Items: &spec.SchemaOrArray{
-								Schema: &spec.Schema{
-									SchemaProps: spec.SchemaProps{
-										Default: map[string]interface{}{},
-										Ref:     ref("kubevirt.io/virt-template-api/core/v1alpha1.DataVolumeTemplateStatus"),
-									},
-								},
-							},
-						},
-					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"k8s.io/apimachinery/pkg/apis/meta/v1.Condition", "kubevirt.io/virt-template-api/core/v1alpha1.DataVolumeTemplateStatus"},
+			"k8s.io/apimachinery/pkg/apis/meta/v1.Condition"},
 	}
 }

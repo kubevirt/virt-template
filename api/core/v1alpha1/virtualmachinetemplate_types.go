@@ -143,53 +143,6 @@ type VirtualMachineTemplateStatus struct {
 	// +listType=map
 	// +listMapKey=type
 	Conditions []metav1.Condition `json:"conditions,omitempty" protobuf:"bytes,1,rep,name=conditions"`
-
-	// DataVolumeTemplateStatuses contains the status of DataVolumeTemplates in this template.
-	//
-	// +kubebuilder:validation:Optional
-	// +optional
-	// +listType=map
-	// +listMapKey=name
-	DataVolumeTemplateStatuses []DataVolumeTemplateStatus `json:"dataVolumeTemplateStatuses,omitempty" protobuf:"bytes,2,rep,name=dataVolumeTemplateStatuses"`
-}
-
-// DataVolumeTemplateStatus represents the status of a DataVolumeTemplate in a VirtualMachineTemplate.
-type DataVolumeTemplateStatus struct {
-	// Name is the name of the DataVolumeTemplate.
-	//
-	// +kubebuilder:validation:Required
-	// +required
-	Name string `json:"name" protobuf:"bytes,1,name=name"`
-
-	// SourceNamespace is the namespace where the source volume resides (if applicable).
-	//
-	// +kubebuilder:validation:Optional
-	// +optional
-	SourceNamespace string `json:"sourceNamespace,omitempty" protobuf:"bytes,2,opt,name=sourceNamespace"`
-
-	// SourceName is the name of the source (PVC, VolumeSnapshot, etc.).
-	//
-	// +kubebuilder:validation:Optional
-	// +optional
-	SourceName string `json:"sourceName,omitempty" protobuf:"bytes,3,opt,name=sourceName"`
-
-	// SourceType indicates the type of volume source (PVC, Snapshot, HTTP, Blank, etc.).
-	//
-	// +kubebuilder:validation:Optional
-	// +optional
-	SourceType string `json:"sourceType,omitempty" protobuf:"bytes,4,opt,name=sourceType"`
-
-	// Ready indicates whether the source volume is ready.
-	//
-	// +kubebuilder:validation:Required
-	// +required
-	Ready bool `json:"ready" protobuf:"varint,5,opt,name=ready"`
-
-	// Message provides additional status information.
-	//
-	// +kubebuilder:validation:Optional
-	// +optional
-	Message string `json:"message,omitempty" protobuf:"bytes,6,opt,name=message"`
 }
 
 // +kubebuilder:object:root=true
