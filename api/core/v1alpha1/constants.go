@@ -28,10 +28,9 @@ const (
 	ConditionReady       = "Ready"
 	ConditionProgressing = "Progressing"
 
-	ReasonReconciled                 = "Reconciled"
-	ReasonReconciling                = "Reconciling"
-	ReasonInvalidConfiguration       = "InvalidConfiguration"
-	ReasonFailed                     = "Failed"
-	ReasonWaiting                    = "Waiting"
-	ReasonDataVolumeTemplateNotReady = "DataVolumeTemplateNotReady"
+	ReasonReconciled           = "Reconciled"
+	ReasonReconciling          = "Reconciling"
+	ReasonInvalidConfiguration = "InvalidConfiguration"
+	ReasonFailed               = "Failed"
+	ReasonWaiting              = "Waiting"
 )

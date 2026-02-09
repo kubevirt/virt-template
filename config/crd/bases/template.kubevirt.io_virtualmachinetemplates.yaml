@@ -195,42 +195,6 @@ spec:
                 x-kubernetes-list-map-keys:
                 - type
                 x-kubernetes-list-type: map
-              dataVolumeTemplateStatuses:
-                description: DataVolumeTemplateStatuses contains the status of DataVolumeTemplates
-                  in this template.
-                items:
-                  description: DataVolumeTemplateStatus represents the status of a
-                    DataVolumeTemplate in a VirtualMachineTemplate.
-                  properties:
-                    message:
-                      description: Message provides additional status information.
-                      type: string
-                    name:
-                      description: Name is the name of the DataVolumeTemplate.
-                      type: string
-                    ready:
-                      description: Ready indicates whether the source volume is ready.
-                      type: boolean
-                    sourceName:
-                      description: SourceName is the name of the source (PVC, VolumeSnapshot,
-                        etc.).
-                      type: string
-                    sourceNamespace:
-                      description: SourceNamespace is the namespace where the source
-                        volume resides (if applicable).
-                      type: string
-                    sourceType:
-                      description: SourceType indicates the type of volume source
-                        (PVC, Snapshot, HTTP, Blank, etc.).
-                      type: string
-                  required:
-                  - name
-                  - ready
-                  type: object
-                type: array
-                x-kubernetes-list-map-keys:
-                - name
-                x-kubernetes-list-type: map
             type: object
         required:
         - spec
