@@ -34,13 +34,18 @@ import (
 	webhookv1alpha1 "kubevirt.io/virt-template/internal/webhook/v1alpha1"
 )
 
-var _ = Describe("VirtualMachineTemplate Webhook", func() {
-	const (
-		param1Name = "NAME"
-		param2Name = "PREFERENCE"
-		param3Name = "COUNT"
-	)
+const (
+	param1Name = "NAME"
+	param2Name = "PREFERENCE"
+	param3Name = "COUNT"
 
+	validVMWithParam      = `{"metadata":{"name":"${NAME}"}}`
+	validVMWithParams     = `{"metadata":{"name":"${NAME}"},"spec":{"preference":{"name":"${PREFERENCE}"}}}`
+	invalidVMWithoutParam = `{"metadata":{"something":"something"}}`
+	invalidVMWithParam    = `{"metadata":{"something":"${NAME}"}}`
+)
+
+var _ = Describe("VirtualMachineTemplate Webhook Unit", func() {
 	var validator webhookv1alpha1.VirtualMachineTemplateCustomValidator
 
 	BeforeEach(func() {
@@ -68,7 +73,7 @@ var _ = Describe("VirtualMachineTemplate Webhook", func() {
 						},
 					},
 					VirtualMachine: &runtime.RawExtension{
-						Raw: []byte(`{"metadata":{"name":"${NAME}"},"spec":{"preference":{"name":"${PREFERENCE}"}}}`),
+						Raw: []byte(validVMWithParams),
 					},
 				},
 			)
@@ -91,7 +96,7 @@ var _ = Describe("VirtualMachineTemplate Webhook", func() {
 						},
 					},
 					VirtualMachine: &runtime.RawExtension{
-						Raw: []byte(`{"metadata":{"name":"${NAME}"},"spec":{"preference":{"name":"${PREFERENCE}"}}}`),
+						Raw: []byte(validVMWithParams),
 					},
 				},
 			)
@@ -117,7 +122,7 @@ var _ = Describe("VirtualMachineTemplate Webhook", func() {
 						},
 					},
 					VirtualMachine: &runtime.RawExtension{
-						Raw: []byte(`{"metadata":{"name":"${NAME}"}}`),
+						Raw: []byte(validVMWithParam),
 					},
 				},
 			)
@@ -143,7 +148,7 @@ var _ = Describe("VirtualMachineTemplate Webhook", func() {
 						},
 					},
 					VirtualMachine: &runtime.RawExtension{
-						Raw: []byte(`{"metadata":{"name":"${NAME}"},"spec":{"preference":{"name":"${PREFERENCE}"}}}`),
+						Raw: []byte(validVMWithParams),
 					},
 				},
 			)
@@ -155,6 +160,185 @@ var _ = Describe("VirtualMachineTemplate Webhook", func() {
 		Entry("on create", validateOnCreate),
 		Entry("on update", validateOnUpdate),
 	)
+
+	DescribeTable("should skip processing validation and warn when required parameter has no value or generator",
+		func(validate func(tpl *v1alpha1.VirtualMachineTemplate) (admission.Warnings, error), params []v1alpha1.Parameter) {
+			tpl := newVirtualMachineTemplateWithSpec(
+				&v1alpha1.VirtualMachineTemplateSpec{
+					Parameters: params,
+					VirtualMachine: &runtime.RawExtension{
+						Raw: []byte(invalidVMWithParam),
+					},
+				},
+			)
+
+			warnings, err := validate(tpl)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(len(warnings)).To(BeNumerically(">=", len(params)))
+			for _, param := range params {
+				Expect(warnings).To(ContainElement(And(ContainSubstring("processing validation skipped"), ContainSubstring(param.Name))))
+			}
+		},
+		Entry("single param on create", validateOnCreate,
+			[]v1alpha1.Parameter{{Name: param1Name, Required: true}}),
+		Entry("single param on update", validateOnUpdate,
+			[]v1alpha1.Parameter{{Name: param1Name, Required: true}}),
+		Entry("multiple params on create", validateOnCreate,
+			[]v1alpha1.Parameter{{Name: param1Name, Required: true}, {Name: param2Name, Required: true}}),
+		Entry("multiple params on update", validateOnUpdate,
+			[]v1alpha1.Parameter{{Name: param1Name, Required: true}, {Name: param2Name, Required: true}}),
+	)
+
+	DescribeTable("should reject invalid template when processing validation runs",
+		func(validate func(tpl *v1alpha1.VirtualMachineTemplate) (admission.Warnings, error), raw string, params []v1alpha1.Parameter) {
+			tpl := newVirtualMachineTemplateWithSpec(
+				&v1alpha1.VirtualMachineTemplateSpec{
+					Parameters: params,
+					VirtualMachine: &runtime.RawExtension{
+						Raw: []byte(raw),
+					},
+				},
+			)
+
+			warnings, err := validate(tpl)
+			Expect(err).To(MatchError(ContainSubstring("processing validation failed")))
+			Expect(warnings).To(BeEmpty())
+		},
+		Entry("no params on create", validateOnCreate, invalidVMWithoutParam, nil),
+		Entry("no params on update", validateOnUpdate, invalidVMWithoutParam, nil),
+		Entry("required param with value on create", validateOnCreate, invalidVMWithParam, []v1alpha1.Parameter{
+			{Name: param1Name, Required: true, Value: "test-vm"},
+		}),
+		Entry("required param with value on update", validateOnUpdate, invalidVMWithParam, []v1alpha1.Parameter{
+			{Name: param1Name, Required: true, Value: "test-vm"},
+		}),
+		Entry("required param with generator on create", validateOnCreate, invalidVMWithParam, []v1alpha1.Parameter{
+			{Name: param1Name, Required: true, Generate: "expression", From: "[a-z]{8}"},
+		}),
+		Entry("required param with generator on update", validateOnUpdate, invalidVMWithParam, []v1alpha1.Parameter{
+			{Name: param1Name, Required: true, Generate: "expression", From: "[a-z]{8}"},
+		}),
+	)
+})
+
+var _ = Describe("VirtualMachineTemplate Webhook Integration", func() {
+	AfterEach(func() {
+		tplList := &v1alpha1.VirtualMachineTemplateList{}
+		Expect(k8sClient.List(ctx, tplList)).To(Succeed())
+		for i := range tplList.Items {
+			_ = k8sClient.Delete(ctx, &tplList.Items[i])
+		}
+	})
+
+	Context("Create", func() {
+		It("should accept a template with all parameters referenced", func() {
+			tpl := newVirtualMachineTemplateWithSpec(
+				&v1alpha1.VirtualMachineTemplateSpec{
+					Parameters: []v1alpha1.Parameter{
+						{
+							Name: param1Name,
+						},
+						{
+							Name: param2Name,
+						},
+					},
+					VirtualMachine: &runtime.RawExtension{
+						Raw: []byte(validVMWithParams),
+					},
+				},
+			)
+
+			Expect(k8sClient.Create(ctx, tpl)).To(Succeed())
+		})
+
+		It("should reject a template with undefined parameter reference", func() {
+			tpl := newVirtualMachineTemplateWithSpec(
+				&v1alpha1.VirtualMachineTemplateSpec{
+					Parameters: []v1alpha1.Parameter{
+						{
+							Name: param1Name,
+						},
+					},
+					VirtualMachine: &runtime.RawExtension{
+						Raw: []byte(validVMWithParams),
+					},
+				},
+			)
+
+			Expect(k8sClient.Create(ctx, tpl)).To(MatchError(ContainSubstring("references undefined parameter PREFERENCE")))
+		})
+
+		It("should reject invalid template when processing validation runs", func() {
+			tpl := newVirtualMachineTemplateWithSpec(
+				&v1alpha1.VirtualMachineTemplateSpec{
+					VirtualMachine: &runtime.RawExtension{
+						Raw: []byte(invalidVMWithoutParam),
+					},
+				},
+			)
+
+			Expect(k8sClient.Create(ctx, tpl)).To(MatchError(ContainSubstring("processing validation failed")))
+		})
+	})
+
+	Context("Update", func() {
+		var tpl *v1alpha1.VirtualMachineTemplate
+
+		BeforeEach(func() {
+			tpl = newVirtualMachineTemplateWithSpec(
+				&v1alpha1.VirtualMachineTemplateSpec{
+					Parameters: []v1alpha1.Parameter{
+						{
+							Name: param1Name,
+						},
+					},
+					VirtualMachine: &runtime.RawExtension{
+						Raw: []byte(validVMWithParam),
+					},
+				},
+			)
+			Expect(k8sClient.Create(ctx, tpl)).To(Succeed())
+		})
+
+		It("should accept an update with all parameters referenced", func() {
+			tpl.Spec = v1alpha1.VirtualMachineTemplateSpec{
+				Parameters: []v1alpha1.Parameter{
+					{
+						Name: param1Name,
+					},
+					{
+						Name: param2Name,
+					},
+				},
+				VirtualMachine: &runtime.RawExtension{
+					Raw: []byte(validVMWithParams),
+				},
+			}
+
+			Expect(k8sClient.Update(ctx, tpl)).To(Succeed())
+		})
+
+		It("should reject an update with undefined parameter reference", func() {
+			tpl.Spec.Parameters = []v1alpha1.Parameter{
+				{
+					Name: param2Name,
+				},
+			}
+
+			Expect(k8sClient.Update(ctx, tpl)).To(MatchError(ContainSubstring("references undefined parameter NAME")))
+		})
+
+		It("should reject an update with invalid template when processing validation runs", func() {
+			tpl.Spec = v1alpha1.VirtualMachineTemplateSpec{
+				Parameters: nil,
+				VirtualMachine: &runtime.RawExtension{
+					Raw: []byte(invalidVMWithoutParam),
+				},
+			}
+
+			Expect(k8sClient.Update(ctx, tpl)).To(MatchError(ContainSubstring("processing validation failed")))
+		})
+	})
 })
 
 func newVirtualMachineTemplateWithSpec(spec *v1alpha1.VirtualMachineTemplateSpec) *v1alpha1.VirtualMachineTemplate {
