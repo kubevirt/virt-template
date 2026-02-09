@@ -4,6 +4,7 @@ go 1.24.6
 
 require (
 	github.com/emicklei/go-restful/v3 v3.13.0
+	github.com/go-logr/logr v1.4.3
 	github.com/onsi/ginkgo/v2 v2.27.2
 	github.com/onsi/gomega v1.38.3
 	github.com/openshift/api v0.0.0-20251214014457-bfa868a22401
@@ -14,6 +15,7 @@ require (
 	k8s.io/apimachinery v0.34.3
 	k8s.io/apiserver v0.34.3
 	k8s.io/client-go v0.34.3
+	k8s.io/component-base v0.34.3
 	k8s.io/klog/v2 v2.130.1
 	k8s.io/kube-openapi v0.31.0
 	k8s.io/utils v0.0.0-20251002143259-bc988d571ff4
@@ -124,7 +126,6 @@ require (
 	github.com/go-kit/log v0.2.1 // indirect
 	github.com/go-ldap/ldap/v3 v3.4.8 // indirect
 	github.com/go-logfmt/logfmt v0.6.1 // indirect
-	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-logr/zapr v1.3.0 // indirect
 	github.com/go-openapi/jsonpointer v0.22.4 // indirect
@@ -361,7 +362,6 @@ require (
 	k8s.io/apiextensions-apiserver v0.34.3 // indirect
 	k8s.io/cli-runtime v0.33.3 // indirect
 	k8s.io/code-generator v0.34.3 // indirect
-	k8s.io/component-base v0.34.3 // indirect
 	k8s.io/component-helpers v0.33.3 // indirect
 	k8s.io/gengo/v2 v2.0.0-20250604051438-85fd79dbfd9f // indirect
 	k8s.io/kms v0.34.3 // indirect
