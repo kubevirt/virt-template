@@ -20,7 +20,7 @@
 set -euo pipefail
 
 CLI_PLATFORMS="${CLI_PLATFORMS:-linux/amd64,linux/arm64,linux/s390x,darwin/amd64,darwin/arm64,windows/amd64}"
-IMG_TAG="${IMG_TAG:-latest}"
+VERSION="${VERSION:-LATEST}"
 
 BUILD_OS="$(uname -s | tr '[:upper:]' '[:lower:]')"
 BUILD_ARCH="$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/')"
@@ -29,7 +29,7 @@ for platform in ${CLI_PLATFORMS//,/ }; do
     os="${platform%/*}"
     arch="${platform#*/}"
     echo "Building virttemplatectl for ${os}/${arch}"
-    CGO_ENABLED=0 GOOS="${os}" GOARCH="${arch}" go build -ldflags="-s -w" -trimpath -o "bin/virttemplatectl-${IMG_TAG}-${os}-${arch}" cmd/virttemplatectl/main.go
+    CGO_ENABLED=0 GOOS="${os}" GOARCH="${arch}" go build -ldflags="-s -w" -trimpath -o "bin/virttemplatectl-${VERSION}-${os}-${arch}" cmd/virttemplatectl/main.go
 done
 
-ln -sf "virttemplatectl-${IMG_TAG}-${BUILD_OS}-${BUILD_ARCH}" bin/virttemplatectl
+ln -sf "virttemplatectl-${VERSION}-${BUILD_OS}-${BUILD_ARCH}" bin/virttemplatectl

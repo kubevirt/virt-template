@@ -1,0 +1,8 @@
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+
+# This component adds the virt-template version annotation to all resources.
+# The annotation value is set dynamically during the build process.
+
+commonAnnotations:
+  template.kubevirt.io/virt-template-version: latest

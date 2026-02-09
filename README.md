@@ -179,7 +179,7 @@ virt-template supports two deployment configurations:
 ```sh
 make container-build container-push \
   IMG_REGISTRY=<registry> \
-  IMG_TAG=<tag>
+  VERSION=<tag>
 ```
 
 The build supports multi-arch images (amd64, arm64, s390x). Use
@@ -189,14 +189,14 @@ The build supports multi-arch images (amd64, arm64, s390x). Use
 
 ```sh
 make install
-make deploy IMG_REGISTRY=<registry> IMG_TAG=<tag>
+make deploy IMG_REGISTRY=<registry> VERSION=<tag>
 ```
 
 **Deploy on OpenShift:**
 
 ```sh
 make install
-make deploy-openshift IMG_REGISTRY=<registry> IMG_TAG=<tag>
+make deploy-openshift IMG_REGISTRY=<registry> VERSION=<tag>
 ```
 
 **Create sample resources:**
@@ -382,7 +382,7 @@ Generate a single YAML file with all resources:
 **For Kubernetes:**
 
 ```sh
-make build-installer IMG_REGISTRY=<registry> IMG_TAG=<tag>
+make build-installer IMG_REGISTRY=<registry> VERSION=<tag>
 ```
 
 This creates `dist/install.yaml` which can be deployed with:
@@ -394,7 +394,7 @@ kubectl apply -f dist/install.yaml
 **For OpenShift:**
 
 ```sh
-make build-installer-openshift IMG_REGISTRY=<registry> IMG_TAG=<tag>
+make build-installer-openshift IMG_REGISTRY=<registry> VERSION=<tag>
 ```
 
 This creates `dist/install-openshift.yaml` which can be deployed with:
