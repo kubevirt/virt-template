@@ -23,13 +23,17 @@ import (
 	"crypto/tls"
 	"flag"
 	"os"
+	"strings"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
+	"github.com/go-logr/logr"
+	"github.com/spf13/pflag"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
+	cliflag "k8s.io/component-base/cli/flag"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -62,6 +66,8 @@ func main() {
 	var probeAddr string
 	var secureMetrics bool
 	var enableHTTP2 bool
+	var cipherSuites []string
+	var minTLSVersion string
 	var tlsOpts []func(*tls.Config)
 	flag.StringVar(&metricsAddr, "metrics-bind-address", "0", "The address the metrics endpoint binds to. "+
 		"Use :8443 for HTTPS or :8080 for HTTP, or leave as 0 to disable the metrics service.")
@@ -82,7 +88,17 @@ func main() {
 		"If set, HTTP/2 will be enabled for the metrics and webhook servers")
 	opts := zap.Options{}
 	opts.BindFlags(flag.CommandLine)
-	flag.Parse()
+
+	pflag.StringSliceVar(&cipherSuites, "tls-cipher-suites", nil,
+		"Comma-separated list of cipher suites for the server. "+
+			"If omitted, the default Go cipher suites will be used. \n"+
+			"Preferred values: "+strings.Join(cliflag.PreferredTLSCipherNames(), ", ")+". \n"+
+			"Insecure values: "+strings.Join(cliflag.InsecureTLSCipherNames(), ", ")+".")
+	pflag.StringVar(&minTLSVersion, "tls-min-version", "",
+		"Minimum TLS version supported. "+
+			"Possible values: "+strings.Join(cliflag.TLSPossibleVersions(), ", "))
+	pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
+	pflag.Parse()
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 
@@ -100,6 +116,9 @@ func main() {
 	if !enableHTTP2 {
 		tlsOpts = append(tlsOpts, disableHTTP2)
 	}
+
+	tlsOpts = appendCipherSuites(setupLog, tlsOpts, cipherSuites)
+	tlsOpts = appendMinTLSVersion(setupLog, tlsOpts, minTLSVersion)
 
 	// Initial webhook TLS options
 	webhookTLSOpts := tlsOpts
@@ -253,4 +272,40 @@ func getUIDSelector() (labels.Selector, error) {
 		return nil, err
 	}
 	return labels.NewSelector().Add(*uidReq), nil
+}
+
+func appendCipherSuites(setupLog logr.Logger, tlsOpts []func(*tls.Config), cipherSuites []string) []func(*tls.Config) {
+	if len(cipherSuites) != 0 {
+		cipherSuiteIDs, err := cliflag.TLSCipherSuites(cipherSuites)
+		if err != nil {
+			setupLog.Error(err, "failed to parse TLS cipher suites")
+			os.Exit(1)
+		}
+
+		setCipherSuites := func(c *tls.Config) {
+			setupLog.Info("setting tls cipher suites to " + strings.Join(cipherSuites, ", "))
+			c.CipherSuites = cipherSuiteIDs
+		}
+		return append(tlsOpts, setCipherSuites)
+	}
+
+	return tlsOpts
+}
+
+func appendMinTLSVersion(setupLog logr.Logger, tlsOpts []func(*tls.Config), minTLSVersion string) []func(*tls.Config) {
+	if minTLSVersion != "" {
+		minTLSVersionID, err := cliflag.TLSVersion(minTLSVersion)
+		if err != nil {
+			setupLog.Error(err, "failed to parse TLS min version")
+			os.Exit(1)
+		}
+
+		setMinTLSVersion := func(c *tls.Config) {
+			setupLog.Info("setting tls min version to " + minTLSVersion)
+			c.MinVersion = minTLSVersionID
+		}
+		return append(tlsOpts, setMinTLSVersion)
+	}
+
+	return tlsOpts
 }
