@@ -58,8 +58,6 @@ const (
 	param2Placeholder = "${PREFERENCE}"
 	param2Val         = "fedora"
 	param3Name        = "COUNT"
-	param3Placeholder = "${COUNT}"
-	param3Val         = "2"
 
 	nameFlag        = "name"
 	fileFlag        = "file"
@@ -344,10 +342,13 @@ var _ = Describe("Process command", func() {
 			})
 
 			DescribeTable("should call subresource with parameters from flags", func(positional, create bool) {
+				var notExpectedSubresource string
 				if create {
 					expectedSubresource = subresourceCreate
+					notExpectedSubresource = subresourceProcess
 				} else {
 					expectedSubresource = subresourceProcess
+					notExpectedSubresource = subresourceCreate
 				}
 
 				args := []string{
@@ -362,6 +363,9 @@ var _ = Describe("Process command", func() {
 				}
 				_, err := runCmd(args...)
 				Expect(err).ToNot(HaveOccurred())
+
+				Expect(kvtesting.FilterActions(&tplClient.Fake, "create", templateapi.PluralResourceName, expectedSubresource)).To(HaveLen(1))
+				Expect(kvtesting.FilterActions(&tplClient.Fake, "create", templateapi.PluralResourceName, notExpectedSubresource)).To(BeEmpty())
 			},
 				Entry("call process when name is passed as positional arg", true, false),
 				Entry("call process when name is passed as flag", false, false),
@@ -370,10 +374,13 @@ var _ = Describe("Process command", func() {
 			)
 
 			DescribeTable("should call subresource with parameters from file", func(positional, create bool, marshalFn func(any) []byte) {
+				var notExpectedSubresource string
 				if create {
 					expectedSubresource = subresourceCreate
+					notExpectedSubresource = subresourceProcess
 				} else {
 					expectedSubresource = subresourceProcess
+					notExpectedSubresource = subresourceCreate
 				}
 
 				params := map[string]string{
@@ -394,6 +401,9 @@ var _ = Describe("Process command", func() {
 				}
 				_, err := runCmd(args...)
 				Expect(err).ToNot(HaveOccurred())
+
+				Expect(kvtesting.FilterActions(&tplClient.Fake, "create", templateapi.PluralResourceName, expectedSubresource)).To(HaveLen(1))
+				Expect(kvtesting.FilterActions(&tplClient.Fake, "create", templateapi.PluralResourceName, notExpectedSubresource)).To(BeEmpty())
 			},
 				Entry("call process when name is passed as positional arg and input format is JSON", true, false, marshalJSON),
 				Entry("call process when name is passed as positional arg and input format is YAML", true, false, marshalYAML),
