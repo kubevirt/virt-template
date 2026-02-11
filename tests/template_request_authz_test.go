@@ -37,7 +37,15 @@ import (
 )
 
 var _ = Describe("VirtualMachineTemplateRequest Authorization", func() {
-	const vmtrAuthzTest = "vmtr-authz-test-"
+	const (
+		vmtrAuthzTest     = "vmtr-authz-test-"
+		roleKind          = "Role"
+		clusterRoleKind   = "ClusterRole"
+		sourceRoleName    = "virt-template-virtualmachinetemplaterequest-source-role"
+		sourceSubresource = templateapi.PluralRequestResourceName + "/source"
+		testVMName        = "test-vm"
+		verbCreate        = "create"
+	)
 
 	var (
 		serviceAccount *corev1.ServiceAccount
@@ -93,7 +101,7 @@ var _ = Describe("VirtualMachineTemplateRequest Authorization", func() {
 		return role
 	}
 
-	createRoleBinding := func(namespace, saName, saNamespace, roleName string) *rbacv1.RoleBinding {
+	createRoleBinding := func(namespace, roleKind, roleName string) {
 		rb := &rbacv1.RoleBinding{
 			ObjectMeta: metav1.ObjectMeta{
 				Namespace:    namespace,
@@ -102,23 +110,22 @@ var _ = Describe("VirtualMachineTemplateRequest Authorization", func() {
 			Subjects: []rbacv1.Subject{
 				{
 					Kind:      "ServiceAccount",
-					Name:      saName,
-					Namespace: saNamespace,
+					Name:      serviceAccount.Name,
+					Namespace: serviceAccount.Namespace,
 				},
 			},
 			RoleRef: rbacv1.RoleRef{
 				APIGroup: "rbac.authorization.k8s.io",
-				Kind:     "Role",
+				Kind:     roleKind,
 				Name:     roleName,
 			},
 		}
 		rb, err := virtClient.RbacV1().RoleBindings(namespace).Create(context.Background(), rb, metav1.CreateOptions{})
 		ExpectWithOffset(1, err).ToNot(HaveOccurred())
 		roleBindings = append(roleBindings, rb)
-		return rb
 	}
 
-	createTemplateRequest := func() error {
+	createTemplateRequest := func(sourceNamespace string) error {
 		cfg := rest.CopyConfig(virtClient.Config())
 		cfg.Impersonate = rest.ImpersonationConfig{
 			UserName: "system:serviceaccount:" + serviceAccount.Namespace + ":" + serviceAccount.Name,
@@ -133,8 +140,8 @@ var _ = Describe("VirtualMachineTemplateRequest Authorization", func() {
 			},
 			Spec: v1alpha1.VirtualMachineTemplateRequestSpec{
 				VirtualMachineRef: v1alpha1.VirtualMachineReference{
-					Namespace: NamespaceSecondaryTest,
-					Name:      "test-vm",
+					Namespace: sourceNamespace,
+					Name:      testVMName,
 				},
 			},
 		}
@@ -143,112 +150,40 @@ var _ = Describe("VirtualMachineTemplateRequest Authorization", func() {
 		return err
 	}
 
-	Context("when user lacks permissions in source namespace", func() {
+	Context("when user lacks source permissions for cross namespace clone", func() {
 		BeforeEach(func() {
-			role := createRole(NamespaceTest, []rbacv1.PolicyRule{
+			requestRole := createRole(NamespaceTest, []rbacv1.PolicyRule{
 				{
 					APIGroups: []string{templateapi.GroupName},
 					Resources: []string{templateapi.PluralRequestResourceName},
-					Verbs:     []string{"get", "list", "watch", "create"},
-				},
-				{
-					APIGroups: []string{templateapi.GroupName},
-					Resources: []string{templateapi.PluralResourceName},
-					Verbs:     []string{"create"},
-				},
-				{
-					APIGroups: []string{"cdi.kubevirt.io"},
-					Resources: []string{"datavolumes"},
-					Verbs:     []string{"create"},
+					Verbs:     []string{verbCreate},
 				},
 			})
-			createRoleBinding(NamespaceTest, serviceAccount.Name, serviceAccount.Namespace, role.Name)
+			createRoleBinding(NamespaceTest, roleKind, requestRole.Name)
 		})
 
-		It("should deny when user cannot get VirtualMachine", func() {
-			Expect(createTemplateRequest()).To(MatchError(ContainSubstring("User is not allowed to get VirtualMachines")))
+		It("should deny when user has no source role", func() {
+			Expect(createTemplateRequest(NamespaceSecondaryTest)).To(MatchError(ContainSubstring("User is not allowed to use VirtualMachine")))
 		})
 
-		It("should deny when user cannot create VirtualMachineSnapshots", func() {
-			role := createRole(NamespaceSecondaryTest, []rbacv1.PolicyRule{
+		It("should deny when source role restricts to a different resourceName", func() {
+			sourceRole := createRole(NamespaceSecondaryTest, []rbacv1.PolicyRule{
 				{
-					APIGroups: []string{"kubevirt.io"},
-					Resources: []string{"virtualmachines"},
-					Verbs:     []string{"get"},
+					APIGroups:     []string{templateapi.GroupName},
+					Resources:     []string{sourceSubresource},
+					ResourceNames: []string{"other-vm"},
+					Verbs:         []string{verbCreate},
 				},
 			})
-			createRoleBinding(NamespaceSecondaryTest, serviceAccount.Name, serviceAccount.Namespace, role.Name)
+			createRoleBinding(NamespaceSecondaryTest, roleKind, sourceRole.Name)
 
-			Expect(createTemplateRequest()).To(MatchError(ContainSubstring("User is not allowed to create VirtualMachineSnapshots")))
-		})
-
-		It("should deny when user cannot get VirtualMachineSnapshotContents", func() {
-			role := createRole(NamespaceSecondaryTest, []rbacv1.PolicyRule{
-				{
-					APIGroups: []string{"kubevirt.io"},
-					Resources: []string{"virtualmachines"},
-					Verbs:     []string{"get"},
-				},
-				{
-					APIGroups: []string{"snapshot.kubevirt.io"},
-					Resources: []string{"virtualmachinesnapshots"},
-					Verbs:     []string{"create"},
-				},
-			})
-			createRoleBinding(NamespaceSecondaryTest, serviceAccount.Name, serviceAccount.Namespace, role.Name)
-
-			Expect(createTemplateRequest()).To(MatchError(ContainSubstring("User is not allowed to get VirtualMachineSnapshotContents")))
-		})
-
-		It("should deny when user cannot expand VM spec", func() {
-			role := createRole(NamespaceSecondaryTest, []rbacv1.PolicyRule{
-				{
-					APIGroups: []string{"kubevirt.io"},
-					Resources: []string{"virtualmachines"},
-					Verbs:     []string{"get"},
-				},
-				{
-					APIGroups: []string{"snapshot.kubevirt.io"},
-					Resources: []string{"virtualmachinesnapshots"},
-					Verbs:     []string{"create"},
-				},
-				{
-					APIGroups: []string{"snapshot.kubevirt.io"},
-					Resources: []string{"virtualmachinesnapshotcontents"},
-					Verbs:     []string{"get"},
-				},
-			})
-			createRoleBinding(NamespaceSecondaryTest, serviceAccount.Name, serviceAccount.Namespace, role.Name)
-
-			Expect(createTemplateRequest()).To(MatchError(ContainSubstring("User is not allowed to expand VM spec")))
+			Expect(createTemplateRequest(NamespaceSecondaryTest)).To(MatchError(ContainSubstring("User is not allowed to use VirtualMachine")))
 		})
 	})
 
 	Context("when user lacks permissions in request namespace", func() {
 		BeforeEach(func() {
-			role := createRole(NamespaceSecondaryTest, []rbacv1.PolicyRule{
-				{
-					APIGroups: []string{"kubevirt.io"},
-					Resources: []string{"virtualmachines"},
-					Verbs:     []string{"get"},
-				},
-				{
-					APIGroups: []string{"snapshot.kubevirt.io"},
-					Resources: []string{"virtualmachinesnapshots"},
-					Verbs:     []string{"create"},
-				},
-				{
-					APIGroups: []string{"snapshot.kubevirt.io"},
-					Resources: []string{"virtualmachinesnapshotcontents"},
-					Verbs:     []string{"get"},
-				},
-				{
-					APIGroups: []string{"subresources.kubevirt.io"},
-					Resources: []string{"expand-vm-spec"},
-					Verbs:     []string{"update"},
-				},
-			})
-			createRoleBinding(NamespaceSecondaryTest, serviceAccount.Name, serviceAccount.Namespace, role.Name)
+			createRoleBinding(NamespaceSecondaryTest, clusterRoleKind, sourceRoleName)
 		})
 
 		It("should deny when user cannot create DataVolumes", func() {
@@ -256,17 +191,17 @@ var _ = Describe("VirtualMachineTemplateRequest Authorization", func() {
 				{
 					APIGroups: []string{templateapi.GroupName},
 					Resources: []string{templateapi.PluralRequestResourceName},
-					Verbs:     []string{"create", "get", "list", "watch"},
+					Verbs:     []string{verbCreate},
 				},
 				{
 					APIGroups: []string{templateapi.GroupName},
 					Resources: []string{templateapi.PluralResourceName},
-					Verbs:     []string{"create"},
+					Verbs:     []string{verbCreate},
 				},
 			})
-			createRoleBinding(NamespaceTest, serviceAccount.Name, serviceAccount.Namespace, role.Name)
+			createRoleBinding(NamespaceTest, roleKind, role.Name)
 
-			Expect(createTemplateRequest()).To(MatchError(ContainSubstring("User is not allowed to create DataVolumes")))
+			Expect(createTemplateRequest(NamespaceSecondaryTest)).To(MatchError(ContainSubstring("User is not allowed to create DataVolumes")))
 		})
 
 		It("should deny when user cannot create VirtualMachineTemplates", func() {
@@ -274,65 +209,68 @@ var _ = Describe("VirtualMachineTemplateRequest Authorization", func() {
 				{
 					APIGroups: []string{templateapi.GroupName},
 					Resources: []string{templateapi.PluralRequestResourceName},
-					Verbs:     []string{"create", "get", "list", "watch"},
+					Verbs:     []string{verbCreate},
 				},
 				{
 					APIGroups: []string{"cdi.kubevirt.io"},
 					Resources: []string{"datavolumes"},
-					Verbs:     []string{"create"},
+					Verbs:     []string{verbCreate},
 				},
 			})
-			createRoleBinding(NamespaceTest, serviceAccount.Name, serviceAccount.Namespace, role.Name)
+			createRoleBinding(NamespaceTest, roleKind, role.Name)
 
-			Expect(createTemplateRequest()).To(MatchError(ContainSubstring("User is not allowed to create VirtualMachineTemplates")))
+			Expect(createTemplateRequest(NamespaceSecondaryTest)).
+				To(MatchError(ContainSubstring("User is not allowed to create VirtualMachineTemplates")))
 		})
 	})
 
-	It("when user has all required permissions it should allow creating VirtualMachineTemplateRequest", func() {
-		sourceRole := createRole(NamespaceSecondaryTest, []rbacv1.PolicyRule{
-			{
-				APIGroups: []string{"kubevirt.io"},
-				Resources: []string{"virtualmachines"},
-				Verbs:     []string{"get"},
-			},
-			{
-				APIGroups: []string{"snapshot.kubevirt.io"},
-				Resources: []string{"virtualmachinesnapshots"},
-				Verbs:     []string{"create"},
-			},
-			{
-				APIGroups: []string{"snapshot.kubevirt.io"},
-				Resources: []string{"virtualmachinesnapshotcontents"},
-				Verbs:     []string{"get"},
-			},
-			{
-				APIGroups: []string{"subresources.kubevirt.io"},
-				Resources: []string{"expand-vm-spec"},
-				Verbs:     []string{"update"},
-			},
+	Context("when user has all required permissions", func() {
+		BeforeEach(func() {
+			requestRole := createRole(NamespaceTest, []rbacv1.PolicyRule{
+				{
+					APIGroups: []string{templateapi.GroupName},
+					Resources: []string{templateapi.PluralRequestResourceName},
+					Verbs:     []string{verbCreate},
+				},
+				{
+					APIGroups: []string{templateapi.GroupName},
+					Resources: []string{templateapi.PluralResourceName},
+					Verbs:     []string{verbCreate},
+				},
+				{
+					APIGroups: []string{"cdi.kubevirt.io"},
+					Resources: []string{"datavolumes"},
+					Verbs:     []string{verbCreate},
+				},
+			})
+			createRoleBinding(NamespaceTest, roleKind, requestRole.Name)
 		})
-		createRoleBinding(NamespaceSecondaryTest, serviceAccount.Name, serviceAccount.Namespace, sourceRole.Name)
 
-		requestRole := createRole(NamespaceTest, []rbacv1.PolicyRule{
-			{
-				APIGroups: []string{templateapi.GroupName},
-				Resources: []string{templateapi.PluralRequestResourceName},
-				Verbs:     []string{"create", "get", "list", "watch"},
-			},
-			{
-				APIGroups: []string{templateapi.GroupName},
-				Resources: []string{templateapi.PluralResourceName},
-				Verbs:     []string{"create"},
-			},
-			{
-				APIGroups: []string{"cdi.kubevirt.io"},
-				Resources: []string{"datavolumes"},
-				Verbs:     []string{"create"},
-			},
+		It("should allow when source role restricts to the referenced resourceName", func() {
+			sourceRole := createRole(NamespaceSecondaryTest, []rbacv1.PolicyRule{
+				{
+					APIGroups:     []string{templateapi.GroupName},
+					Resources:     []string{sourceSubresource},
+					ResourceNames: []string{testVMName},
+					Verbs:         []string{verbCreate},
+				},
+			})
+			createRoleBinding(NamespaceSecondaryTest, roleKind, sourceRole.Name)
+
+			Expect(createTemplateRequest(NamespaceSecondaryTest)).To(Succeed())
+			Expect(tplReq.Name).ToNot(BeEmpty())
 		})
-		createRoleBinding(NamespaceTest, serviceAccount.Name, serviceAccount.Namespace, requestRole.Name)
 
-		Expect(createTemplateRequest()).To(Succeed())
-		Expect(tplReq.Name).ToNot(BeEmpty())
+		It("should allow when source role does not restrict resourceName", func() {
+			createRoleBinding(NamespaceSecondaryTest, clusterRoleKind, sourceRoleName)
+
+			Expect(createTemplateRequest(NamespaceSecondaryTest)).To(Succeed())
+			Expect(tplReq.Name).ToNot(BeEmpty())
+		})
+
+		It("should allow same namespace clone without source role", func() {
+			Expect(createTemplateRequest(NamespaceTest)).To(Succeed())
+			Expect(tplReq.Name).ToNot(BeEmpty())
+		})
 	})
 })
