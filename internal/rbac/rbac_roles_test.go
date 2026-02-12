@@ -172,7 +172,7 @@ var _ = Describe("RBAC Roles", func() {
 	}
 
 	getAllowedVerbsForResource := func(role *rbacv1.ClusterRole, apiGroup, resource string) sets.Set[string] {
-		verbs, allVerbs := sets.New[string](), sets.New("create", "delete", "get", "list", "patch", "update", "watch")
+		verbs, allVerbs := sets.New[string](), sets.New("create", "delete", "deletecollection", "get", "list", "patch", "update", "watch")
 		matches := func(vals []string, target string) bool { return sets.New(vals...).HasAny(target, "*") }
 
 		for _, rule := range role.Rules {
@@ -213,7 +213,7 @@ var _ = Describe("RBAC Roles", func() {
 		createClusterRoleBinding(roleName+"-crb", role.Name, sa)
 
 		allowedVerbs := getAllowedVerbsForResource(role, apiGroup, resourceName)
-		allVerbs := []string{"create", "delete", "get", "list", "patch", "update", "watch"}
+		allVerbs := []string{"create", "delete", "deletecollection", "get", "list", "patch", "update", "watch"}
 
 		for _, verb := range allVerbs {
 			expectedAllowed := allowedVerbs.Has(verb)
