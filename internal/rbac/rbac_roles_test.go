@@ -171,22 +171,8 @@ var _ = Describe("RBAC Roles", func() {
 		return crb
 	}
 
-	getAllowedVerbsForResource := func(role *rbacv1.ClusterRole, apiGroup, resource string) sets.Set[string] {
-		verbs, allVerbs := sets.New[string](), sets.New("create", "delete", "get", "list", "patch", "update", "watch")
-		matches := func(vals []string, target string) bool { return sets.New(vals...).HasAny(target, "*") }
-
-		for _, rule := range role.Rules {
-			if matches(rule.APIGroups, apiGroup) && matches(rule.Resources, resource) {
-				for _, verb := range rule.Verbs {
-					if verb == "*" {
-						return allVerbs
-					}
-					verbs.Insert(verb)
-				}
-			}
-		}
-		return verbs
-	}
+	// All resource verbs we assert; tests define expected allowed subset per role.
+	allVerbs := []string{"create", "delete", "deletecollection", "get", "list", "patch", "update", "watch"}
 
 	checkPermission := func(sa *corev1.ServiceAccount, apiGroup, resource, verb string) bool {
 		sar := &authorizationv1.SubjectAccessReview{
@@ -205,38 +191,40 @@ var _ = Describe("RBAC Roles", func() {
 		return result.Status.Allowed
 	}
 
-	testRBACPermissions := func(roleName, resourceName, apiGroup string) {
+	testRBACPermissions := func(roleName, resourceName, apiGroup string, expectedAllowedVerbs []string) {
 		role := clusterRoles[roleName]
 		Expect(role).NotTo(BeNil())
 
 		sa := createServiceAccount(roleName + "-sa")
 		createClusterRoleBinding(roleName+"-crb", role.Name, sa)
 
-		allowedVerbs := getAllowedVerbsForResource(role, apiGroup, resourceName)
-		allVerbs := []string{"create", "delete", "get", "list", "patch", "update", "watch"}
-
+		expectedAllowed := sets.New(expectedAllowedVerbs...)
 		for _, verb := range allVerbs {
-			expectedAllowed := allowedVerbs.Has(verb)
-			actualAllowed := checkPermission(sa, apiGroup, resourceName, verb)
-			Expect(actualAllowed).To(Equal(expectedAllowed),
+			expected := expectedAllowed.Has(verb)
+			actual := checkPermission(sa, apiGroup, resourceName, verb)
+			Expect(actual).To(Equal(expected),
 				"Role %s should %s have %s permission on %s",
-				roleName, map[bool]string{true: "", false: "not"}[expectedAllowed], verb, resourceName)
+				roleName, map[bool]string{true: "", false: "not"}[expected], verb, resourceName)
 		}
 	}
 
+	adminVerbs := []string{"create", "delete", "deletecollection", "get", "list", "patch", "update", "watch"}
+	editorVerbs := []string{"create", "delete", "get", "list", "patch", "update", "watch"}
+	viewerVerbs := []string{"get", "list", "watch"}
+
 	Context("VirtualMachineTemplate roles", func() {
 		DescribeTable("RBAC permissions", testRBACPermissions,
-			Entry("Admin role", "virtualmachinetemplate-admin-role", "virtualmachinetemplates", "template.kubevirt.io"),
-			Entry("Editor role", "virtualmachinetemplate-editor-role", "virtualmachinetemplates", "template.kubevirt.io"),
-			Entry("Viewer role", "virtualmachinetemplate-viewer-role", "virtualmachinetemplates", "template.kubevirt.io"),
+			Entry("Admin role", "virtualmachinetemplate-admin-role", "virtualmachinetemplates", "template.kubevirt.io", adminVerbs),
+			Entry("Editor role", "virtualmachinetemplate-editor-role", "virtualmachinetemplates", "template.kubevirt.io", editorVerbs),
+			Entry("Viewer role", "virtualmachinetemplate-viewer-role", "virtualmachinetemplates", "template.kubevirt.io", viewerVerbs),
 		)
 	})
 
 	Context("VirtualMachineTemplateRequest roles", func() {
 		DescribeTable("RBAC permissions", testRBACPermissions,
-			Entry("Admin role", "virtualmachinetemplaterequest-admin-role", "virtualmachinetemplaterequests", "template.kubevirt.io"),
-			Entry("Editor role", "virtualmachinetemplaterequest-editor-role", "virtualmachinetemplaterequests", "template.kubevirt.io"),
-			Entry("Viewer role", "virtualmachinetemplaterequest-viewer-role", "virtualmachinetemplaterequests", "template.kubevirt.io"),
+			Entry("Admin role", "virtualmachinetemplaterequest-admin-role", "virtualmachinetemplaterequests", "template.kubevirt.io", adminVerbs),
+			Entry("Editor role", "virtualmachinetemplaterequest-editor-role", "virtualmachinetemplaterequests", "template.kubevirt.io", editorVerbs),
+			Entry("Viewer role", "virtualmachinetemplaterequest-viewer-role", "virtualmachinetemplaterequests", "template.kubevirt.io", viewerVerbs),
 		)
 	})
 })
