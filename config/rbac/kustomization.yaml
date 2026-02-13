@@ -25,6 +25,7 @@ resources:
 - virtualmachinetemplaterequest_admin_role.yaml
 - virtualmachinetemplaterequest_editor_role.yaml
 - virtualmachinetemplaterequest_viewer_role.yaml
+- virtualmachinetemplaterequest_source_role.yaml
 - virtualmachinetemplate_admin_role.yaml
 - virtualmachinetemplate_editor_role.yaml
 - virtualmachinetemplate_viewer_role.yaml
