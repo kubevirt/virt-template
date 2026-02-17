@@ -22,29 +22,17 @@ spec:
   variables:
   - name: sourceNS
     expression: object.spec.virtualMachineRef.namespace
+  - name: sourceVM
+    expression: object.spec.virtualMachineRef.name
   - name: targetNS
     expression: object.metadata.namespace
   validations:
-  # Source namespace checks
+  # Cross namespace source checks
   - expression: >-
-      authorizer.group('kubevirt.io').resource('virtualmachines').namespace(variables.sourceNS).check('get').allowed()
+      variables.sourceNS == variables.targetNS ||
+      authorizer.group('template.kubevirt.io').resource('virtualmachinetemplaterequests').subresource('source').namespace(variables.sourceNS).name(variables.sourceVM).check('create').allowed()
     messageExpression: >-
-      'User is not allowed to get VirtualMachines in namespace ' + variables.sourceNS
-    reason: Forbidden
-  - expression: >-
-      authorizer.group('snapshot.kubevirt.io').resource('virtualmachinesnapshots').namespace(variables.sourceNS).check('create').allowed()
-    messageExpression: >-
-      'User is not allowed to create VirtualMachineSnapshots in namespace ' + variables.sourceNS
-    reason: Forbidden
-  - expression: >-
-      authorizer.group('snapshot.kubevirt.io').resource('virtualmachinesnapshotcontents').namespace(variables.sourceNS).check('get').allowed()
-    messageExpression: >-
-      'User is not allowed to get VirtualMachineSnapshotContents in namespace ' + variables.sourceNS
-    reason: Forbidden
-  - expression: >-
-      authorizer.group('subresources.kubevirt.io').resource('expand-vm-spec').namespace(variables.sourceNS).check('update').allowed()
-    messageExpression: >-
-      'User is not allowed to expand VM spec in namespace ' + variables.sourceNS
+      'User is not allowed to use VirtualMachine ' + variables.sourceNS + '/' + variables.sourceVM + ' as a source for VirtualMachineTemplateRequests'
     reason: Forbidden
   # Target namespace checks
   - expression: >-

@@ -364,6 +364,38 @@ Once created, the controller will generate a `VirtualMachineTemplate` based on
 the referenced `VirtualMachine` in the namespace of the
 `VirtualMachineTemplateRequest`.
 
+#### Authorization
+
+When creating a `VirtualMachineTemplateRequest` that references a `VirtualMachine`
+in a different namespace (cross-namespace clone), the user must have `create`
+permission on the `virtualmachinetemplaterequests/source` subresource in the
+namespace of the source `VirtualMachine`. This is enforced by a
+`ValidatingAdmissionPolicy` and ensures that permission to use a VM as a source
+across namespaces is granted deliberately. Same-namespace clones do not require
+this permission.
+
+A `virtualmachinetemplaterequest-source-role` ClusterRole is provided to simplify
+granting this permission. It is aggregated to the Kubernetes `admin` and `edit`
+roles by default and allows using all VMs in a namespace as a source. For
+finer-grained control, you can create custom roles that restrict the permission
+to specific VMs using `resourceNames`:
+
+```yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: allow-specific-vm-source
+rules:
+- apiGroups:
+  - template.kubevirt.io
+  resources:
+  - virtualmachinetemplaterequests/source
+  resourceNames:
+  - my-vm
+  verbs:
+  - create
+```
+
 Wait for the template to be ready by running:
 
 ```sh
