@@ -263,6 +263,10 @@ LOCALBIN ?= $(shell pwd)/bin
 $(LOCALBIN):
 	mkdir -p $(LOCALBIN)
 
+## Platform detection
+OS ?= $(shell uname -s | tr '[:upper:]' '[:lower:]')
+ARCH ?= $(shell uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/')
+
 ## Tool Binaries
 KUBECTL ?= kubectl
 KUSTOMIZE ?= $(LOCALBIN)/kustomize
@@ -275,6 +279,14 @@ GOFUMPT ?= $(LOCALBIN)/gofumpt
 CMCTL ?= $(LOCALBIN)/cmctl
 
 ## Tool Versions
+CMCTL_VERSION ?= v2.3.0
+CONTROLLER_GEN_VERSION ?= v0.18.0
+ENVTEST_VERSION ?= v0.0.0-20251010212459-3e8b2594ffc4
+CLIENT_GEN_VERSION ?= v0.34.3
+OPENAPI_GEN_VERSION ?= v0.0.0-20250902094335-1504c55f6d9e
+GOLANGCI_LINT_VERSION ?= v2.5.0
+GOFUMPT_VERSION ?= v0.9.1
+KUSTOMIZE_VERSION ?= v5.6.0
 
 #ENVTEST_K8S_VERSION is the version of Kubernetes to use for setting up ENVTEST binaries (i.e. 1.31)
 ENVTEST_K8S_VERSION ?= $(shell go list -m -f "{{ .Version }}" k8s.io/api | awk -F'[v.]' '{printf "1.%d", $$3}')
@@ -282,22 +294,22 @@ ENVTEST_K8S_VERSION ?= $(shell go list -m -f "{{ .Version }}" k8s.io/api | awk -
 .PHONY: kustomize
 kustomize: $(KUSTOMIZE) ## Install kustomize locally if necessary.
 $(KUSTOMIZE): $(LOCALBIN)
-	GOBIN=$(LOCALBIN) go install tool
+	$(call download-tarball,$(KUSTOMIZE),https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2F$(KUSTOMIZE_VERSION)/kustomize_$(KUSTOMIZE_VERSION)_$(OS)_$(ARCH).tar.gz,$(KUSTOMIZE_VERSION))
 
 .PHONY: controller-gen
 controller-gen: $(CONTROLLER_GEN) ## Install controller-gen locally if necessary.
 $(CONTROLLER_GEN): $(LOCALBIN)
-	GOBIN=$(LOCALBIN) go install tool
+	$(call download-binary,$(CONTROLLER_GEN),https://github.com/kubernetes-sigs/controller-tools/releases/download/$(CONTROLLER_GEN_VERSION)/controller-gen-$(OS)-$(ARCH),$(CONTROLLER_GEN_VERSION))
 
 .PHONY: openapi-gen
 openapi-gen: $(OPENAPI_GEN) ## Install openapi-gen locally if necessary.
 $(OPENAPI_GEN): $(LOCALBIN)
-	GOBIN=$(LOCALBIN) go install tool
+	$(call go-install-tool,$(OPENAPI_GEN),k8s.io/kube-openapi/cmd/openapi-gen,$(OPENAPI_GEN_VERSION))
 
 .PHONY: client-gen
 client-gen: $(CLIENT_GEN) ## Install client-gen locally if necessary.
 $(CLIENT_GEN): $(LOCALBIN)
-	GOBIN=$(LOCALBIN) go install tool
+	$(call go-install-tool,$(CLIENT_GEN),k8s.io/code-generator/cmd/client-gen,$(CLIENT_GEN_VERSION))
 
 .PHONY: setup-envtest
 setup-envtest: envtest ## Install the binaries required for ENVTEST in the local bin directory.
@@ -310,19 +322,66 @@ setup-envtest: envtest ## Install the binaries required for ENVTEST in the local
 .PHONY: envtest
 envtest: $(ENVTEST) ## Install setup-envtest locally if necessary.
 $(ENVTEST): $(LOCALBIN)
-	GOBIN=$(LOCALBIN) go install tool
+	$(call go-install-tool,$(ENVTEST),sigs.k8s.io/controller-runtime/tools/setup-envtest,$(ENVTEST_VERSION))
 
 .PHONY: golangci-lint
 golangci-lint: $(GOLANGCI_LINT) ## Install golangci-lint locally if necessary.
 $(GOLANGCI_LINT): $(LOCALBIN)
-	GOBIN=$(LOCALBIN) go install tool
+	$(call download-tarball,$(GOLANGCI_LINT),https://github.com/golangci/golangci-lint/releases/download/$(GOLANGCI_LINT_VERSION)/golangci-lint-$(GOLANGCI_LINT_VERSION:v%=%)-$(OS)-$(ARCH).tar.gz,$(GOLANGCI_LINT_VERSION))
 
 .PHONY: gofumpt
 gofumpt: $(GOFUMPT) ## Install gofumpt locally if necessary.
 $(GOFUMPT): $(LOCALBIN)
-	GOBIN=$(LOCALBIN) go install tool
+	$(call download-binary,$(GOFUMPT),https://github.com/mvdan/gofumpt/releases/download/$(GOFUMPT_VERSION)/gofumpt_$(GOFUMPT_VERSION)_$(OS)_$(ARCH),$(GOFUMPT_VERSION))
 
 .PHONY: cmctl
 cmctl: $(CMCTL) ## Install cmctl locally if necessary.
 $(CMCTL): $(LOCALBIN)
-	GOBIN=$(LOCALBIN) go install tool
+	$(call download-binary,$(CMCTL),https://github.com/cert-manager/cmctl/releases/download/$(CMCTL_VERSION)/cmctl_$(OS)_$(ARCH),$(CMCTL_VERSION))
+
+# download-binary downloads a plain binary from a URL.
+# $1 - target tool path
+# $2 - download URL
+# $3 - tool version
+define download-binary
+@[ -f "$(1)-$(3)" ] || { \
+set -e; \
+echo "Downloading $(notdir $(1)) $(3)"; \
+curl -sSfL -o $(1)-$(3) $(2); \
+chmod +x $(1)-$(3); \
+}
+@ln -sf $(notdir $(1)-$(3)) $(1)
+endef
+
+# download-tarball downloads and extracts a tool from a tar.gz archive.
+# Handles both flat and nested archives by extracting to a temp dir.
+# $1 - target tool path
+# $2 - download URL
+# $3 - tool version
+define download-tarball
+@[ -f "$(1)-$(3)" ] || { \
+set -e; \
+echo "Downloading $(notdir $(1)) $(3)"; \
+TMP_DIR=$$(mktemp -d); \
+curl -sSfL $(2) | tar xz -C $${TMP_DIR}; \
+mv -f $$(find $${TMP_DIR} -name $(notdir $(1)) -type f) $(1)-$(3); \
+chmod +x $(1)-$(3); \
+rm -rf $${TMP_DIR}; \
+}
+@ln -sf $(notdir $(1)-$(3)) $(1)
+endef
+
+# go-install-tool will 'go install' any package with custom target and name.
+# $1 - target tool path
+# $2 - package url which can be installed
+# $3 - specific version of package
+define go-install-tool
+@[ -f "$(1)-$(3)" ] || { \
+set -e; \
+package=$(2)@$(3); \
+echo "Downloading $${package}"; \
+GOWORK=off GOBIN=$(LOCALBIN) go install $${package}; \
+mv -f $(1) $(1)-$(3); \
+}
+@ln -sf $(notdir $(1)-$(3)) $(1)
+endef
