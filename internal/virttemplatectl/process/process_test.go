@@ -44,8 +44,8 @@ import (
 	"kubevirt.io/virt-template-api/core/v1alpha1"
 	templateclient "kubevirt.io/virt-template-client-go/virttemplate"
 	templatefake "kubevirt.io/virt-template-client-go/virttemplate/fake"
+	"kubevirt.io/virt-template-engine/template"
 
-	"kubevirt.io/virt-template/internal/template"
 	"kubevirt.io/virt-template/internal/virttemplatectl/process"
 	"kubevirt.io/virt-template/internal/virttemplatectl/testing"
 )
