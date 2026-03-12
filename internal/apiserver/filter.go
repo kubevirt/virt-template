@@ -20,6 +20,7 @@
 package apiserver
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -29,6 +30,7 @@ import (
 	"path"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/emicklei/go-restful/v3"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -39,6 +41,8 @@ import (
 	genericapiserver "k8s.io/apiserver/pkg/server"
 	"k8s.io/klog/v2"
 )
+
+const getTimeout = 30 * time.Second
 
 func getParentResourceNames(resourcesStorage map[string]rest.Storage) []string {
 	parents := map[string]struct{}{}
@@ -126,7 +130,9 @@ func (f *filteringAPIResourceLister) ListAPIResources() []metav1.APIResource {
 }
 
 func (f *filteringAPIResourceLister) get() ([]metav1.APIResource, error) {
-	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+	ctx, cancel := context.WithTimeout(context.Background(), getTimeout)
+	defer cancel()
+	req := httptest.NewRequestWithContext(ctx, http.MethodGet, "/", http.NoBody)
 	req.Header.Set("Accept", "application/json")
 	restReq := restful.NewRequest(req)
 
