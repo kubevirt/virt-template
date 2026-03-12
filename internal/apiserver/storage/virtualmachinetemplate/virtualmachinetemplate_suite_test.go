@@ -26,6 +26,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -120,7 +121,9 @@ func invokeHandler(handler http.Handler, opts *subresourcesv1alpha1.ProcessOptio
 	body, err := json.Marshal(opts)
 	ExpectWithOffset(1, err).ToNot(HaveOccurred())
 
-	req := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(body))
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	req := httptest.NewRequestWithContext(ctx, http.MethodPost, "/", bytes.NewReader(body))
 	recorder := httptest.NewRecorder()
 	handler.ServeHTTP(recorder, req)
 }

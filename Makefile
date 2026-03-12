@@ -279,14 +279,14 @@ GOFUMPT ?= $(LOCALBIN)/gofumpt
 CMCTL ?= $(LOCALBIN)/cmctl
 
 ## Tool Versions
-CMCTL_VERSION ?= v2.3.0
+CMCTL_VERSION ?= v2.4.1
 CONTROLLER_GEN_VERSION ?= v0.18.0
 ENVTEST_VERSION ?= v0.0.0-20251010212459-3e8b2594ffc4
 CLIENT_GEN_VERSION ?= v0.34.3
 OPENAPI_GEN_VERSION ?= v0.0.0-20250902094335-1504c55f6d9e
-GOLANGCI_LINT_VERSION ?= v2.5.0
-GOFUMPT_VERSION ?= v0.9.1
-KUSTOMIZE_VERSION ?= v5.6.0
+GOLANGCI_LINT_VERSION ?= v2.11.3
+GOFUMPT_VERSION ?= v0.9.2
+KUSTOMIZE_VERSION ?= v5.8.1
 
 #ENVTEST_K8S_VERSION is the version of Kubernetes to use for setting up ENVTEST binaries (i.e. 1.31)
 ENVTEST_K8S_VERSION ?= $(shell go list -m -f "{{ .Version }}" k8s.io/api | awk -F'[v.]' '{printf "1.%d", $$3}')
