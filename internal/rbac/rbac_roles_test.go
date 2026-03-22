@@ -28,6 +28,8 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
+	templateapi "kubevirt.io/virt-template-api/core"
+
 	authorizationv1 "k8s.io/api/authorization/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -196,17 +198,20 @@ var _ = Describe("RBAC Roles", func() {
 
 	Context("VirtualMachineTemplate roles", func() {
 		DescribeTable("RBAC permissions", testRBACPermissions,
-			Entry("Admin role", "virtualmachinetemplate-admin-role", "virtualmachinetemplates", "template.kubevirt.io", adminVerbs),
-			Entry("Editor role", "virtualmachinetemplate-editor-role", "virtualmachinetemplates", "template.kubevirt.io", editorVerbs),
-			Entry("Viewer role", "virtualmachinetemplate-viewer-role", "virtualmachinetemplates", "template.kubevirt.io", viewerVerbs),
+			Entry("Admin role", "virtualmachinetemplate-admin-role", templateapi.PluralResourceName, templateapi.GroupName, adminVerbs),
+			Entry("Editor role", "virtualmachinetemplate-editor-role", templateapi.PluralResourceName, templateapi.GroupName, editorVerbs),
+			Entry("Viewer role", "virtualmachinetemplate-viewer-role", templateapi.PluralResourceName, templateapi.GroupName, viewerVerbs),
 		)
 	})
 
 	Context("VirtualMachineTemplateRequest roles", func() {
 		DescribeTable("RBAC permissions", testRBACPermissions,
-			Entry("Admin role", "virtualmachinetemplaterequest-admin-role", "virtualmachinetemplaterequests", "template.kubevirt.io", adminVerbs),
-			Entry("Editor role", "virtualmachinetemplaterequest-editor-role", "virtualmachinetemplaterequests", "template.kubevirt.io", editorVerbs),
-			Entry("Viewer role", "virtualmachinetemplaterequest-viewer-role", "virtualmachinetemplaterequests", "template.kubevirt.io", viewerVerbs),
+			Entry("Admin role", "virtualmachinetemplaterequest-admin-role",
+				templateapi.PluralRequestResourceName, templateapi.GroupName, adminVerbs),
+			Entry("Editor role", "virtualmachinetemplaterequest-editor-role",
+				templateapi.PluralRequestResourceName, templateapi.GroupName, editorVerbs),
+			Entry("Viewer role", "virtualmachinetemplaterequest-viewer-role",
+				templateapi.PluralRequestResourceName, templateapi.GroupName, viewerVerbs),
 		)
 	})
 })
