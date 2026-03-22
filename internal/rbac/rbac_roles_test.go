@@ -31,7 +31,6 @@ import (
 	authorizationv1 "k8s.io/api/authorization/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
-	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/rand"
@@ -108,10 +107,7 @@ var _ = AfterSuite(func() {
 })
 
 var _ = Describe("RBAC Roles", func() {
-	var clusterRoleBindings []*rbacv1.ClusterRoleBinding
-
 	BeforeEach(func() {
-		clusterRoleBindings = []*rbacv1.ClusterRoleBinding{}
 		testNamespace = "test-ns-" + rand.String(5)
 		ns := &corev1.Namespace{
 			ObjectMeta: metav1.ObjectMeta{
@@ -120,19 +116,6 @@ var _ = Describe("RBAC Roles", func() {
 		}
 		_, err := k8sClient.CoreV1().Namespaces().Create(context.Background(), ns, metav1.CreateOptions{})
 		Expect(err).NotTo(HaveOccurred())
-	})
-
-	AfterEach(func() {
-		for _, crb := range clusterRoleBindings {
-			err := k8sClient.RbacV1().ClusterRoleBindings().Delete(context.Background(), crb.Name, metav1.DeleteOptions{})
-			if err != nil && !k8serrors.IsNotFound(err) {
-				Expect(err).NotTo(HaveOccurred())
-			}
-		}
-		err := k8sClient.CoreV1().Namespaces().Delete(context.Background(), testNamespace, metav1.DeleteOptions{})
-		if err != nil && !k8serrors.IsNotFound(err) {
-			Expect(err).NotTo(HaveOccurred())
-		}
 	})
 
 	createServiceAccount := func(name string) *corev1.ServiceAccount {
@@ -167,7 +150,6 @@ var _ = Describe("RBAC Roles", func() {
 		}
 		crb, err := k8sClient.RbacV1().ClusterRoleBindings().Create(context.Background(), crb, metav1.CreateOptions{})
 		Expect(err).NotTo(HaveOccurred())
-		clusterRoleBindings = append(clusterRoleBindings, crb)
 		return crb
 	}
 
