@@ -280,8 +280,11 @@ CMCTL ?= $(LOCALBIN)/cmctl
 
 ## Tool Versions
 CMCTL_VERSION ?= v2.4.1
-CONTROLLER_GEN_VERSION ?= v0.18.0
-ENVTEST_VERSION ?= v0.0.0-20251010212459-3e8b2594ffc4
+CONTROLLER_GEN_VERSION ?= v0.20.1
+#ENVTEST_VERSION is the version of controller-runtime release branch to fetch the envtest setup script (i.e. release-0.21)
+ENVTEST_VERSION ?= $(shell v='$(call gomodver,sigs.k8s.io/controller-runtime)'; \
+  [ -n "$$v" ] || { echo "Set ENVTEST_VERSION manually (controller-runtime replace has no tag)" >&2; exit 1; }; \
+  printf '%s\n' "$$v" | sed -E 's/^v?([0-9]+)\.([0-9]+).*/release-\1.\2/')
 CLIENT_GEN_VERSION ?= v0.34.3
 OPENAPI_GEN_VERSION ?= v0.0.0-20250902094335-1504c55f6d9e
 GOLANGCI_LINT_VERSION ?= v2.11.3
@@ -289,7 +292,9 @@ GOFUMPT_VERSION ?= v0.9.2
 KUSTOMIZE_VERSION ?= v5.8.1
 
 #ENVTEST_K8S_VERSION is the version of Kubernetes to use for setting up ENVTEST binaries (i.e. 1.31)
-ENVTEST_K8S_VERSION ?= $(shell go list -m -f "{{ .Version }}" k8s.io/api | awk -F'[v.]' '{printf "1.%d", $$3}')
+ENVTEST_K8S_VERSION ?= $(shell v='$(call gomodver,k8s.io/api)'; \
+  [ -n "$$v" ] || { echo "Set ENVTEST_K8S_VERSION manually (k8s.io/api replace has no tag)" >&2; exit 1; }; \
+  printf '%s\n' "$$v" | sed -E 's/^v?[0-9]+\.([0-9]+).*/1.\1/')
 
 .PHONY: kustomize
 kustomize: $(KUSTOMIZE) ## Install kustomize locally if necessary.
@@ -344,13 +349,13 @@ $(CMCTL): $(LOCALBIN)
 # $2 - download URL
 # $3 - tool version
 define download-binary
-@[ -f "$(1)-$(3)" ] || { \
+@[ -f "$(1)-$(3)" ] && [ "$$(readlink -- "$(1)" 2>/dev/null)" = "$(1)-$(3)" ] || { \
 set -e; \
 echo "Downloading $(notdir $(1)) $(3)"; \
 curl -sSfL -o $(1)-$(3) $(2); \
 chmod +x $(1)-$(3); \
-}
-@ln -sf $(notdir $(1)-$(3)) $(1)
+} ;\
+ln -sf "$$(realpath "$(1)-$(3)")" "$(1)"
 endef
 
 # download-tarball downloads and extracts a tool from a tar.gz archive.
@@ -359,7 +364,7 @@ endef
 # $2 - download URL
 # $3 - tool version
 define download-tarball
-@[ -f "$(1)-$(3)" ] || { \
+@[ -f "$(1)-$(3)" ] && [ "$$(readlink -- "$(1)" 2>/dev/null)" = "$(1)-$(3)" ] || { \
 set -e; \
 echo "Downloading $(notdir $(1)) $(3)"; \
 TMP_DIR=$$(mktemp -d); \
@@ -367,21 +372,26 @@ curl -sSfL $(2) | tar xz -C $${TMP_DIR}; \
 mv -f $$(find $${TMP_DIR} -name $(notdir $(1)) -type f) $(1)-$(3); \
 chmod +x $(1)-$(3); \
 rm -rf $${TMP_DIR}; \
-}
-@ln -sf $(notdir $(1)-$(3)) $(1)
+} ;\
+ln -sf "$$(realpath "$(1)-$(3)")" "$(1)"
 endef
 
-# go-install-tool will 'go install' any package with custom target and name.
-# $1 - target tool path
+# go-install-tool will 'go install' any package with custom target and name of binary, if it doesn't exist
+# $1 - target path with name of binary
 # $2 - package url which can be installed
 # $3 - specific version of package
 define go-install-tool
-@[ -f "$(1)-$(3)" ] || { \
+@[ -f "$(1)-$(3)" ] && [ "$$(readlink -- "$(1)" 2>/dev/null)" = "$(1)-$(3)" ] || { \
 set -e; \
-package=$(2)@$(3); \
-echo "Downloading $${package}"; \
-GOWORK=off GOBIN=$(LOCALBIN) go install $${package}; \
-mv -f $(1) $(1)-$(3); \
-}
-@ln -sf $(notdir $(1)-$(3)) $(1)
+package=$(2)@$(3) ;\
+echo "Downloading $${package}" ;\
+rm -f "$(1)" ;\
+GOWORK=off GOBIN="$(LOCALBIN)" go install $${package} ;\
+mv "$(LOCALBIN)/$$(basename "$(1)")" "$(1)-$(3)" ;\
+} ;\
+ln -sf "$$(realpath "$(1)-$(3)")" "$(1)"
+endef
+
+define gomodver
+$(shell go list -m -f '{{if .Replace}}{{.Replace.Version}}{{else}}{{.Version}}{{end}}' $(1) 2>/dev/null)
 endef
