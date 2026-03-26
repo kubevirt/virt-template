@@ -5,7 +5,7 @@ go 1.24.0
 require (
 	k8s.io/api v0.34.3
 	k8s.io/apimachinery v0.34.3
-	kubevirt.io/api v1.7.0
+	kubevirt.io/api v1.8.0
 	sigs.k8s.io/controller-runtime v0.22.4
 )
 
@@ -21,9 +21,6 @@ require (
 	github.com/onsi/ginkgo/v2 v2.27.2 // indirect
 	github.com/onsi/gomega v1.38.3 // indirect
 	github.com/openshift/custom-resource-status v1.1.2 // indirect
-	github.com/rogpeppe/go-internal v1.14.1 // indirect
-	github.com/spf13/pflag v1.0.10 // indirect
-	github.com/stretchr/testify v1.11.1 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
 	go.yaml.in/yaml/v2 v2.4.3 // indirect
 	golang.org/x/net v0.48.0 // indirect
