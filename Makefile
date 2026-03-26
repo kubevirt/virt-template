@@ -250,7 +250,7 @@ undeploy: kustomize ## Undeploy controller and apiserver from the K8s cluster. C
 undeploy-openshift: kustomize ## Undeploy controller and apiserver from the OpenShift cluster. Call with ignore-not-found=true to ignore resource not found errors during deletion.
 	$(KUSTOMIZE) build config/openshift | $(KUBECTL) delete --ignore-not-found=$(IGNORE_NOT_FOUND) -f -
 
-CERT_MANAGER_VERSION ?= v1.18.2
+CERT_MANAGER_VERSION ?= v1.20.0
 .PHONE: deploy-cert-manager
 deploy-cert-manager: cmctl
 	$(KUBECTL) apply -f "https://github.com/cert-manager/cert-manager/releases/download/$(CERT_MANAGER_VERSION)/cert-manager.yaml"
@@ -286,8 +286,8 @@ ENVTEST_VERSION ?= $(shell v='$(call gomodver,sigs.k8s.io/controller-runtime)'; 
   [ -n "$$v" ] || { echo "Set ENVTEST_VERSION manually (controller-runtime replace has no tag)" >&2; exit 1; }; \
   printf '%s\n' "$$v" | sed -E 's/^v?([0-9]+)\.([0-9]+).*/release-\1.\2/')
 CLIENT_GEN_VERSION ?= v0.34.3
-OPENAPI_GEN_VERSION ?= v0.0.0-20250902094335-1504c55f6d9e
-GOLANGCI_LINT_VERSION ?= v2.11.3
+OPENAPI_GEN_VERSION ?= v0.0.0-20260319004828-5883c5ee87b9
+GOLANGCI_LINT_VERSION ?= v2.11.4
 GOFUMPT_VERSION ?= v0.9.2
 KUSTOMIZE_VERSION ?= v5.8.1
 
