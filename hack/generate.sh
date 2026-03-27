@@ -38,6 +38,7 @@ mkdir -p "${_out_dir}"
   k8s.io/apimachinery/pkg/runtime \
   k8s.io/apimachinery/pkg/util/intstr \
   k8s.io/apimachinery/pkg/version \
+  kubevirt.io/api/backup/v1alpha1 \
   kubevirt.io/api/core/v1 \
   kubevirt.io/containerized-data-importer-api/pkg/apis/core/v1beta1 \
   kubevirt.io/virt-template-api/core/v1alpha1 \
