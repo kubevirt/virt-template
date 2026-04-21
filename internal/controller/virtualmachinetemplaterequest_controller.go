@@ -24,6 +24,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strings"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -339,7 +340,13 @@ func (r *VirtualMachineTemplateRequestReconciler) cloneSnapshotContent(
 	ctx context.Context, tplReq *v1alpha1.VirtualMachineTemplateRequest,
 	snapContent *snapshotv1beta1.VirtualMachineSnapshotContent,
 ) error {
+	backendStoragePVCName := r.getBackendStoragePVCName(snapContent)
 	for _, vol := range snapContent.Spec.VolumeBackups {
+		if vol.VolumeName == backendStoragePVCName {
+			logf.FromContext(ctx).V(logs.DebugLevel).Info("Skipping clone of backend storage PVC",
+				logVolName, vol.VolumeName)
+			continue
+		}
 		dv := emptyDv(tplReq.Namespace, getDvName(tplReq, vol.VolumeName))
 		if err := r.Get(ctx, client.ObjectKeyFromObject(dv), dv); err != nil {
 			if !k8serrors.IsNotFound(err) {
@@ -370,7 +377,11 @@ func (r *VirtualMachineTemplateRequestReconciler) isSnapshotContentCloneReady(
 	ctx context.Context, tplReq *v1alpha1.VirtualMachineTemplateRequest,
 	snapContent *snapshotv1beta1.VirtualMachineSnapshotContent,
 ) (bool, error) {
+	backendStoragePVCName := r.getBackendStoragePVCName(snapContent)
 	for _, vol := range snapContent.Spec.VolumeBackups {
+		if vol.VolumeName == backendStoragePVCName {
+			continue
+		}
 		dv := emptyDv(tplReq.Namespace, getDvName(tplReq, vol.VolumeName))
 		if err := r.Get(ctx, client.ObjectKeyFromObject(dv), dv); err != nil {
 			return false, client.IgnoreNotFound(err)
@@ -409,7 +420,15 @@ func (r *VirtualMachineTemplateRequestReconciler) createTemplate(
 
 	stripUniqueIdentifiers(&vm.Spec)
 
+	backendStoragePVCName := r.getBackendStoragePVCName(snapContent)
 	for _, volBackup := range snapContent.Spec.VolumeBackups {
+		// Check if this is a backend storage PVC (VM state PVC)
+		if volBackup.VolumeName == backendStoragePVCName {
+			logf.FromContext(ctx).V(logs.DebugLevel).Info("Skipping backend storage PVC",
+				logVolName, volBackup.VolumeName, "pvcName", volBackup.PersistentVolumeClaim.Name)
+			continue
+		}
+
 		dvName := transformVolume(ctx, &vm.Spec.Template.Spec.Volumes, volBackup.VolumeName)
 		if dvName == "" {
 			dvName = volBackup.VolumeName
@@ -457,6 +476,20 @@ func (r *VirtualMachineTemplateRequestReconciler) getExpandedVM(
 	}
 
 	return vm, nil
+}
+
+func (r *VirtualMachineTemplateRequestReconciler) getBackendStoragePVCName(
+	snapContent *snapshotv1beta1.VirtualMachineSnapshotContent,
+) string {
+	for _, vol := range snapContent.Spec.VolumeBackups {
+		// Backend storage volumes (EFI/TPM/CBT persistent state) follow this naming pattern
+		// Only one backend volume is expected in snapshot
+		if strings.Contains(vol.VolumeName, "persistent-state-for") {
+			return vol.VolumeName
+		}
+	}
+
+	return ""
 }
 
 func (r *VirtualMachineTemplateRequestReconciler) setDataVolumeOwnerReferences(
