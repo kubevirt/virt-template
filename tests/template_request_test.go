@@ -21,6 +21,7 @@ package tests_test
 
 import (
 	"context"
+	"encoding/json"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -29,6 +30,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/rand"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -39,6 +41,12 @@ import (
 
 	"kubevirt.io/virt-template-api/core/subresourcesv1alpha1"
 	"kubevirt.io/virt-template-api/core/v1alpha1"
+)
+
+const (
+	sourceMACAddress = "02:00:00:00:00:01"
+	sourceSerial     = "cf5d0f13-7075-48fe-a8e6-108f74e13633"
+	sourceUUID       = "354b1c05-8b0e-446c-8a0d-43d897f96c25"
 )
 
 var _ = Describe("VirtualMachineTemplateRequest", func() {
@@ -82,6 +90,15 @@ var _ = Describe("VirtualMachineTemplateRequest", func() {
 			Get(context.Background(), tplReq.Status.TemplateRef.Name, metav1.GetOptions{})
 		Expect(err).ToNot(HaveOccurred())
 
+		tplVM := decodeFunctestVM(tpl.Spec.VirtualMachine.Raw)
+		for _, iface := range tplVM.Spec.Template.Spec.Domain.Devices.Interfaces {
+			Expect(iface.MacAddress).To(BeEmpty(), "MAC address should be stripped from interface %s", iface.Name)
+		}
+		if tplVM.Spec.Template.Spec.Domain.Firmware != nil {
+			Expect(tplVM.Spec.Template.Spec.Domain.Firmware.Serial).To(BeEmpty(), "firmware serial should be stripped")
+			Expect(tplVM.Spec.Template.Spec.Domain.Firmware.UUID).To(BeEmpty(), "firmware UUID should be stripped")
+		}
+
 		name := "my-created-vm-" + rand.String(5)
 		processedVM, err := tplClient.TemplateV1alpha1().VirtualMachineTemplates(NamespaceTest).CreateVirtualMachine(
 			context.Background(), tpl.Name,
@@ -94,11 +111,23 @@ var _ = Describe("VirtualMachineTemplateRequest", func() {
 		Expect(err).ToNot(HaveOccurred())
 		Expect(processedVM.VirtualMachine.Name).To(Equal(name))
 
+		var createdVM *virtv1.VirtualMachine
 		Eventually(func(g Gomega) {
-			newVM, err := virtClient.VirtualMachine(NamespaceTest).Get(context.Background(), processedVM.VirtualMachine.Name, metav1.GetOptions{})
+			createdVM, err = virtClient.VirtualMachine(NamespaceTest).Get(context.Background(), processedVM.VirtualMachine.Name, metav1.GetOptions{})
 			g.Expect(err).ToNot(HaveOccurred())
-			g.Expect(newVM.Status.Ready).To(BeTrue())
+			g.Expect(createdVM.Status.Ready).To(BeTrue())
 		}, 5*time.Minute, 1*time.Second).Should(Succeed())
+
+		for _, iface := range createdVM.Spec.Template.Spec.Domain.Devices.Interfaces {
+			Expect(iface.MacAddress).ToNot(Equal(sourceMACAddress),
+				"created VM should not have same MAC address as source VM on interface %s", iface.Name)
+		}
+		if createdVM.Spec.Template.Spec.Domain.Firmware != nil {
+			Expect(createdVM.Spec.Template.Spec.Domain.Firmware.Serial).ToNot(Equal(sourceSerial),
+				"created VM should not have same firmware serial as source VM")
+			Expect(createdVM.Spec.Template.Spec.Domain.Firmware.UUID).ToNot(BeEquivalentTo(sourceUUID),
+				"created VM should not have same firmware UUID as source VM")
+		}
 	})
 })
 
@@ -139,7 +168,29 @@ func newVM() *virtv1.VirtualMachine {
 			RunStrategy: ptr.To(virtv1.RunStrategyAlways),
 			Template: &virtv1.VirtualMachineInstanceTemplateSpec{
 				Spec: virtv1.VirtualMachineInstanceSpec{
-					Domain: virtv1.DomainSpec{},
+					Domain: virtv1.DomainSpec{
+						Devices: virtv1.Devices{
+							Interfaces: []virtv1.Interface{
+								{
+									Name:       "default",
+									MacAddress: sourceMACAddress,
+									InterfaceBindingMethod: virtv1.InterfaceBindingMethod{
+										Masquerade: &virtv1.InterfaceMasquerade{},
+									},
+								},
+							},
+						},
+						Firmware: &virtv1.Firmware{
+							Serial: sourceSerial,
+							UUID:   sourceUUID,
+						},
+					},
+					Networks: []virtv1.Network{
+						{
+							Name:          "default",
+							NetworkSource: virtv1.NetworkSource{Pod: &virtv1.PodNetwork{}},
+						},
+					},
 					Volumes: []virtv1.Volume{
 						{
 							Name: "rootdisk",
@@ -154,4 +205,12 @@ func newVM() *virtv1.VirtualMachine {
 			},
 		},
 	}
+}
+
+func decodeFunctestVM(raw []byte) *virtv1.VirtualMachine {
+	var obj map[string]any
+	ExpectWithOffset(1, json.Unmarshal(raw, &obj)).To(Succeed())
+	vm := &virtv1.VirtualMachine{}
+	ExpectWithOffset(1, runtime.DefaultUnstructuredConverter.FromUnstructuredWithValidation(obj, vm, true)).To(Succeed())
+	return vm
 }
