@@ -48,6 +48,13 @@ var _ = Describe("VirtualMachineTemplateRequest Controller VirtualMachineTemplat
 		paramNameName   = "NAME"
 		paramName       = "${" + paramNameName + "}"
 		paramNameSuffix = "-" + paramName
+
+		testMACAddress          = "de:ad:00:00:be:af"
+		testSecondaryMACAddress = "de:ad:00:00:be:b0"
+		testIfaceName           = "default"
+		testSecondaryIfaceName  = "secondary"
+		testSerial              = "source-serial-12345"
+		testUUID                = "source-uuid-abcde"
 	)
 
 	var reconciler *controller.VirtualMachineTemplateRequestReconciler
@@ -387,6 +394,40 @@ var _ = Describe("VirtualMachineTemplateRequest Controller VirtualMachineTemplat
 		Expect(tplReq.Status.TemplateRef.Name).To(Equal(tpl.Name))
 	})
 
+	It("should strip MAC addresses from interfaces", func() {
+		vm := reconcileWithModifiedContent(k8sClient, reconciler, func(snapContent *snapshotv1beta1.VirtualMachineSnapshotContent) {
+			snapContent.Spec.Source.VirtualMachine.Spec.Template.Spec.Domain.Devices.Interfaces = []virtv1.Interface{
+				{Name: testIfaceName, MacAddress: testMACAddress},
+				{Name: testSecondaryIfaceName, MacAddress: testSecondaryMACAddress},
+			}
+		})
+		Expect(vm.Spec.Template.Spec.Domain.Devices.Interfaces).To(HaveLen(2))
+		Expect(vm.Spec.Template.Spec.Domain.Devices.Interfaces[0].Name).To(Equal(testIfaceName))
+		Expect(vm.Spec.Template.Spec.Domain.Devices.Interfaces[0].MacAddress).To(BeEmpty())
+		Expect(vm.Spec.Template.Spec.Domain.Devices.Interfaces[1].Name).To(Equal(testSecondaryIfaceName))
+		Expect(vm.Spec.Template.Spec.Domain.Devices.Interfaces[1].MacAddress).To(BeEmpty())
+	})
+
+	It("should strip firmware serial", func() {
+		vm := reconcileWithModifiedContent(k8sClient, reconciler, func(snapContent *snapshotv1beta1.VirtualMachineSnapshotContent) {
+			snapContent.Spec.Source.VirtualMachine.Spec.Template.Spec.Domain.Firmware = &virtv1.Firmware{
+				Serial: testSerial,
+			}
+		})
+		Expect(vm.Spec.Template.Spec.Domain.Firmware).ToNot(BeNil())
+		Expect(vm.Spec.Template.Spec.Domain.Firmware.Serial).To(BeEmpty())
+	})
+
+	It("should strip firmware UUID", func() {
+		vm := reconcileWithModifiedContent(k8sClient, reconciler, func(snapContent *snapshotv1beta1.VirtualMachineSnapshotContent) {
+			snapContent.Spec.Source.VirtualMachine.Spec.Template.Spec.Domain.Firmware = &virtv1.Firmware{
+				UUID: testUUID,
+			}
+		})
+		Expect(vm.Spec.Template.Spec.Domain.Firmware).ToNot(BeNil())
+		Expect(vm.Spec.Template.Spec.Domain.Firmware.UUID).To(BeEmpty())
+	})
+
 	It("should sync conditions from existing template with matching UID", func() {
 		tplReq := createRequest(k8sClient, testNamespace, testVMNamespace)
 
@@ -473,6 +514,30 @@ func setupTestPipeline(cli client.Client, testNamespace, testVMNamespace string)
 		SnapContent: snapContent,
 		DV:          dv,
 	}
+}
+
+func reconcileWithModifiedContent(
+	cli client.Client, reconciler *controller.VirtualMachineTemplateRequestReconciler,
+	modify func(*snapshotv1beta1.VirtualMachineSnapshotContent),
+) *virtv1.VirtualMachine {
+	tplReq := createRequest(cli, testNamespace, testVMNamespace)
+	snap := createSnapshot(cli, tplReq)
+	snap = setSnapshotStatus(cli, snap, withPhase(snapshotv1beta1.Succeeded), withReady())
+	snapContent := createSnapshotContent(cli, snap)
+	modify(snapContent)
+	ExpectWithOffset(1, cli.Update(context.Background(), snapContent)).To(Succeed())
+	setSnapshotContentStatus(cli, snapContent, true)
+	dv := createDataVolume(cli, tplReq)
+	setDataVolumeStatus(cli, dv, cdiv1beta1.Succeeded, true, false)
+
+	_, err := reconciler.Reconcile(ctx, reconcile.Request{
+		NamespacedName: client.ObjectKeyFromObject(tplReq),
+	})
+	ExpectWithOffset(1, err).ToNot(HaveOccurred())
+
+	tpl := &v1alpha1.VirtualMachineTemplate{}
+	ExpectWithOffset(1, cli.Get(context.Background(), client.ObjectKeyFromObject(tplReq), tpl)).To(Succeed())
+	return decodeVM(tpl.Spec.VirtualMachine.Raw)
 }
 
 func decodeVM(raw []byte) *virtv1.VirtualMachine {

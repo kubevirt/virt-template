@@ -407,6 +407,8 @@ func (r *VirtualMachineTemplateRequestReconciler) createTemplate(
 		return nil, fmt.Errorf("source VirtualMachine %s/%s has no template spec", vm.Namespace, vm.Name)
 	}
 
+	stripUniqueIdentifiers(&vm.Spec)
+
 	for _, volBackup := range snapContent.Spec.VolumeBackups {
 		dvName := transformVolume(ctx, &vm.Spec.Template.Spec.Volumes, volBackup.VolumeName)
 		if dvName == "" {
@@ -858,6 +860,21 @@ func getTemplateName(tplReq *v1alpha1.VirtualMachineTemplateRequest) string {
 
 func getDvName(tplReq *v1alpha1.VirtualMachineTemplateRequest, volumeName string) string {
 	return apimachinery.GetStableName(getTemplateName(tplReq), string(tplReq.UID), volumeName)
+}
+
+func stripUniqueIdentifiers(vmSpec *virtv1.VirtualMachineSpec) {
+	if vmSpec.Template == nil {
+		return
+	}
+
+	for i := range vmSpec.Template.Spec.Domain.Devices.Interfaces {
+		vmSpec.Template.Spec.Domain.Devices.Interfaces[i].MacAddress = ""
+	}
+
+	if vmSpec.Template.Spec.Domain.Firmware != nil {
+		vmSpec.Template.Spec.Domain.Firmware.Serial = ""
+		vmSpec.Template.Spec.Domain.Firmware.UUID = ""
+	}
 }
 
 // SetupWithManager sets up the controller with the Manager.
