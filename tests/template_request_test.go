@@ -77,14 +77,7 @@ var _ = Describe("VirtualMachineTemplateRequest", func() {
 			Create(context.Background(), tplReq, metav1.CreateOptions{})
 		Expect(err).ToNot(HaveOccurred())
 
-		Eventually(func(g Gomega) {
-			tplReq, err = tplClient.TemplateV1alpha1().VirtualMachineTemplateRequests(NamespaceTest).
-				Get(context.Background(), tplReq.Name, metav1.GetOptions{})
-			g.Expect(err).ToNot(HaveOccurred())
-			cond := meta.FindStatusCondition(tplReq.Status.Conditions, v1alpha1.ConditionReady)
-			g.Expect(cond).ToNot(BeNil())
-			g.Expect(cond.Status).To(Equal(metav1.ConditionTrue))
-		}, 5*time.Minute, 1*time.Second).Should(Succeed())
+		tplReq = waitForTemplateRequestReady(tplReq.Name)
 
 		tpl, err := tplClient.TemplateV1alpha1().VirtualMachineTemplates(NamespaceTest).
 			Get(context.Background(), tplReq.Status.TemplateRef.Name, metav1.GetOptions{})
@@ -129,7 +122,81 @@ var _ = Describe("VirtualMachineTemplateRequest", func() {
 				"created VM should not have same firmware UUID as source VM")
 		}
 	})
+
+	It("should create a VirtualMachineTemplate from a VM with backend storage", func() {
+		vm, err := virtClient.VirtualMachine(NamespaceSecondaryTest).Create(
+			context.Background(), newVMWithPersistentEFI(), metav1.CreateOptions{})
+		Expect(err).ToNot(HaveOccurred())
+
+		Eventually(func(g Gomega) {
+			vm, err = virtClient.VirtualMachine(NamespaceSecondaryTest).Get(context.Background(), vm.Name, metav1.GetOptions{})
+			g.Expect(err).ToNot(HaveOccurred())
+			g.Expect(vm.Status.Ready).To(BeTrue())
+		}, 5*time.Minute, 1*time.Second).Should(Succeed())
+
+		tplReq := &v1alpha1.VirtualMachineTemplateRequest{
+			ObjectMeta: metav1.ObjectMeta{
+				GenerateName: "virt-template-efi-",
+				Namespace:    NamespaceTest,
+			},
+			Spec: v1alpha1.VirtualMachineTemplateRequestSpec{
+				VirtualMachineRef: v1alpha1.VirtualMachineReference{
+					Namespace: vm.Namespace,
+					Name:      vm.Name,
+				},
+			},
+		}
+
+		tplReq, err = tplClient.TemplateV1alpha1().VirtualMachineTemplateRequests(NamespaceTest).
+			Create(context.Background(), tplReq, metav1.CreateOptions{})
+		Expect(err).ToNot(HaveOccurred())
+
+		tplReq = waitForTemplateRequestReady(tplReq.Name)
+
+		tpl, err := tplClient.TemplateV1alpha1().VirtualMachineTemplates(NamespaceTest).
+			Get(context.Background(), tplReq.Status.TemplateRef.Name, metav1.GetOptions{})
+		Expect(err).ToNot(HaveOccurred())
+
+		// Verify template does not include DataVolumeTemplates for backend storage
+		vmFromTemplate := decodeFunctestVM(tpl.Spec.VirtualMachine.Raw)
+		// Should only have DataVolumeTemplate for the data disk, not for backend storage
+		Expect(vmFromTemplate.Spec.DataVolumeTemplates).To(HaveLen(1))
+
+		// Create a VM from the template
+		name := "my-created-vm-efi-" + rand.String(5)
+		processedResult, err := tplClient.TemplateV1alpha1().VirtualMachineTemplates(NamespaceTest).CreateVirtualMachine(
+			context.Background(), tpl.Name,
+			subresourcesv1alpha1.ProcessOptions{
+				Parameters: map[string]string{
+					"NAME": name,
+				},
+			},
+		)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(processedResult.VirtualMachine.Name).To(Equal(name))
+
+		Eventually(func(g Gomega) {
+			newVM, err := virtClient.VirtualMachine(NamespaceTest).Get(
+				context.Background(), processedResult.VirtualMachine.Name, metav1.GetOptions{})
+			g.Expect(err).ToNot(HaveOccurred())
+			g.Expect(newVM.Status.Ready).To(BeTrue())
+		}, 5*time.Minute, 1*time.Second).Should(Succeed())
+	})
 })
+
+func waitForTemplateRequestReady(name string) *v1alpha1.VirtualMachineTemplateRequest {
+	var tplReq *v1alpha1.VirtualMachineTemplateRequest
+	Eventually(func(g Gomega) {
+		var err error
+		tplReq, err = tplClient.TemplateV1alpha1().VirtualMachineTemplateRequests(NamespaceTest).
+			Get(context.Background(), name, metav1.GetOptions{})
+		g.Expect(err).ToNot(HaveOccurred())
+		cond := meta.FindStatusCondition(tplReq.Status.Conditions, v1alpha1.ConditionReady)
+		g.Expect(cond).ToNot(BeNil())
+		g.Expect(cond.Status).To(Equal(metav1.ConditionTrue))
+	}, 5*time.Minute, 1*time.Second).Should(Succeed())
+	return tplReq
+}
 
 func newVM() *virtv1.VirtualMachine {
 	suffix := rand.String(5)
@@ -212,5 +279,18 @@ func decodeFunctestVM(raw []byte) *virtv1.VirtualMachine {
 	ExpectWithOffset(1, json.Unmarshal(raw, &obj)).To(Succeed())
 	vm := &virtv1.VirtualMachine{}
 	ExpectWithOffset(1, runtime.DefaultUnstructuredConverter.FromUnstructuredWithValidation(obj, vm, true)).To(Succeed())
+	return vm
+}
+
+func newVMWithPersistentEFI() *virtv1.VirtualMachine {
+	vm := newVM()
+	vm.Name = "my-test-vm-efi-" + rand.String(5)
+	vm.Spec.Template.Spec.Domain.Firmware = &virtv1.Firmware{
+		Bootloader: &virtv1.Bootloader{
+			EFI: &virtv1.EFI{
+				Persistent: ptr.To(true),
+			},
+		},
+	}
 	return vm
 }
