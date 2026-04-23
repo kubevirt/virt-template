@@ -51,6 +51,14 @@ function kubevirtci::up() {
   ${_kubectl} apply -f "https://github.com/kubevirt/kubevirt/releases/download/${KUBEVIRT_VERSION}/kubevirt-operator.yaml"
   ${_kubectl} apply -f "https://github.com/kubevirt/kubevirt/releases/download/${KUBEVIRT_VERSION}/kubevirt-cr.yaml"
 
+  # Get the default storage class to patch vmStateStorageClass
+  DEFAULT_STORAGE_CLASS=$(${_kubectl} get storageclass -o jsonpath='{.items[?(@.metadata.annotations.storageclass\.kubernetes\.io/is-default-class=="true")].metadata.name}')
+  if [ -n "$DEFAULT_STORAGE_CLASS" ]; then
+    # Patch kubevirt with VM state storage class
+    echo "patching kubevirt with vmStateStorageClass ${DEFAULT_STORAGE_CLASS}"
+    ${_kubectl} patch -n kubevirt kubevirt kubevirt --type merge -p '{"spec": {"configuration": { "vmStateStorageClass": "'"$DEFAULT_STORAGE_CLASS"'" }}}'
+  fi
+
   echo "enabling snapshot feature gate"
   ${_kubectl} patch kv/kubevirt -n kubevirt --type merge -p '{"spec": {"configuration": {"developerConfiguration": {"featureGates": ["Snapshot"]}}}}'
 
