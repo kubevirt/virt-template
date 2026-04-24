@@ -13,9 +13,10 @@ spec:
     - IPv4
     - IPv6
   ports:
-    - port: 443
+    - name: http-api
+      port: 443
       protocol: TCP
-      targetPort: 9443
+      targetPort: http-api
   selector:
     control-plane: apiserver
     app.kubernetes.io/name: virt-template

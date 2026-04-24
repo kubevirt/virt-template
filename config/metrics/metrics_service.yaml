@@ -14,10 +14,10 @@ spec:
     - IPv4
     - IPv6
   ports:
-  - name: https
+  - name: http-metrics
     port: 8443
     protocol: TCP
-    targetPort: 8443
+    targetPort: http-metrics
   selector:
     control-plane: controller-manager
     app.kubernetes.io/name: virt-template
