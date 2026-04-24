@@ -57,6 +57,7 @@ spec:
         - containerPort: 9443
           name: api
           protocol: TCP
+        terminationMessagePolicy: FallbackToLogsOnError
         securityContext:
           readOnlyRootFilesystem: true
           allowPrivilegeEscalation: false

@@ -54,6 +54,7 @@ spec:
         image: controller:latest
         name: manager
         ports: []
+        terminationMessagePolicy: FallbackToLogsOnError
         securityContext:
           readOnlyRootFilesystem: true
           allowPrivilegeEscalation: false
