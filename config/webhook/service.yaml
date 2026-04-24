@@ -8,6 +8,10 @@ metadata:
     app.kubernetes.io/managed-by: kustomize
     kubevirt.io: virt-template-webhook-service
 spec:
+  ipFamilyPolicy: PreferDualStack
+  ipFamilies:
+    - IPv4
+    - IPv6
   ports:
     - port: 443
       protocol: TCP
