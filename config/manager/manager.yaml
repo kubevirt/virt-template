@@ -44,6 +44,7 @@ spec:
         runAsNonRoot: true
         seccompProfile:
           type: RuntimeDefault
+      automountServiceAccountToken: true
       containers:
       - command:
         - /manager
