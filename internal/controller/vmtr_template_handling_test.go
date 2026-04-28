@@ -26,10 +26,12 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
@@ -490,6 +492,89 @@ var _ = Describe("VirtualMachineTemplateRequest Controller VirtualMachineTemplat
 		Expect(k8sClient.Get(context.Background(), client.ObjectKeyFromObject(tplReq), tplReq)).To(Succeed())
 		expectCondition(tplReq, v1alpha1.ConditionReady, metav1.ConditionTrue, v1alpha1.ReasonReconciled, Equal(msg))
 		expectCondition(tplReq, v1alpha1.ConditionProgressing, metav1.ConditionFalse, v1alpha1.ReasonReconciled)
+	})
+
+	It("should skip backend storage PVC when creating template", func() {
+		const (
+			backendStorageVolumeName = "persistent-state-for-test-vm"
+			regularVolumeName        = "data-volume"
+		)
+
+		tplReq := createRequest(k8sClient, testNamespace, testVMNamespace)
+		snap := createSnapshot(k8sClient, tplReq)
+		snap = setSnapshotStatus(k8sClient, snap, withPhase(snapshotv1beta1.Succeeded), withReady())
+		snapContent := createSnapshotContent(k8sClient, snap)
+
+		snapContent.Spec.Source.VirtualMachine.Spec.Template.Spec.Volumes = []virtv1.Volume{
+			{
+				Name: regularVolumeName,
+				VolumeSource: virtv1.VolumeSource{
+					PersistentVolumeClaim: &virtv1.PersistentVolumeClaimVolumeSource{
+						PersistentVolumeClaimVolumeSource: corev1.PersistentVolumeClaimVolumeSource{
+							ClaimName: "data-pvc",
+						},
+					},
+				},
+			},
+			{
+				Name: backendStorageVolumeName,
+				VolumeSource: virtv1.VolumeSource{
+					PersistentVolumeClaim: &virtv1.PersistentVolumeClaimVolumeSource{
+						PersistentVolumeClaimVolumeSource: corev1.PersistentVolumeClaimVolumeSource{
+							ClaimName: "efi-pvc",
+						},
+					},
+				},
+			},
+		}
+		snapContent.Spec.VolumeBackups = []snapshotv1beta1.VolumeBackup{
+			{
+				VolumeName: regularVolumeName,
+				PersistentVolumeClaim: snapshotv1beta1.PersistentVolumeClaim{
+					ObjectMeta: metav1.ObjectMeta{Name: "data-pvc"},
+				},
+				VolumeSnapshotName: ptr.To("data-snapshot"),
+			},
+			{
+				VolumeName: backendStorageVolumeName,
+				PersistentVolumeClaim: snapshotv1beta1.PersistentVolumeClaim{
+					ObjectMeta: metav1.ObjectMeta{Name: "efi-pvc"},
+				},
+				VolumeSnapshotName: ptr.To("efi-snapshot"),
+			},
+		}
+		Expect(k8sClient.Update(context.Background(), snapContent)).To(Succeed())
+		setSnapshotContentStatus(k8sClient, snapContent, true)
+
+		// First reconcile creates DataVolume for regular volume
+		_, err := reconciler.Reconcile(ctx, reconcile.Request{
+			NamespacedName: client.ObjectKeyFromObject(tplReq),
+		})
+		Expect(err).ToNot(HaveOccurred())
+
+		// Mark the DataVolume as ready
+		dvName := apimachinery.GetStableName(tplReq.Name, string(tplReq.UID), regularVolumeName)
+		dv := &cdiv1beta1.DataVolume{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      dvName,
+				Namespace: tplReq.Namespace,
+			},
+		}
+		Expect(k8sClient.Get(context.Background(), client.ObjectKeyFromObject(dv), dv)).To(Succeed())
+		setDataVolumeStatus(k8sClient, dv, cdiv1beta1.Succeeded, true, false)
+
+		// Second reconcile creates the template
+		_, err = reconciler.Reconcile(ctx, reconcile.Request{
+			NamespacedName: client.ObjectKeyFromObject(tplReq),
+		})
+		Expect(err).ToNot(HaveOccurred())
+
+		tpl := &v1alpha1.VirtualMachineTemplate{}
+		Expect(k8sClient.Get(context.Background(), client.ObjectKeyFromObject(tplReq), tpl)).To(Succeed())
+
+		vm := decodeVM(tpl.Spec.VirtualMachine.Raw)
+		Expect(vm.Spec.DataVolumeTemplates).To(HaveLen(1))
+		Expect(vm.Spec.DataVolumeTemplates[0].Name).To(ContainSubstring(regularVolumeName))
 	})
 })
 
