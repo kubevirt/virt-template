@@ -44,6 +44,7 @@ spec:
         runAsNonRoot: true
         seccompProfile:
           type: RuntimeDefault
+      automountServiceAccountToken: true
       containers:
       - command:
         - /manager
@@ -53,6 +54,7 @@ spec:
         image: controller:latest
         name: manager
         ports: []
+        terminationMessagePolicy: FallbackToLogsOnError
         securityContext:
           readOnlyRootFilesystem: true
           allowPrivilegeEscalation: false

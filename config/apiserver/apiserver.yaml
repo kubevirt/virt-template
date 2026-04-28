@@ -44,6 +44,7 @@ spec:
         runAsNonRoot: true
         seccompProfile:
           type: RuntimeDefault
+      automountServiceAccountToken: true
       containers:
       - command:
         - /apiserver
@@ -56,6 +57,7 @@ spec:
         - containerPort: 9443
           name: api
           protocol: TCP
+        terminationMessagePolicy: FallbackToLogsOnError
         securityContext:
           readOnlyRootFilesystem: true
           allowPrivilegeEscalation: false
