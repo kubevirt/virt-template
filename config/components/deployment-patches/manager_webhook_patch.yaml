@@ -19,7 +19,7 @@
   path: /spec/template/spec/containers/0/ports/-
   value:
     containerPort: 9443
-    name: webhook-server
+    name: http-webhook
     protocol: TCP
 
 # Add the volume configuration for the webhook certificates
