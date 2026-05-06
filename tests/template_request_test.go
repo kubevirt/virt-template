@@ -22,6 +22,8 @@ package tests_test
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"sync/atomic"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -44,15 +46,18 @@ import (
 )
 
 const (
-	sourceMACAddress = "02:00:00:00:00:01"
-	sourceSerial     = "cf5d0f13-7075-48fe-a8e6-108f74e13633"
-	sourceUUID       = "354b1c05-8b0e-446c-8a0d-43d897f96c25"
+	sourceSerial = "cf5d0f13-7075-48fe-a8e6-108f74e13633"
+	sourceUUID   = "354b1c05-8b0e-446c-8a0d-43d897f96c25"
 )
+
+var macSeq atomic.Uint32
 
 var _ = Describe("VirtualMachineTemplateRequest", func() {
 	It("should create a VirtualMachineTemplate from an existing VirtualMachine", func() {
 		vm, err := virtClient.VirtualMachine(NamespaceSecondaryTest).Create(context.Background(), newVM(), metav1.CreateOptions{})
 		Expect(err).ToNot(HaveOccurred())
+		Expect(vm.Spec.Template.Spec.Domain.Devices.Interfaces).NotTo(BeEmpty())
+		sourceMACAddress := vm.Spec.Template.Spec.Domain.Devices.Interfaces[0].MacAddress
 
 		Eventually(func(g Gomega) {
 			vm, err = virtClient.VirtualMachine(NamespaceSecondaryTest).Get(context.Background(), vm.Name, metav1.GetOptions{})
@@ -198,6 +203,11 @@ func waitForTemplateRequestReady(name string) *v1alpha1.VirtualMachineTemplateRe
 	return tplReq
 }
 
+func nextSourceMACAddress() string {
+	n := macSeq.Add(1)
+	return fmt.Sprintf("02:00:00:00:00:%02x", ((n-1)%255)+1)
+}
+
 func newVM() *virtv1.VirtualMachine {
 	suffix := rand.String(5)
 	dvName := "my-test-dv-" + suffix
@@ -240,7 +250,7 @@ func newVM() *virtv1.VirtualMachine {
 							Interfaces: []virtv1.Interface{
 								{
 									Name:       "default",
-									MacAddress: sourceMACAddress,
+									MacAddress: nextSourceMACAddress(),
 									InterfaceBindingMethod: virtv1.InterfaceBindingMethod{
 										Masquerade: &virtv1.InterfaceMasquerade{},
 									},
