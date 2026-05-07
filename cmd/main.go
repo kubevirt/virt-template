@@ -293,7 +293,7 @@ func appendCipherSuites(setupLog logr.Logger, tlsOpts []func(*tls.Config), ciphe
 }
 
 func appendMinTLSVersion(setupLog logr.Logger, tlsOpts []func(*tls.Config), minTLSVersion string) []func(*tls.Config) {
-	if minTLSVersion != "" {
+	if minTLSVersion == "" {
 		return tlsOpts
 	}
 
