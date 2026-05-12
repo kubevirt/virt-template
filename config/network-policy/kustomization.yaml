@@ -1,4 +1,5 @@
 resources:
 - ingress
+- deny-all.yaml
 - allow-apiserver-egress.yaml
 - allow-controller-egress.yaml
