@@ -1,0 +1,35 @@
+apiVersion: template.kubevirt.io/v1beta1
+kind: VirtualMachineTemplate
+metadata:
+  name: virtualmachinetemplate-sample
+  labels:
+    app.kubernetes.io/name: virt-template
+    app.kubernetes.io/managed-by: kustomize
+    kubevirt.io: virtualmachinetemplate-sample
+spec:
+  parameters:
+    - name: NAME
+      required: true
+    - name: INSTANCETYPE
+      required: true
+    - name: PREFERENCE
+      required: true
+    - name: CONTAINERDISK
+      required: true
+  virtualMachine:
+    metadata:
+      name: ${NAME}
+    spec:
+      runStrategy: Always
+      instancetype:
+        name: ${INSTANCETYPE}
+      preference:
+        name: ${PREFERENCE}
+      template:
+        spec:
+          domain:
+            devices: {}
+          volumes:
+            - containerDisk:
+                image: ${CONTAINERDISK}
+              name: containerdisk-0

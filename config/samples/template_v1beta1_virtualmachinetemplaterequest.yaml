@@ -1,0 +1,13 @@
+apiVersion: template.kubevirt.io/v1beta1
+kind: VirtualMachineTemplateRequest
+metadata:
+  name: virtualmachinetemplaterequest-sample
+  labels:
+    app.kubernetes.io/name: virt-template
+    app.kubernetes.io/managed-by: kustomize
+    kubevirt.io: virtualmachinetemplaterequest-sample
+spec:
+  templateName: my-template
+  virtualMachineRef:
+    namespace: my-vm-namespace
+    name: my-vm
