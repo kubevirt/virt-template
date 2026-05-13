@@ -31,11 +31,13 @@ import (
 
 	templateapi "kubevirt.io/virt-template-api/core"
 	"kubevirt.io/virt-template-api/core/subresourcesv1alpha1"
+	"kubevirt.io/virt-template-api/core/subresourcesv1beta1"
 	templateclient "kubevirt.io/virt-template-client-go/virttemplate"
 
 	"kubevirt.io/virt-template/internal/apiserver"
 	"kubevirt.io/virt-template/internal/apiserver/openapi"
-	"kubevirt.io/virt-template/internal/apiserver/storage/virtualmachinetemplate"
+	"kubevirt.io/virt-template/internal/apiserver/storage/virtualmachinetemplate/v1alpha1"
+	"kubevirt.io/virt-template/internal/apiserver/storage/virtualmachinetemplate/v1beta1"
 	templatescheme "kubevirt.io/virt-template/internal/scheme"
 )
 
@@ -58,9 +60,14 @@ func main() {
 	scheme := templatescheme.New()
 	apiGroups := apiserver.APIGroups{
 		subresourcesv1alpha1.GroupVersion: {
-			templateapi.PluralResourceName:              virtualmachinetemplate.NewDummyREST(),
-			templateapi.PluralResourceName + "/process": virtualmachinetemplate.NewProcessREST(client),
-			templateapi.PluralResourceName + "/create":  virtualmachinetemplate.NewCreateREST(client, virtClient),
+			templateapi.PluralResourceName:              v1alpha1.NewDummyREST(),
+			templateapi.PluralResourceName + "/process": v1alpha1.NewProcessREST(client),
+			templateapi.PluralResourceName + "/create":  v1alpha1.NewCreateREST(client, virtClient),
+		},
+		subresourcesv1beta1.GroupVersion: {
+			templateapi.PluralResourceName:              v1beta1.NewDummyREST(),
+			templateapi.PluralResourceName + "/process": v1beta1.NewProcessREST(client),
+			templateapi.PluralResourceName + "/create":  v1beta1.NewCreateREST(client, virtClient),
 		},
 	}
 

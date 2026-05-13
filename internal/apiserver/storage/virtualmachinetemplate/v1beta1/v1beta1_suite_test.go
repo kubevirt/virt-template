@@ -17,7 +17,7 @@
  *
  */
 
-package virtualmachinetemplate_test
+package v1beta1_test
 
 import (
 	"bytes"
@@ -38,13 +38,13 @@ import (
 	"kubevirt.io/client-go/kubecli"
 	kvcorev1 "kubevirt.io/client-go/kubevirt/typed/core/v1"
 
-	"kubevirt.io/virt-template-api/core/subresourcesv1alpha1"
-	"kubevirt.io/virt-template-api/core/v1alpha1"
+	"kubevirt.io/virt-template-api/core/subresourcesv1beta1"
+	"kubevirt.io/virt-template-api/core/v1beta1"
 )
 
 func TestVirtualMachineTemplateStorage(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "VirtualMachineTemplate Storage Suite")
+	RunSpecs(t, "VirtualMachineTemplate Storage v1beta1 Suite")
 }
 
 const (
@@ -99,24 +99,24 @@ func (f *fakeVirtualMachineInterface) Create(
 	return vm, nil
 }
 
-func newVirtualMachineTemplate() *v1alpha1.VirtualMachineTemplate {
-	return &v1alpha1.VirtualMachineTemplate{
+func newVirtualMachineTemplate() *v1beta1.VirtualMachineTemplate {
+	return &v1beta1.VirtualMachineTemplate{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      testTemplateName,
 			Namespace: testNamespace,
 		},
-		Spec: v1alpha1.VirtualMachineTemplateSpec{
+		Spec: v1beta1.VirtualMachineTemplateSpec{
 			VirtualMachine: &runtime.RawExtension{Raw: []byte(vmJSON)},
-			Parameters: []v1alpha1.Parameter{
+			Parameters: []v1beta1.Parameter{
 				{Name: testParamName, Value: testVMName},
 			},
 		},
 	}
 }
 
-func invokeHandler(handler http.Handler, opts *subresourcesv1alpha1.ProcessOptions) {
+func invokeHandler(handler http.Handler, opts *subresourcesv1beta1.ProcessOptions) {
 	if opts == nil {
-		opts = &subresourcesv1alpha1.ProcessOptions{}
+		opts = &subresourcesv1beta1.ProcessOptions{}
 	}
 	body, err := json.Marshal(opts)
 	ExpectWithOffset(1, err).ToNot(HaveOccurred())
@@ -128,11 +128,11 @@ func invokeHandler(handler http.Handler, opts *subresourcesv1alpha1.ProcessOptio
 	handler.ServeHTTP(recorder, req)
 }
 
-func expectSuccessfulProcess(responder *fakeResponder) *subresourcesv1alpha1.ProcessedVirtualMachineTemplate {
+func expectSuccessfulProcess(responder *fakeResponder) *subresourcesv1beta1.ProcessedVirtualMachineTemplate {
 	ExpectWithOffset(1, responder.statusCode).To(Equal(http.StatusOK))
 	ExpectWithOffset(1, responder.obj).ToNot(BeNil())
 
-	processed, ok := responder.obj.(*subresourcesv1alpha1.ProcessedVirtualMachineTemplate)
+	processed, ok := responder.obj.(*subresourcesv1beta1.ProcessedVirtualMachineTemplate)
 	ExpectWithOffset(1, ok).To(BeTrue())
 	ExpectWithOffset(1, processed.TemplateRef.Name).To(Equal(testTemplateName))
 	ExpectWithOffset(1, processed.TemplateRef.Namespace).To(Equal(testNamespace))

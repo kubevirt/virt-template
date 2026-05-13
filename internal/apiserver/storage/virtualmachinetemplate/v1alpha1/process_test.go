@@ -17,11 +17,13 @@
  *
  */
 
-package virtualmachinetemplate_test
+package v1alpha1_test
 
 import (
+	"bytes"
 	"context"
 	"net/http"
+	"net/http/httptest"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -30,46 +32,44 @@ import (
 	"kubevirt.io/virt-template-api/core/subresourcesv1alpha1"
 	virttemplatefake "kubevirt.io/virt-template-client-go/virttemplate/fake"
 
-	"kubevirt.io/virt-template/internal/apiserver/storage/virtualmachinetemplate"
+	vmtv1alpha1 "kubevirt.io/virt-template/internal/apiserver/storage/virtualmachinetemplate/v1alpha1"
 )
 
-var _ = Describe("CreateREST", func() {
+var _ = Describe("ProcessREST", func() {
 	var (
-		createREST     *virtualmachinetemplate.CreateREST
-		fakeClient     *virttemplatefake.Clientset
-		fakeVirtClient *fakeKubevirtClient
+		processREST *vmtv1alpha1.ProcessREST
+		fakeClient  *virttemplatefake.Clientset
 	)
 
 	BeforeEach(func() {
 		fakeClient = virttemplatefake.NewSimpleClientset(newVirtualMachineTemplate())
-		fakeVirtClient = &fakeKubevirtClient{}
-		createREST = virtualmachinetemplate.NewCreateREST(fakeClient, fakeVirtClient)
+		processREST = vmtv1alpha1.NewProcessREST(fakeClient)
 	})
 
-	It("NewCreateREST should create a new CreateREST instance", func() {
-		Expect(createREST).ToNot(BeNil())
+	It("NewProcessREST should create a new ProcessREST instance", func() {
+		Expect(processREST).ToNot(BeNil())
 	})
 
 	It("New should return a ProcessedVirtualMachineTemplate object", func() {
-		obj := createREST.New()
+		obj := processREST.New()
 		Expect(obj).ToNot(BeNil())
 		_, ok := obj.(*subresourcesv1alpha1.ProcessedVirtualMachineTemplate)
 		Expect(ok).To(BeTrue())
 	})
 
 	It("Destroy should not panic", func() {
-		Expect(func() { createREST.Destroy() }).ToNot(Panic())
+		Expect(func() { processREST.Destroy() }).ToNot(Panic())
 	})
 
-	It("NewConnectOptions should return empty options", func() {
-		options, include, path := createREST.NewConnectOptions()
+	It("NewConnectOptions should return nil options", func() {
+		options, include, path := processREST.NewConnectOptions()
 		Expect(options).To(BeNil())
 		Expect(include).To(BeFalse())
 		Expect(path).To(BeEmpty())
 	})
 
 	It("ConnectMethods should return POST method only", func() {
-		Expect(createREST.ConnectMethods()).To(ConsistOf(http.MethodPost))
+		Expect(processREST.ConnectMethods()).To(ConsistOf(http.MethodPost))
 	})
 
 	Context("Connect", func() {
@@ -84,42 +84,53 @@ var _ = Describe("CreateREST", func() {
 		})
 
 		It("should return error when namespace is missing from context", func() {
-			handler, err := createREST.Connect(context.Background(), testTemplateName, nil, nil)
+			handler, err := processREST.Connect(context.Background(), testTemplateName, nil, nil)
 			Expect(err).To(MatchError("missing namespace"))
 			Expect(handler).To(BeNil())
 		})
 
-		It("should return a valid http.Handler when namespace is present", func() {
-			handler, err := createREST.Connect(ctx, testTemplateName, nil, responder)
-			Expect(err).ToNot(HaveOccurred())
-			Expect(handler).ToNot(BeNil())
-		})
-
-		It("should process template and create VM successfully", func() {
-			handler, err := createREST.Connect(ctx, testTemplateName, nil, responder)
+		It("should process template and return v1alpha1 result", func() {
+			handler, err := processREST.Connect(ctx, testTemplateName, nil, responder)
 			Expect(err).ToNot(HaveOccurred())
 
 			invokeHandler(handler, nil)
-			processed := expectSuccessfulProcess(responder)
-			Expect(fakeVirtClient.createdVM).To(Equal(processed.VirtualMachine))
+			expectSuccessfulProcess(responder)
 		})
 
 		It("should return error when template is not found", func() {
-			handler, err := createREST.Connect(ctx, "nonexistent", nil, responder)
+			handler, err := processREST.Connect(ctx, "nonexistent", nil, responder)
 			Expect(err).ToNot(HaveOccurred())
 
 			invokeHandler(handler, nil)
 			Expect(responder.err).To(MatchError(ContainSubstring("not found")))
 		})
 
-		It("should return error when VM creation fails", func() {
-			fakeVirtClient.createErr = context.DeadlineExceeded
-
-			handler, err := createREST.Connect(ctx, testTemplateName, nil, responder)
+		It("should return error for invalid request body", func() {
+			handler, err := processREST.Connect(ctx, testTemplateName, nil, responder)
 			Expect(err).ToNot(HaveOccurred())
 
-			invokeHandler(handler, nil)
-			Expect(responder.err).To(MatchError(ContainSubstring(context.DeadlineExceeded.Error())))
+			req := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader([]byte("invalid json{")))
+			recorder := httptest.NewRecorder()
+			handler.ServeHTTP(recorder, req)
+
+			Expect(responder.err).To(MatchError(ContainSubstring("error unmarshaling JSON")))
+		})
+
+		It("should merge provided parameters with template parameters", func() {
+			handler, err := processREST.Connect(ctx, testTemplateName, nil, responder)
+			Expect(err).ToNot(HaveOccurred())
+
+			const overriddenName = "overriddenName"
+			invokeHandler(handler, &subresourcesv1alpha1.ProcessOptions{
+				Parameters: map[string]string{
+					testParamName: overriddenName,
+				},
+			})
+
+			Expect(responder.statusCode).To(Equal(http.StatusOK))
+			processed, ok := responder.obj.(*subresourcesv1alpha1.ProcessedVirtualMachineTemplate)
+			Expect(ok).To(BeTrue())
+			Expect(processed.VirtualMachine.Name).To(Equal(overriddenName))
 		})
 	})
 })

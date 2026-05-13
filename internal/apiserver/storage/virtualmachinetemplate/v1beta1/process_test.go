@@ -17,7 +17,7 @@
  *
  */
 
-package virtualmachinetemplate_test
+package v1beta1_test
 
 import (
 	"bytes"
@@ -29,21 +29,21 @@ import (
 	. "github.com/onsi/gomega"
 	"k8s.io/apiserver/pkg/endpoints/request"
 
-	"kubevirt.io/virt-template-api/core/subresourcesv1alpha1"
+	"kubevirt.io/virt-template-api/core/subresourcesv1beta1"
 	virttemplatefake "kubevirt.io/virt-template-client-go/virttemplate/fake"
 
-	"kubevirt.io/virt-template/internal/apiserver/storage/virtualmachinetemplate"
+	vmtv1beta1 "kubevirt.io/virt-template/internal/apiserver/storage/virtualmachinetemplate/v1beta1"
 )
 
 var _ = Describe("ProcessREST", func() {
 	var (
-		processREST *virtualmachinetemplate.ProcessREST
+		processREST *vmtv1beta1.ProcessREST
 		fakeClient  *virttemplatefake.Clientset
 	)
 
 	BeforeEach(func() {
 		fakeClient = virttemplatefake.NewSimpleClientset(newVirtualMachineTemplate())
-		processREST = virtualmachinetemplate.NewProcessREST(fakeClient)
+		processREST = vmtv1beta1.NewProcessREST(fakeClient)
 	})
 
 	It("NewProcessREST should create a new ProcessREST instance", func() {
@@ -53,7 +53,7 @@ var _ = Describe("ProcessREST", func() {
 	It("New should return a ProcessedVirtualMachineTemplate object", func() {
 		obj := processREST.New()
 		Expect(obj).ToNot(BeNil())
-		_, ok := obj.(*subresourcesv1alpha1.ProcessedVirtualMachineTemplate)
+		_, ok := obj.(*subresourcesv1beta1.ProcessedVirtualMachineTemplate)
 		Expect(ok).To(BeTrue())
 	})
 
@@ -127,14 +127,14 @@ var _ = Describe("ProcessREST", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			const overriddenName = "overriddenName"
-			invokeHandler(handler, &subresourcesv1alpha1.ProcessOptions{
+			invokeHandler(handler, &subresourcesv1beta1.ProcessOptions{
 				Parameters: map[string]string{
 					testParamName: overriddenName,
 				},
 			})
 
 			Expect(responder.statusCode).To(Equal(http.StatusOK))
-			processed, ok := responder.obj.(*subresourcesv1alpha1.ProcessedVirtualMachineTemplate)
+			processed, ok := responder.obj.(*subresourcesv1beta1.ProcessedVirtualMachineTemplate)
 			Expect(ok).To(BeTrue())
 			Expect(processed.VirtualMachine.Name).To(Equal(overriddenName))
 		})

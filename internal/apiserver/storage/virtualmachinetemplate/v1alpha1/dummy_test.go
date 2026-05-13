@@ -17,7 +17,7 @@
  *
  */
 
-package virtualmachinetemplate_test
+package v1alpha1_test
 
 import (
 	. "github.com/onsi/ginkgo/v2"
@@ -26,14 +26,14 @@ import (
 	templateapi "kubevirt.io/virt-template-api/core"
 	"kubevirt.io/virt-template-api/core/subresourcesv1alpha1"
 
-	"kubevirt.io/virt-template/internal/apiserver/storage/virtualmachinetemplate"
+	vmtv1alpha1 "kubevirt.io/virt-template/internal/apiserver/storage/virtualmachinetemplate/v1alpha1"
 )
 
 var _ = Describe("DummyREST", func() {
-	var dummy *virtualmachinetemplate.DummyREST
+	var dummy *vmtv1alpha1.DummyREST
 
 	BeforeEach(func() {
-		dummy = virtualmachinetemplate.NewDummyREST()
+		dummy = vmtv1alpha1.NewDummyREST()
 	})
 
 	It("NewDummyRest should create a new DummyREST instance", func() {
@@ -55,7 +55,7 @@ var _ = Describe("DummyREST", func() {
 		Expect(dummy.NamespaceScoped()).To(BeTrue())
 	})
 
-	It("GetSingularNmae should return the singular resource name", func() {
+	It("GetSingularName should return the singular resource name", func() {
 		Expect(dummy.GetSingularName()).To(Equal(templateapi.SingularResourceName))
 	})
 })
