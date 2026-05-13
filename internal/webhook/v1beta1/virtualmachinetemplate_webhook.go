@@ -17,11 +17,10 @@
  *
  */
 
-package v1alpha1
+package v1beta1
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 
 	"k8s.io/apimachinery/pkg/runtime"
@@ -29,15 +28,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
-	templatev1alpha1 "kubevirt.io/virt-template-api/core/v1alpha1"
 	templatev1beta1 "kubevirt.io/virt-template-api/core/v1beta1"
-
-	webhookv1beta1 "kubevirt.io/virt-template/internal/webhook/v1beta1"
+	"kubevirt.io/virt-template-engine/template"
 )
 
 // SetupVirtualMachineTemplateWebhookWithManager registers the webhook for VirtualMachineTemplate in the manager.
 func SetupVirtualMachineTemplateWebhookWithManager(mgr ctrl.Manager) error {
-	return ctrl.NewWebhookManagedBy(mgr).For(&templatev1alpha1.VirtualMachineTemplate{}).
+	return ctrl.NewWebhookManagedBy(mgr).For(&templatev1beta1.VirtualMachineTemplate{}).
 		WithValidator(&VirtualMachineTemplateCustomValidator{}).
 		Complete()
 }
@@ -45,7 +42,7 @@ func SetupVirtualMachineTemplateWebhookWithManager(mgr ctrl.Manager) error {
 // NOTE: The 'path' attribute must follow a specific pattern and should not be modified directly here.
 // Modifying the path for an invalid path can cause API server errors; failing to locate the webhook.
 //nolint:lll
-// +kubebuilder:webhook:path=/validate-template-kubevirt-io-v1alpha1-virtualmachinetemplate,mutating=false,failurePolicy=fail,sideEffects=None,groups=template.kubevirt.io,resources=virtualmachinetemplates,verbs=create;update,versions=v1alpha1,name=vvirtualmachinetemplate-v1alpha1.kb.io,admissionReviewVersions=v1
+// +kubebuilder:webhook:path=/validate-template-kubevirt-io-v1beta1-virtualmachinetemplate,mutating=false,failurePolicy=fail,sideEffects=None,groups=template.kubevirt.io,resources=virtualmachinetemplates,verbs=create;update,versions=v1beta1,name=vvirtualmachinetemplate-v1beta1.kb.io,admissionReviewVersions=v1
 
 // VirtualMachineTemplateCustomValidator struct is responsible for validating the VirtualMachineTemplate resource
 // when it is created, updated, or deleted.
@@ -55,32 +52,22 @@ var _ webhook.CustomValidator = &VirtualMachineTemplateCustomValidator{}
 
 // ValidateCreate implements webhook.CustomValidator so a webhook will be registered for the type VirtualMachineTemplate.
 func (v *VirtualMachineTemplateCustomValidator) ValidateCreate(_ context.Context, obj runtime.Object) (admission.Warnings, error) {
-	tpl, ok := obj.(*templatev1alpha1.VirtualMachineTemplate)
+	virtualmachinetemplate, ok := obj.(*templatev1beta1.VirtualMachineTemplate)
 	if !ok {
 		return nil, fmt.Errorf("expected a VirtualMachineTemplate object but got %T", obj)
 	}
 
-	converted, err := convertToV1Beta1(tpl)
-	if err != nil {
-		return nil, fmt.Errorf("failed to convert VirtualMachineTemplate to v1beta1: %w", err)
-	}
-
-	return webhookv1beta1.ValidateTemplate(converted)
+	return ValidateTemplate(virtualmachinetemplate)
 }
 
 // ValidateUpdate implements webhook.CustomValidator so a webhook will be registered for the type VirtualMachineTemplate.
 func (v *VirtualMachineTemplateCustomValidator) ValidateUpdate(_ context.Context, _, newObj runtime.Object) (admission.Warnings, error) {
-	tpl, ok := newObj.(*templatev1alpha1.VirtualMachineTemplate)
+	virtualmachinetemplate, ok := newObj.(*templatev1beta1.VirtualMachineTemplate)
 	if !ok {
 		return nil, fmt.Errorf("expected a VirtualMachineTemplate object for the newObj but got %T", newObj)
 	}
 
-	converted, err := convertToV1Beta1(tpl)
-	if err != nil {
-		return nil, fmt.Errorf("failed to convert VirtualMachineTemplate to v1beta1: %w", err)
-	}
-
-	return webhookv1beta1.ValidateTemplate(converted)
+	return ValidateTemplate(virtualmachinetemplate)
 }
 
 // ValidateDelete implements webhook.CustomValidator so a webhook will be registered for the type VirtualMachineTemplate.
@@ -88,11 +75,38 @@ func (v *VirtualMachineTemplateCustomValidator) ValidateDelete(_ context.Context
 	return nil, nil
 }
 
-func convertToV1Beta1(tpl *templatev1alpha1.VirtualMachineTemplate) (*templatev1beta1.VirtualMachineTemplate, error) {
-	data, err := json.Marshal(tpl)
-	if err != nil {
-		return nil, err
+// ValidateTemplate validates a VirtualMachineTemplate's parameter references and processing.
+func ValidateTemplate(tpl *templatev1beta1.VirtualMachineTemplate) (admission.Warnings, error) {
+	warnings, errs := template.ValidateParameterReferences(tpl)
+	if len(errs) > 0 {
+		return warnings, errs.ToAggregate()
 	}
-	out := &templatev1beta1.VirtualMachineTemplate{}
-	return out, json.Unmarshal(data, out)
+
+	processingWarnings, err := ValidateProcessing(tpl)
+	warnings = append(warnings, processingWarnings...)
+
+	return warnings, err
+}
+
+// ValidateProcessing attempts to process the template to verify it produces
+// a valid VirtualMachine definition. Only performs full processing validation when
+// all required parameters have values (or generators), to avoid type mismatches from
+// placeholder values.
+func ValidateProcessing(tpl *templatev1beta1.VirtualMachineTemplate) ([]string, error) {
+	var warnings []string
+	for _, param := range tpl.Spec.Parameters {
+		if param.Required && param.Value == "" && param.Generate == "" {
+			warnings = append(warnings,
+				fmt.Sprintf("processing validation skipped: required parameter %q has neither value nor generator", param.Name))
+		}
+	}
+	if len(warnings) > 0 {
+		return warnings, nil
+	}
+
+	if _, _, err := template.GetDefaultProcessor().Process(tpl); err != nil {
+		return nil, fmt.Errorf("processing validation failed: %w", err)
+	}
+
+	return nil, nil
 }
