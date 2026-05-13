@@ -12,7 +12,6 @@ resources:
 - api:
     crdVersion: v1
     namespaced: true
-  controller: true
   domain: kubevirt.io
   group: template
   kind: VirtualMachineTemplate
@@ -24,7 +23,6 @@ resources:
 - api:
     crdVersion: v1
     namespaced: true
-  controller: true
   domain: kubevirt.io
   group: template
   kind: VirtualMachineTemplateRequest
@@ -33,14 +31,19 @@ resources:
 - api:
     crdVersion: v1
     namespaced: true
+  controller: true
   domain: kubevirt.io
   group: template
   kind: VirtualMachineTemplate
   path: kubevirt.io/virt-template/api/core/v1beta1
   version: v1beta1
+  webhooks:
+    validation: true
+    webhookVersion: v1
 - api:
     crdVersion: v1
     namespaced: true
+  controller: true
   domain: kubevirt.io
   group: template
   kind: VirtualMachineTemplateRequest
