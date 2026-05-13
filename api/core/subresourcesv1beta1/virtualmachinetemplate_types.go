@@ -17,7 +17,7 @@
  *
  */
 
-package subresourcesv1alpha1
+package subresourcesv1beta1
 
 import (
 	corev1 "k8s.io/api/core/v1"
@@ -27,8 +27,6 @@ import (
 )
 
 // +kubebuilder:object:root=true
-// +kubebuilder:storageversion
-// +kubebuilder:deprecatedversion
 
 // VirtualMachineTemplate is a dummy object to satisfy the k8s.io/apiserver conventions.
 // A subresource cannot be served without a storage for its parent resource.
@@ -38,8 +36,6 @@ type VirtualMachineTemplate struct {
 }
 
 // +kubebuilder:object:root=true
-// +kubebuilder:storageversion
-// +kubebuilder:deprecatedversion
 
 // ProcessedVirtualMachineTemplate is the object served by the /process and /create subresources.
 // It's not a standalone resource but represents a process or create action on the parent VirtualMachineTemplate resource.
@@ -59,8 +55,6 @@ type ProcessedVirtualMachineTemplate struct {
 }
 
 // +kubebuilder:object:root=true
-// +kubebuilder:storageversion
-// +kubebuilder:deprecatedversion
 
 // ProcessOptions are the options used when processing a VirtualMachineTemplate.
 type ProcessOptions struct {

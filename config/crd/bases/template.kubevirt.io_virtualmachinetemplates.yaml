@@ -24,6 +24,7 @@ spec:
     - jsonPath: .status.conditions[?(@.type=="Ready")].status
       name: Ready
       type: string
+    deprecated: true
     name: v1alpha1
     schema:
       openAPIV3Schema:
@@ -201,5 +202,191 @@ spec:
         type: object
     served: true
     storage: true
+    subresources:
+      status: {}
+  - additionalPrinterColumns:
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    - jsonPath: .status.conditions[?(@.type=="Ready")].status
+      name: Ready
+      type: string
+    name: v1beta1
+    schema:
+      openAPIV3Schema:
+        description: VirtualMachineTemplate is the Schema for the virtualmachinetemplates
+          API
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: Spec defines the desired state of the template
+            properties:
+              message:
+                description: |-
+                  Message is an optional instructional message for this template.
+                  This field should inform the user how to utilize the newly created VirtualMachine.
+                type: string
+              parameters:
+                description: Parameters is an optional list of Parameters used during
+                  processing of the template.
+                items:
+                  description: |-
+                    Parameter defines a name/value combination that is to be substituted during
+                    processing of the template.
+                  properties:
+                    description:
+                      description: Description is the description of the parameter.
+                        Optional.
+                      type: string
+                    displayName:
+                      description: |-
+                        DisplayName is an alternative name that can be shown in a UI
+                        instead of the parameter's name. Optional.
+                      type: string
+                    from:
+                      description: From is used as input for the generator specified
+                        in Generate. Optional.
+                      pattern: \[([a-zA-Z0-9\-\\]+)\](\{(\w+)\})
+                      type: string
+                    generate:
+                      description: |-
+                        Generate specifies the generator to be used to generate a Value for this
+                        parameter. The From field can be used to provide input to this generator
+                        If empty, no generator is being used, leaving the result Value untouched. Optional.
+
+                        The only supported generator is "expression", which accepts a From
+                        value with a regex-like syntax, which should follow the form of "[a-zA-Z0-9]{length}".
+                        The expression defines the range and length of the resulting random characters.
+
+                        The following character classes are supported in the range:
+
+                        range | characters
+                      enum:
+                      - expression
+                      type: string
+                    name:
+                      description: |-
+                        Name is the name of the parameter. It can be referenced in
+                        the template VirtualMachine using ${PARAMETER_NAME}. Required.
+                      type: string
+                    required:
+                      description: |-
+                        Indicates that the parameter must have a Value or valid Generate and From values.
+                        Defaults to false. Optional.
+                      type: boolean
+                    value:
+                      description: |-
+                        Value holds the value of the Parameter. If specified, a generator will be
+                        ignored. The value replaces all occurrences of the ${PARAMETER_NAME}
+                        expression during processing of the template. Optional.
+                      type: string
+                  required:
+                  - name
+                  type: object
+                type: array
+              virtualMachine:
+                description: |-
+                  VirtualMachine is the template VirtualMachine to include in this template.
+                  If a namespace value is hardcoded, it will be removed during processing of the
+                  template. If the namespace value however contains a ${PARAMETER_REFERENCE},
+                  the resolved value after parameter substitution will be respected and the
+                  VirtualMachine will be created in that namespace.
+                type: object
+                x-kubernetes-preserve-unknown-fields: true
+            required:
+            - virtualMachine
+            type: object
+          status:
+            description: Status defines the observed state of the template
+            properties:
+              conditions:
+                description: |-
+                  Conditions represent the current state of the template.
+                  Each condition has a unique type and reflects the status of a specific aspect of the resource.
+
+                  Condition types include:
+                  - "Ready": the template is ready to be processed
+
+                  The status of each condition is one of True, False, or Unknown.
+                items:
+                  description: Condition contains details for one aspect of the current
+                    state of this API Resource.
+                  properties:
+                    lastTransitionTime:
+                      description: |-
+                        lastTransitionTime is the last time the condition transitioned from one status to another.
+                        This should be when the underlying condition changed.  If that is not known, then using the time when the API field changed is acceptable.
+                      format: date-time
+                      type: string
+                    message:
+                      description: |-
+                        message is a human readable message indicating details about the transition.
+                        This may be an empty string.
+                      maxLength: 32768
+                      type: string
+                    observedGeneration:
+                      description: |-
+                        observedGeneration represents the .metadata.generation that the condition was set based upon.
+                        For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date
+                        with respect to the current state of the instance.
+                      format: int64
+                      minimum: 0
+                      type: integer
+                    reason:
+                      description: |-
+                        reason contains a programmatic identifier indicating the reason for the condition's last transition.
+                        Producers of specific condition types may define expected values and meanings for this field,
+                        and whether the values are considered a guaranteed API.
+                        The value should be a CamelCase string.
+                        This field may not be empty.
+                      maxLength: 1024
+                      minLength: 1
+                      pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
+                      type: string
+                    status:
+                      description: status of the condition, one of True, False, Unknown.
+                      enum:
+                      - "True"
+                      - "False"
+                      - Unknown
+                      type: string
+                    type:
+                      description: type of condition in CamelCase or in foo.example.com/CamelCase.
+                      maxLength: 316
+                      pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - message
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
+                x-kubernetes-list-map-keys:
+                - type
+                x-kubernetes-list-type: map
+            type: object
+        required:
+        - spec
+        type: object
+    served: true
+    storage: false
     subresources:
       status: {}

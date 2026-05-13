@@ -42,12 +42,15 @@ mkdir -p "${_out_dir}"
   kubevirt.io/api/core/v1 \
   kubevirt.io/containerized-data-importer-api/pkg/apis/core/v1beta1 \
   kubevirt.io/virt-template-api/core/v1alpha1 \
-  kubevirt.io/virt-template-api/core/subresourcesv1alpha1
+  kubevirt.io/virt-template-api/core/v1beta1 \
+  kubevirt.io/virt-template-api/core/subresourcesv1alpha1 \
+  kubevirt.io/virt-template-api/core/subresourcesv1beta1
 
 "${_bin_dir}/client-gen" \
   --clientset-name virttemplate \
   --input-base kubevirt.io/virt-template-api \
   --input core/v1alpha1 \
+  --input core/v1beta1 \
   --output-dir "${_client_staging_dir}" \
   --output-pkg kubevirt.io/virt-template-client-go \
   --go-header-file "${_base_dir}/hack/boilerplate.go.txt"
