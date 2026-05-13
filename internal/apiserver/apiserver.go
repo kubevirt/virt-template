@@ -76,8 +76,6 @@ func (a *apiserver) Run(
 	config.EffectiveVersion = compatibility.DefaultBuildEffectiveVersion()
 	config.OpenAPIConfig = openAPIConfig
 	config.OpenAPIV3Config = openapiV3Config
-	// Disable discovery to not confuse kubectl and other client with dummy resources
-	config.EnableDiscovery = false
 
 	a.authzOpts.AlwaysAllowPaths = append(a.authzOpts.AlwaysAllowPaths,
 		"/", genericapiserver.APIGroupPrefix, "/openapi/v2", "/openapi/v3", "/openapi/v3/*",
