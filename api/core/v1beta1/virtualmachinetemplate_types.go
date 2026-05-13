@@ -17,7 +17,7 @@
  *
  */
 
-package v1alpha1
+package v1beta1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -146,8 +146,6 @@ type VirtualMachineTemplateStatus struct {
 }
 
 // +kubebuilder:object:root=true
-// +kubebuilder:storageversion
-// +kubebuilder:deprecatedversion
 // +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
 // +kubebuilder:printcolumn:name="Ready",type=string,JSONPath=`.status.conditions[?(@.type=="Ready")].status`
 // +kubebuilder:resource:shortName=vmt;vmts
