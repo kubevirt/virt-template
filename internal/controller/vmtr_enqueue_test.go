@@ -31,7 +31,7 @@ import (
 
 	snapshotv1beta1 "kubevirt.io/api/snapshot/v1beta1"
 
-	"kubevirt.io/virt-template-api/core/v1alpha1"
+	"kubevirt.io/virt-template-api/core/v1beta1"
 
 	"kubevirt.io/virt-template/internal/controller"
 )
@@ -51,7 +51,7 @@ var _ = Describe("VirtualMachineTemplateRequest controller EnqueueRequestByUID",
 	BeforeEach(func() {
 		fakeClient = fake.NewClientBuilder().
 			WithScheme(testScheme).
-			WithIndex(&v1alpha1.VirtualMachineTemplateRequest{}, "metadata.uid", func(obj client.Object) []string {
+			WithIndex(&v1beta1.VirtualMachineTemplateRequest{}, "metadata.uid", func(obj client.Object) []string {
 				return []string{string(obj.GetUID())}
 			}).
 			Build()
@@ -63,7 +63,7 @@ var _ = Describe("VirtualMachineTemplateRequest controller EnqueueRequestByUID",
 	})
 
 	It("should return nil when object has no LabelRequestUID", func() {
-		tpl := &v1alpha1.VirtualMachineTemplate{
+		tpl := &v1beta1.VirtualMachineTemplate{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      testTemplateName,
 				Namespace: testNamespace,
@@ -75,12 +75,12 @@ var _ = Describe("VirtualMachineTemplateRequest controller EnqueueRequestByUID",
 	})
 
 	It("should return nil when no matching request is found", func() {
-		tpl := &v1alpha1.VirtualMachineTemplate{
+		tpl := &v1beta1.VirtualMachineTemplate{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      testTemplateName,
 				Namespace: testNamespace,
 				Labels: map[string]string{
-					v1alpha1.LabelRequestUID: "non-existent-uid",
+					v1beta1.LabelRequestUID: "non-existent-uid",
 				},
 			},
 		}
@@ -99,12 +99,12 @@ var _ = Describe("VirtualMachineTemplateRequest controller EnqueueRequestByUID",
 		Expect(requests[0].Name).To(Equal(tplReq.Name))
 	},
 		Entry("from VirtualMachineTemplate",
-			&v1alpha1.VirtualMachineTemplate{
+			&v1beta1.VirtualMachineTemplate{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      testTemplateName,
 					Namespace: testNamespace,
 					Labels: map[string]string{
-						v1alpha1.LabelRequestUID: fakeUID,
+						v1beta1.LabelRequestUID: fakeUID,
 					},
 				},
 			},
@@ -115,7 +115,7 @@ var _ = Describe("VirtualMachineTemplateRequest controller EnqueueRequestByUID",
 					Name:      testSnapshotName,
 					Namespace: testVMNamespace,
 					Labels: map[string]string{
-						v1alpha1.LabelRequestUID: fakeUID,
+						v1beta1.LabelRequestUID: fakeUID,
 					},
 				},
 			},
@@ -123,8 +123,8 @@ var _ = Describe("VirtualMachineTemplateRequest controller EnqueueRequestByUID",
 	)
 })
 
-func fakeRequest() *v1alpha1.VirtualMachineTemplateRequest {
-	return &v1alpha1.VirtualMachineTemplateRequest{
+func fakeRequest() *v1beta1.VirtualMachineTemplateRequest {
+	return &v1beta1.VirtualMachineTemplateRequest{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      testRequestName,
 			Namespace: testNamespace,

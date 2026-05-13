@@ -35,7 +35,7 @@ import (
 	snapshotv1beta1 "kubevirt.io/api/snapshot/v1beta1"
 	cdiv1beta1 "kubevirt.io/containerized-data-importer-api/pkg/apis/core/v1beta1"
 
-	"kubevirt.io/virt-template-api/core/v1alpha1"
+	"kubevirt.io/virt-template-api/core/v1beta1"
 
 	"kubevirt.io/virt-template/internal/apimachinery"
 	"kubevirt.io/virt-template/internal/controller"
@@ -44,7 +44,7 @@ import (
 var _ = Describe("VirtualMachineTemplateRequest controller DataVolume handling", func() {
 	var (
 		reconciler  *controller.VirtualMachineTemplateRequestReconciler
-		tplReq      *v1alpha1.VirtualMachineTemplateRequest
+		tplReq      *v1beta1.VirtualMachineTemplateRequest
 		snapContent *snapshotv1beta1.VirtualMachineSnapshotContent
 	)
 
@@ -153,7 +153,7 @@ var _ = Describe("VirtualMachineTemplateRequest controller DataVolume handling",
 
 	It("should fail when DataVolume exists with wrong UID", func() {
 		dv := createDataVolume(k8sClient, tplReq)
-		dv.Labels[v1alpha1.LabelRequestUID] = wrongUID
+		dv.Labels[v1beta1.LabelRequestUID] = wrongUID
 		Expect(k8sClient.Update(context.Background(), dv)).To(Succeed())
 
 		_, err := reconciler.Reconcile(ctx, reconcile.Request{
@@ -163,17 +163,17 @@ var _ = Describe("VirtualMachineTemplateRequest controller DataVolume handling",
 		Expect(err).To(MatchError(matcher))
 
 		Expect(k8sClient.Get(context.Background(), client.ObjectKeyFromObject(tplReq), tplReq)).To(Succeed())
-		expectCondition(tplReq, v1alpha1.ConditionReady, metav1.ConditionFalse, v1alpha1.ReasonFailed, matcher)
-		expectCondition(tplReq, v1alpha1.ConditionProgressing, metav1.ConditionFalse, v1alpha1.ReasonFailed)
+		expectCondition(tplReq, v1beta1.ConditionReady, metav1.ConditionFalse, v1beta1.ReasonFailed, matcher)
+		expectCondition(tplReq, v1beta1.ConditionProgressing, metav1.ConditionFalse, v1beta1.ReasonFailed)
 	})
 })
 
 func verifyDV(
-	tplReq *v1alpha1.VirtualMachineTemplateRequest,
+	tplReq *v1beta1.VirtualMachineTemplateRequest,
 	dv *cdiv1beta1.DataVolume, snapshotName string,
 ) {
 	Expect(dv.Annotations).To(HaveKey("cdi.kubevirt.io/storage.bind.immediate.requested"))
-	Expect(dv.Labels[v1alpha1.LabelRequestUID]).To(Equal(string(tplReq.UID)))
+	Expect(dv.Labels[v1beta1.LabelRequestUID]).To(Equal(string(tplReq.UID)))
 	Expect(dv.Spec.Source.Snapshot).ToNot(BeNil())
 	Expect(dv.Spec.Source.Snapshot.Name).To(Equal(snapshotName))
 	Expect(dv.Spec.Source.Snapshot.Namespace).To(Equal(testVMNamespace))

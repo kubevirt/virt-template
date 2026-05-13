@@ -27,7 +27,7 @@ import (
 
 	"k8s.io/apimachinery/pkg/runtime"
 
-	"kubevirt.io/virt-template-api/core/v1alpha1"
+	"kubevirt.io/virt-template-api/core/v1beta1"
 	"kubevirt.io/virt-template-engine/template"
 )
 
@@ -45,10 +45,10 @@ var _ = Describe("Parameters", func() {
 	)
 
 	Context("MergeParameters", func() {
-		var tplParams []v1alpha1.Parameter
+		var tplParams []v1beta1.Parameter
 
 		BeforeEach(func() {
-			tplParams = []v1alpha1.Parameter{
+			tplParams = []v1beta1.Parameter{
 				{
 					Name:  param1Name,
 					Value: param1DefaultVal,
@@ -119,7 +119,7 @@ var _ = Describe("Parameters", func() {
 		})
 
 		It("should handle empty template parameters", func() {
-			tplParams = []v1alpha1.Parameter{}
+			tplParams = []v1beta1.Parameter{}
 
 			params := map[string]string{
 				param1Name: param1Val,
@@ -145,9 +145,9 @@ var _ = Describe("Parameters", func() {
 	Context("ValidateParameterReferences", func() {
 		Context("with valid templates", func() {
 			It("should accept a template with all parameters referenced", func() {
-				t := &v1alpha1.VirtualMachineTemplate{
-					Spec: v1alpha1.VirtualMachineTemplateSpec{
-						Parameters: []v1alpha1.Parameter{
+				t := &v1beta1.VirtualMachineTemplate{
+					Spec: v1beta1.VirtualMachineTemplateSpec{
+						Parameters: []v1beta1.Parameter{
 							{
 								Name: param1Name,
 							},
@@ -167,9 +167,9 @@ var _ = Describe("Parameters", func() {
 			})
 
 			It("should accept a template with parameter referenced in message", func() {
-				t := &v1alpha1.VirtualMachineTemplate{
-					Spec: v1alpha1.VirtualMachineTemplateSpec{
-						Parameters: []v1alpha1.Parameter{
+				t := &v1beta1.VirtualMachineTemplate{
+					Spec: v1beta1.VirtualMachineTemplateSpec{
+						Parameters: []v1beta1.Parameter{
 							{
 								Name: param1Name,
 							},
@@ -190,9 +190,9 @@ var _ = Describe("Parameters", func() {
 			})
 
 			It("should accept a template with non-string parameter syntax ${{KEY}}", func() {
-				t := &v1alpha1.VirtualMachineTemplate{
-					Spec: v1alpha1.VirtualMachineTemplateSpec{
-						Parameters: []v1alpha1.Parameter{
+				t := &v1beta1.VirtualMachineTemplate{
+					Spec: v1beta1.VirtualMachineTemplateSpec{
+						Parameters: []v1beta1.Parameter{
 							{
 								Name: param3Name,
 							},
@@ -209,8 +209,8 @@ var _ = Describe("Parameters", func() {
 			})
 
 			It("should accept a template with no parameters and no references", func() {
-				t := &v1alpha1.VirtualMachineTemplate{
-					Spec: v1alpha1.VirtualMachineTemplateSpec{
+				t := &v1beta1.VirtualMachineTemplate{
+					Spec: v1beta1.VirtualMachineTemplateSpec{
 						VirtualMachine: &runtime.RawExtension{
 							Raw: []byte(`{"metadata":{"name":"static-name"}}`),
 						},
@@ -223,9 +223,9 @@ var _ = Describe("Parameters", func() {
 			})
 
 			It("should accept multiple references to the same parameter", func() {
-				t := &v1alpha1.VirtualMachineTemplate{
-					Spec: v1alpha1.VirtualMachineTemplateSpec{
-						Parameters: []v1alpha1.Parameter{
+				t := &v1beta1.VirtualMachineTemplate{
+					Spec: v1beta1.VirtualMachineTemplateSpec{
+						Parameters: []v1beta1.Parameter{
 							{
 								Name: param1Name,
 							},
@@ -242,9 +242,9 @@ var _ = Describe("Parameters", func() {
 			})
 
 			It("should accept parameters with mixed ${} and ${{}} references", func() {
-				t := &v1alpha1.VirtualMachineTemplate{
-					Spec: v1alpha1.VirtualMachineTemplateSpec{
-						Parameters: []v1alpha1.Parameter{
+				t := &v1beta1.VirtualMachineTemplate{
+					Spec: v1beta1.VirtualMachineTemplateSpec{
+						Parameters: []v1beta1.Parameter{
 							{
 								Name: param1Name,
 							},
@@ -266,9 +266,9 @@ var _ = Describe("Parameters", func() {
 
 		Context("with invalid templates", func() {
 			It("should reject a template with undefined parameter reference", func() {
-				t := &v1alpha1.VirtualMachineTemplate{
-					Spec: v1alpha1.VirtualMachineTemplateSpec{
-						Parameters: []v1alpha1.Parameter{
+				t := &v1beta1.VirtualMachineTemplate{
+					Spec: v1beta1.VirtualMachineTemplateSpec{
+						Parameters: []v1beta1.Parameter{
 							{
 								Name: param1Name,
 							},
@@ -285,9 +285,9 @@ var _ = Describe("Parameters", func() {
 			})
 
 			It("should warn about unused parameter", func() {
-				t := &v1alpha1.VirtualMachineTemplate{
-					Spec: v1alpha1.VirtualMachineTemplateSpec{
-						Parameters: []v1alpha1.Parameter{
+				t := &v1beta1.VirtualMachineTemplate{
+					Spec: v1beta1.VirtualMachineTemplateSpec{
+						Parameters: []v1beta1.Parameter{
 							{
 								Name: param1Name,
 							},
@@ -308,9 +308,9 @@ var _ = Describe("Parameters", func() {
 			})
 
 			It("should reject and warn for template with both undefined and unused parameters", func() {
-				t := &v1alpha1.VirtualMachineTemplate{
-					Spec: v1alpha1.VirtualMachineTemplateSpec{
-						Parameters: []v1alpha1.Parameter{
+				t := &v1beta1.VirtualMachineTemplate{
+					Spec: v1beta1.VirtualMachineTemplateSpec{
+						Parameters: []v1beta1.Parameter{
 							{
 								Name: param3Name,
 							},
@@ -327,9 +327,9 @@ var _ = Describe("Parameters", func() {
 			})
 
 			It("should reject undefined parameter in message", func() {
-				t := &v1alpha1.VirtualMachineTemplate{
-					Spec: v1alpha1.VirtualMachineTemplateSpec{
-						Parameters: []v1alpha1.Parameter{
+				t := &v1beta1.VirtualMachineTemplate{
+					Spec: v1beta1.VirtualMachineTemplateSpec{
+						Parameters: []v1beta1.Parameter{
 							{
 								Name: param1Name,
 							},
@@ -347,8 +347,8 @@ var _ = Describe("Parameters", func() {
 			})
 
 			It("should reject undefined non-string parameter reference", func() {
-				t := &v1alpha1.VirtualMachineTemplate{
-					Spec: v1alpha1.VirtualMachineTemplateSpec{
+				t := &v1beta1.VirtualMachineTemplate{
+					Spec: v1beta1.VirtualMachineTemplateSpec{
 						VirtualMachine: &runtime.RawExtension{
 							Raw: []byte(`{"spec":{"running":"${{RUNNING}}"}}`),
 						},
@@ -363,8 +363,8 @@ var _ = Describe("Parameters", func() {
 
 		Context("with edge cases", func() {
 			It("should handle nil virtualMachine", func() {
-				t := &v1alpha1.VirtualMachineTemplate{
-					Spec: v1alpha1.VirtualMachineTemplateSpec{},
+				t := &v1beta1.VirtualMachineTemplate{
+					Spec: v1beta1.VirtualMachineTemplateSpec{},
 				}
 
 				warnings, errs := template.ValidateParameterReferences(t)
@@ -373,8 +373,8 @@ var _ = Describe("Parameters", func() {
 			})
 
 			It("should handle empty virtualMachine", func() {
-				t := &v1alpha1.VirtualMachineTemplate{
-					Spec: v1alpha1.VirtualMachineTemplateSpec{
+				t := &v1beta1.VirtualMachineTemplate{
+					Spec: v1beta1.VirtualMachineTemplateSpec{
 						VirtualMachine: &runtime.RawExtension{},
 					},
 				}
@@ -385,8 +385,8 @@ var _ = Describe("Parameters", func() {
 			})
 
 			It("should handle invalid raw extension", func() {
-				t := &v1alpha1.VirtualMachineTemplate{
-					Spec: v1alpha1.VirtualMachineTemplateSpec{
+				t := &v1beta1.VirtualMachineTemplate{
+					Spec: v1beta1.VirtualMachineTemplateSpec{
 						VirtualMachine: &runtime.RawExtension{
 							Raw: []byte(`gibberish`),
 						},

@@ -32,7 +32,7 @@ import (
 	virtv1 "kubevirt.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	"kubevirt.io/virt-template-api/core/v1alpha1"
+	"kubevirt.io/virt-template-api/core/v1beta1"
 
 	"kubevirt.io/virt-template/internal/controller"
 )
@@ -40,7 +40,7 @@ import (
 var _ = Describe("VirtualMachineTemplate Controller", func() {
 	var (
 		reconciler *controller.VirtualMachineTemplateReconciler
-		tpl        *v1alpha1.VirtualMachineTemplate
+		tpl        *v1beta1.VirtualMachineTemplate
 	)
 
 	BeforeEach(func() {
@@ -58,12 +58,12 @@ var _ = Describe("VirtualMachineTemplate Controller", func() {
 
 	It("should set the Ready condition", func() {
 		By("Creating a new VirtualMachineTemplate")
-		tpl = &v1alpha1.VirtualMachineTemplate{
+		tpl = &v1beta1.VirtualMachineTemplate{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "test-template",
 				Namespace: metav1.NamespaceDefault,
 			},
-			Spec: v1alpha1.VirtualMachineTemplateSpec{
+			Spec: v1beta1.VirtualMachineTemplateSpec{
 				VirtualMachine: &runtime.RawExtension{
 					Object: &virtv1.VirtualMachine{},
 				},
@@ -83,9 +83,9 @@ var _ = Describe("VirtualMachineTemplate Controller", func() {
 
 		Expect(k8sClient.Get(context.Background(), namespacedName, tpl)).To(Succeed())
 		Expect(tpl.Status.Conditions).To(HaveLen(1))
-		Expect(tpl.Status.Conditions[0].Type).To(Equal(v1alpha1.ConditionReady))
+		Expect(tpl.Status.Conditions[0].Type).To(Equal(v1beta1.ConditionReady))
 		Expect(tpl.Status.Conditions[0].Status).To(Equal(metav1.ConditionTrue))
-		Expect(tpl.Status.Conditions[0].Reason).To(Equal(v1alpha1.ReasonReconciled))
+		Expect(tpl.Status.Conditions[0].Reason).To(Equal(v1beta1.ReasonReconciled))
 		Expect(tpl.Status.Conditions[0].Message).To(Equal("VirtualMachineTemplate is ready to be processed"))
 		Expect(tpl.Status.Conditions[0].ObservedGeneration).To(Equal(tpl.Generation))
 	})
