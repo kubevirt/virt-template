@@ -2,4 +2,6 @@
 resources:
 - template_v1alpha1_virtualmachinetemplate.yaml
 - template_v1alpha1_virtualmachinetemplaterequest.yaml
+- template_v1beta1_virtualmachinetemplate.yaml
+- template_v1beta1_virtualmachinetemplaterequest.yaml
 # +kubebuilder:scaffold:manifestskustomizesamples
