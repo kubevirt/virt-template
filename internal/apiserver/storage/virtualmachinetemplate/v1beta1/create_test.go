@@ -17,7 +17,7 @@
  *
  */
 
-package virtualmachinetemplate_test
+package v1beta1_test
 
 import (
 	"context"
@@ -27,15 +27,15 @@ import (
 	. "github.com/onsi/gomega"
 	"k8s.io/apiserver/pkg/endpoints/request"
 
-	"kubevirt.io/virt-template-api/core/subresourcesv1alpha1"
+	"kubevirt.io/virt-template-api/core/subresourcesv1beta1"
 	virttemplatefake "kubevirt.io/virt-template-client-go/virttemplate/fake"
 
-	"kubevirt.io/virt-template/internal/apiserver/storage/virtualmachinetemplate"
+	vmtv1beta1 "kubevirt.io/virt-template/internal/apiserver/storage/virtualmachinetemplate/v1beta1"
 )
 
 var _ = Describe("CreateREST", func() {
 	var (
-		createREST     *virtualmachinetemplate.CreateREST
+		createREST     *vmtv1beta1.V1beta1CreateREST
 		fakeClient     *virttemplatefake.Clientset
 		fakeVirtClient *fakeKubevirtClient
 	)
@@ -43,7 +43,7 @@ var _ = Describe("CreateREST", func() {
 	BeforeEach(func() {
 		fakeClient = virttemplatefake.NewSimpleClientset(newVirtualMachineTemplate())
 		fakeVirtClient = &fakeKubevirtClient{}
-		createREST = virtualmachinetemplate.NewCreateREST(fakeClient, fakeVirtClient)
+		createREST = vmtv1beta1.NewV1beta1CreateREST(fakeClient, fakeVirtClient)
 	})
 
 	It("NewCreateREST should create a new CreateREST instance", func() {
@@ -53,7 +53,7 @@ var _ = Describe("CreateREST", func() {
 	It("New should return a ProcessedVirtualMachineTemplate object", func() {
 		obj := createREST.New()
 		Expect(obj).ToNot(BeNil())
-		_, ok := obj.(*subresourcesv1alpha1.ProcessedVirtualMachineTemplate)
+		_, ok := obj.(*subresourcesv1beta1.ProcessedVirtualMachineTemplate)
 		Expect(ok).To(BeTrue())
 	})
 

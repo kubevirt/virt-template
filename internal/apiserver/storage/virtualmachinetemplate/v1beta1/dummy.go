@@ -17,38 +17,38 @@
  *
  */
 
-package virtualmachinetemplate
+package v1beta1
 
 import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apiserver/pkg/registry/rest"
 
 	templateapi "kubevirt.io/virt-template-api/core"
-	"kubevirt.io/virt-template-api/core/subresourcesv1alpha1"
+	"kubevirt.io/virt-template-api/core/subresourcesv1beta1"
 )
 
-// DummyREST is required to satisfy the k8s.io/apiserver conventions.
+// V1beta1DummyREST is required to satisfy the k8s.io/apiserver conventions.
 // A subresource cannot be served without a storage for its parent resource.
-type DummyREST struct{}
+type V1beta1DummyREST struct{}
 
-func NewDummyREST() *DummyREST {
-	return &DummyREST{}
+func NewV1beta1DummyREST() *V1beta1DummyREST {
+	return &V1beta1DummyREST{}
 }
 
 var (
-	_ = rest.Storage(&DummyREST{})
-	_ = rest.Scoper(&DummyREST{})
-	_ = rest.SingularNameProvider(&DummyREST{})
+	_ = rest.Storage(&V1beta1DummyREST{})
+	_ = rest.Scoper(&V1beta1DummyREST{})
+	_ = rest.SingularNameProvider(&V1beta1DummyREST{})
 )
 
-func (r *DummyREST) New() runtime.Object {
-	return &subresourcesv1alpha1.VirtualMachineTemplate{}
+func (r *V1beta1DummyREST) New() runtime.Object {
+	return &subresourcesv1beta1.VirtualMachineTemplate{}
 }
 
-func (r *DummyREST) Destroy() {}
+func (r *V1beta1DummyREST) Destroy() {}
 
-func (r *DummyREST) NamespaceScoped() bool { return true }
+func (r *V1beta1DummyREST) NamespaceScoped() bool { return true }
 
-func (r *DummyREST) GetSingularName() string {
+func (r *V1beta1DummyREST) GetSingularName() string {
 	return templateapi.SingularResourceName
 }

@@ -17,7 +17,7 @@
  *
  */
 
-package virtualmachinetemplate
+package v1alpha1
 
 import (
 	"context"
@@ -36,23 +36,21 @@ import (
 	"kubevirt.io/virt-template-api/core/subresourcesv1alpha1"
 	templateclient "kubevirt.io/virt-template-client-go/virttemplate"
 	"kubevirt.io/virt-template-engine/template"
+
+	"kubevirt.io/virt-template/internal/apiserver/storage/virtualmachinetemplate"
 )
 
-// +kubebuilder:rbac:groups=template.kubevirt.io,resources=virtualmachinetemplates,verbs=get
-// +kubebuilder:rbac:groups=template.kubevirt.io,resources=virtualmachinetemplates/status,verbs=get
-// +kubebuilder:rbac:groups=kubevirt.io,resources=virtualmachines,verbs=create
-
-type CreateREST struct {
+type V1alpha1CreateREST struct {
 	client     templateclient.Interface
 	virtClient kubecli.KubevirtClient
-	processor  processor
+	processor  virtualmachinetemplate.Processor
 }
 
-func NewCreateREST(
+func NewV1alpha1CreateREST(
 	client templateclient.Interface,
 	virtClient kubecli.KubevirtClient,
-) *CreateREST {
-	return &CreateREST{
+) *V1alpha1CreateREST {
+	return &V1alpha1CreateREST{
 		client:     client,
 		virtClient: virtClient,
 		processor:  template.GetDefaultProcessor(),
@@ -60,26 +58,26 @@ func NewCreateREST(
 }
 
 var (
-	_ = rest.Storage(&CreateREST{})
-	_ = rest.Connecter(&CreateREST{})
+	_ = rest.Storage(&V1alpha1CreateREST{})
+	_ = rest.Connecter(&V1alpha1CreateREST{})
 )
 
-func (c *CreateREST) New() runtime.Object {
+func (c *V1alpha1CreateREST) New() runtime.Object {
 	return &subresourcesv1alpha1.ProcessedVirtualMachineTemplate{}
 }
 
-func (c *CreateREST) Destroy() {}
+func (c *V1alpha1CreateREST) Destroy() {}
 
-func (c *CreateREST) Connect(ctx context.Context, id string, _ runtime.Object, r rest.Responder) (http.Handler, error) {
+func (c *V1alpha1CreateREST) Connect(ctx context.Context, id string, _ runtime.Object, r rest.Responder) (http.Handler, error) {
 	ns, ok := request.NamespaceFrom(ctx)
 	if !ok {
 		return nil, fmt.Errorf("missing namespace")
 	}
 
 	return http.HandlerFunc(func(_ http.ResponseWriter, req *http.Request) {
-		klog.V(debugLogLevel).Infof("POST /create for VirtualMachineTemplate %s/%s", ns, id)
+		klog.V(virtualmachinetemplate.DebugLogLevel).Infof("POST /create (v1alpha1) for VirtualMachineTemplate %s/%s", ns, id)
 
-		processed, err := processTemplate(ctx, c.client, c.processor, req.Body, ns, id)
+		processed, err := virtualmachinetemplate.ProcessTemplate(ctx, c.client, c.processor, req.Body, ns, id)
 		if err != nil {
 			r.Error(err)
 			return
@@ -91,14 +89,20 @@ func (c *CreateREST) Connect(ctx context.Context, id string, _ runtime.Object, r
 			return
 		}
 
-		r.Object(http.StatusOK, processed)
+		converted, err := convertProcessedToV1alpha1(processed)
+		if err != nil {
+			r.Error(err)
+			return
+		}
+
+		r.Object(http.StatusOK, converted)
 	}), nil
 }
 
-func (c *CreateREST) NewConnectOptions() (options runtime.Object, include bool, path string) {
+func (c *V1alpha1CreateREST) NewConnectOptions() (options runtime.Object, include bool, path string) {
 	return nil, false, ""
 }
 
-func (c *CreateREST) ConnectMethods() []string {
+func (c *V1alpha1CreateREST) ConnectMethods() []string {
 	return []string{http.MethodPost}
 }
