@@ -30,7 +30,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	templateapi "kubevirt.io/virt-template-api/core"
-	"kubevirt.io/virt-template-api/core/v1alpha1"
+	"kubevirt.io/virt-template-api/core/v1beta1"
 )
 
 // VirtualMachineTemplateReconciler reconciles a VirtualMachineTemplate object
@@ -49,7 +49,7 @@ type VirtualMachineTemplateReconciler struct {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.21.0/pkg/reconcile
 func (r *VirtualMachineTemplateReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	tpl := &v1alpha1.VirtualMachineTemplate{}
+	tpl := &v1beta1.VirtualMachineTemplate{}
 	if err := r.Get(ctx, req.NamespacedName, tpl); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
@@ -60,10 +60,10 @@ func (r *VirtualMachineTemplateReconciler) Reconcile(ctx context.Context, req ct
 	}
 
 	meta.SetStatusCondition(&tpl.Status.Conditions, metav1.Condition{
-		Type:               v1alpha1.ConditionReady,
+		Type:               v1beta1.ConditionReady,
 		Status:             metav1.ConditionTrue,
 		ObservedGeneration: tpl.Generation,
-		Reason:             v1alpha1.ReasonReconciled,
+		Reason:             v1beta1.ReasonReconciled,
 		Message:            "VirtualMachineTemplate is ready to be processed",
 	})
 
@@ -73,7 +73,7 @@ func (r *VirtualMachineTemplateReconciler) Reconcile(ctx context.Context, req ct
 // SetupWithManager sets up the controller with the Manager.
 func (r *VirtualMachineTemplateReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&v1alpha1.VirtualMachineTemplate{}).
+		For(&v1beta1.VirtualMachineTemplate{}).
 		Named(templateapi.SingularResourceName).
 		Complete(r)
 }

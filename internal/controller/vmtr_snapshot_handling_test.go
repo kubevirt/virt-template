@@ -32,7 +32,7 @@ import (
 	virtv1 "kubevirt.io/api/core/v1"
 	snapshotv1beta1 "kubevirt.io/api/snapshot/v1beta1"
 
-	"kubevirt.io/virt-template-api/core/v1alpha1"
+	"kubevirt.io/virt-template-api/core/v1beta1"
 
 	"kubevirt.io/virt-template/internal/apimachinery"
 	"kubevirt.io/virt-template/internal/controller"
@@ -41,7 +41,7 @@ import (
 var _ = Describe("VirtualMachineTemplateRequest Controller VirtualMachineSnapshot handling", func() {
 	var (
 		reconciler *controller.VirtualMachineTemplateRequestReconciler
-		tplReq     *v1alpha1.VirtualMachineTemplateRequest
+		tplReq     *v1beta1.VirtualMachineTemplateRequest
 		snap       *snapshotv1beta1.VirtualMachineSnapshot
 	)
 
@@ -72,7 +72,7 @@ var _ = Describe("VirtualMachineTemplateRequest Controller VirtualMachineSnapsho
 		Expect(snap.Spec.Source.Name).To(Equal(testVMName))
 		Expect(*snap.Spec.Source.APIGroup).To(Equal(virtv1.VirtualMachineGroupVersionKind.Group))
 		Expect(snap.Spec.Source.Kind).To(Equal(virtv1.VirtualMachineGroupVersionKind.Kind))
-		Expect(snap.Labels[v1alpha1.LabelRequestUID]).To(Equal(string(tplReq.UID)))
+		Expect(snap.Labels[v1beta1.LabelRequestUID]).To(Equal(string(tplReq.UID)))
 	})
 
 	It("should not recreate snapshot if it already exists", func() {
@@ -88,7 +88,7 @@ var _ = Describe("VirtualMachineTemplateRequest Controller VirtualMachineSnapsho
 	})
 
 	It("should fail when snapshot exists with wrong UID", func() {
-		snap.Labels[v1alpha1.LabelRequestUID] = wrongUID
+		snap.Labels[v1beta1.LabelRequestUID] = wrongUID
 		Expect(k8sClient.Update(context.Background(), snap)).To(Succeed())
 
 		_, err := reconciler.Reconcile(ctx, reconcile.Request{
@@ -98,7 +98,7 @@ var _ = Describe("VirtualMachineTemplateRequest Controller VirtualMachineSnapsho
 		Expect(err).To(MatchError(matcher))
 
 		Expect(k8sClient.Get(context.Background(), client.ObjectKeyFromObject(tplReq), tplReq)).To(Succeed())
-		expectCondition(tplReq, v1alpha1.ConditionReady, metav1.ConditionFalse, v1alpha1.ReasonFailed, matcher)
-		expectCondition(tplReq, v1alpha1.ConditionProgressing, metav1.ConditionFalse, v1alpha1.ReasonFailed)
+		expectCondition(tplReq, v1beta1.ConditionReady, metav1.ConditionFalse, v1beta1.ReasonFailed, matcher)
+		expectCondition(tplReq, v1beta1.ConditionProgressing, metav1.ConditionFalse, v1beta1.ReasonFailed)
 	})
 })

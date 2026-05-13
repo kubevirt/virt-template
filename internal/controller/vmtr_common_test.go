@@ -37,7 +37,7 @@ import (
 	"kubevirt.io/client-go/kubecli"
 	cdiv1beta1 "kubevirt.io/containerized-data-importer-api/pkg/apis/core/v1beta1"
 
-	"kubevirt.io/virt-template-api/core/v1alpha1"
+	"kubevirt.io/virt-template-api/core/v1beta1"
 
 	"kubevirt.io/virt-template/internal/apimachinery"
 )
@@ -74,14 +74,14 @@ func (f *fakeExpandSpecInterface) ForVirtualMachine(vm *virtv1.VirtualMachine) (
 	return vm, nil
 }
 
-func createRequest(cli client.Client, testNamespace, testVMNamespace string) *v1alpha1.VirtualMachineTemplateRequest {
-	tplReq := &v1alpha1.VirtualMachineTemplateRequest{
+func createRequest(cli client.Client, testNamespace, testVMNamespace string) *v1beta1.VirtualMachineTemplateRequest {
+	tplReq := &v1beta1.VirtualMachineTemplateRequest{
 		ObjectMeta: metav1.ObjectMeta{
 			GenerateName: "test-request-",
 			Namespace:    testNamespace,
 		},
-		Spec: v1alpha1.VirtualMachineTemplateRequestSpec{
-			VirtualMachineRef: v1alpha1.VirtualMachineReference{
+		Spec: v1beta1.VirtualMachineTemplateRequestSpec{
+			VirtualMachineRef: v1beta1.VirtualMachineReference{
 				Namespace: testVMNamespace,
 				Name:      testVMName,
 			},
@@ -93,14 +93,14 @@ func createRequest(cli client.Client, testNamespace, testVMNamespace string) *v1
 
 func createSnapshot(
 	cli client.Client,
-	tplReq *v1alpha1.VirtualMachineTemplateRequest,
+	tplReq *v1beta1.VirtualMachineTemplateRequest,
 ) *snapshotv1beta1.VirtualMachineSnapshot {
 	snap := &snapshotv1beta1.VirtualMachineSnapshot{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      apimachinery.GetStableName(tplReq.Name, string(tplReq.UID)),
 			Namespace: tplReq.Spec.VirtualMachineRef.Namespace,
 			Labels: map[string]string{
-				v1alpha1.LabelRequestUID: string(tplReq.UID),
+				v1beta1.LabelRequestUID: string(tplReq.UID),
 			},
 		},
 	}
@@ -263,7 +263,7 @@ func setSnapshotContentStatus(
 
 func createDataVolume(
 	cli client.Client,
-	tplReq *v1alpha1.VirtualMachineTemplateRequest,
+	tplReq *v1beta1.VirtualMachineTemplateRequest,
 ) *cdiv1beta1.DataVolume {
 	base := tplReq.Name
 	if tplReq.Spec.TemplateName != "" {
@@ -275,7 +275,7 @@ func createDataVolume(
 			Name:      name,
 			Namespace: tplReq.Namespace,
 			Labels: map[string]string{
-				v1alpha1.LabelRequestUID: string(tplReq.UID),
+				v1beta1.LabelRequestUID: string(tplReq.UID),
 			},
 		},
 		Spec: cdiv1beta1.DataVolumeSpec{
@@ -324,7 +324,7 @@ func setDataVolumeStatus(
 }
 
 func expectCondition(
-	tplReq *v1alpha1.VirtualMachineTemplateRequest,
+	tplReq *v1beta1.VirtualMachineTemplateRequest,
 	conditionType string, status metav1.ConditionStatus, reason string,
 	messageMatchers ...gomegatypes.GomegaMatcher,
 ) {

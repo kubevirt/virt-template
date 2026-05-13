@@ -46,7 +46,7 @@ import (
 	"kubevirt.io/client-go/kubecli"
 	cdiv1beta1 "kubevirt.io/containerized-data-importer-api/pkg/apis/core/v1beta1"
 
-	"kubevirt.io/virt-template-api/core/v1alpha1"
+	"kubevirt.io/virt-template-api/core/v1beta1"
 
 	"kubevirt.io/virt-template/internal/controller"
 	"kubevirt.io/virt-template/internal/scheme"
@@ -242,7 +242,7 @@ func main() {
 		os.Exit(1)
 	}
 	if os.Getenv("ENABLE_WEBHOOKS") != "false" {
-		if err := webhookv1alpha1.SetupVirtualMachineTemplateWebhookWithManager(mgr); err != nil {
+		if err := webhookv1beta1.SetupVirtualMachineTemplateWebhookWithManager(mgr); err != nil {
 			setupLog.Error(err, "Failed to create webhook", "webhook", "VirtualMachineTemplate")
 			os.Exit(1)
 		}
@@ -266,7 +266,7 @@ func main() {
 }
 
 func getUIDSelector() (labels.Selector, error) {
-	uidReq, err := labels.NewRequirement(v1alpha1.LabelRequestUID, selection.Exists, nil)
+	uidReq, err := labels.NewRequirement(v1beta1.LabelRequestUID, selection.Exists, nil)
 	if err != nil {
 		return nil, err
 	}

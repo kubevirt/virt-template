@@ -30,7 +30,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	"kubevirt.io/virt-template-api/core/v1alpha1"
+	"kubevirt.io/virt-template-api/core/v1beta1"
 
 	"kubevirt.io/virt-template/internal/controller"
 )
@@ -51,7 +51,7 @@ var _ = Describe("VirtualMachineTemplateRequest controller reconciliation contro
 
 		const reason = "SomeReason"
 		meta.SetStatusCondition(&tplReq.Status.Conditions, metav1.Condition{
-			Type:   v1alpha1.ConditionProgressing,
+			Type:   v1beta1.ConditionProgressing,
 			Status: metav1.ConditionFalse,
 			Reason: reason,
 		})
@@ -64,7 +64,7 @@ var _ = Describe("VirtualMachineTemplateRequest controller reconciliation contro
 
 		Expect(k8sClient.Get(context.Background(), client.ObjectKeyFromObject(tplReq), tplReq)).To(Succeed())
 		Expect(tplReq.Status.Conditions).To(HaveLen(1))
-		expectCondition(tplReq, v1alpha1.ConditionProgressing, metav1.ConditionFalse, reason)
+		expectCondition(tplReq, v1beta1.ConditionProgressing, metav1.ConditionFalse, reason)
 	})
 
 	It("should reconcile when no Progressing condition exists", func() {
@@ -76,15 +76,15 @@ var _ = Describe("VirtualMachineTemplateRequest controller reconciliation contro
 		Expect(err).ToNot(HaveOccurred())
 
 		Expect(k8sClient.Get(context.Background(), client.ObjectKeyFromObject(tplReq), tplReq)).To(Succeed())
-		expectCondition(tplReq, v1alpha1.ConditionReady, metav1.ConditionFalse, v1alpha1.ReasonWaiting)
-		expectCondition(tplReq, v1alpha1.ConditionProgressing, metav1.ConditionTrue, v1alpha1.ReasonReconciling)
+		expectCondition(tplReq, v1beta1.ConditionReady, metav1.ConditionFalse, v1beta1.ReasonWaiting)
+		expectCondition(tplReq, v1beta1.ConditionProgressing, metav1.ConditionTrue, v1beta1.ReasonReconciling)
 	})
 
 	It("should reconcile when Progressing condition is True", func() {
 		tplReq := createRequest(k8sClient, testNamespace, testVMNamespace)
 
 		meta.SetStatusCondition(&tplReq.Status.Conditions, metav1.Condition{
-			Type:   v1alpha1.ConditionProgressing,
+			Type:   v1beta1.ConditionProgressing,
 			Status: metav1.ConditionTrue,
 			Reason: "SomeReason",
 		})
@@ -96,7 +96,7 @@ var _ = Describe("VirtualMachineTemplateRequest controller reconciliation contro
 		Expect(err).ToNot(HaveOccurred())
 
 		Expect(k8sClient.Get(context.Background(), client.ObjectKeyFromObject(tplReq), tplReq)).To(Succeed())
-		expectCondition(tplReq, v1alpha1.ConditionReady, metav1.ConditionFalse, v1alpha1.ReasonWaiting)
-		expectCondition(tplReq, v1alpha1.ConditionProgressing, metav1.ConditionTrue, v1alpha1.ReasonReconciling)
+		expectCondition(tplReq, v1beta1.ConditionReady, metav1.ConditionFalse, v1beta1.ReasonWaiting)
+		expectCondition(tplReq, v1beta1.ConditionProgressing, metav1.ConditionTrue, v1beta1.ReasonReconciling)
 	})
 })

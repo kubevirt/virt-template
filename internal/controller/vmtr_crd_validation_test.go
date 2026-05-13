@@ -33,7 +33,7 @@ import (
 	snapshotv1beta1 "kubevirt.io/api/snapshot/v1beta1"
 	cdiv1beta1 "kubevirt.io/containerized-data-importer-api/pkg/apis/core/v1beta1"
 
-	"kubevirt.io/virt-template-api/core/v1alpha1"
+	"kubevirt.io/virt-template-api/core/v1beta1"
 
 	"kubevirt.io/virt-template/internal/controller"
 )
@@ -41,13 +41,13 @@ import (
 var _ = Describe("VirtualMachineTemplateRequest controller CRD validation", func() {
 	Context("through API server", func() {
 		It("should reject creation when VirtualMachineRef.Namespace is empty", func() {
-			tplReq := &v1alpha1.VirtualMachineTemplateRequest{
+			tplReq := &v1beta1.VirtualMachineTemplateRequest{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-empty-ns",
 					Namespace: testNamespace,
 				},
-				Spec: v1alpha1.VirtualMachineTemplateRequestSpec{
-					VirtualMachineRef: v1alpha1.VirtualMachineReference{
+				Spec: v1beta1.VirtualMachineTemplateRequestSpec{
+					VirtualMachineRef: v1beta1.VirtualMachineReference{
 						Namespace: "",
 						Name:      testVMName,
 					},
@@ -58,13 +58,13 @@ var _ = Describe("VirtualMachineTemplateRequest controller CRD validation", func
 		})
 
 		It("should reject creation when VirtualMachineRef.Name is empty", func() {
-			tplReq := &v1alpha1.VirtualMachineTemplateRequest{
+			tplReq := &v1beta1.VirtualMachineTemplateRequest{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-empty-name",
 					Namespace: testNamespace,
 				},
-				Spec: v1alpha1.VirtualMachineTemplateRequestSpec{
-					VirtualMachineRef: v1alpha1.VirtualMachineReference{
+				Spec: v1beta1.VirtualMachineTemplateRequestSpec{
+					VirtualMachineRef: v1beta1.VirtualMachineReference{
 						Namespace: testVMNamespace,
 						Name:      "",
 					},
@@ -92,7 +92,7 @@ var _ = Describe("VirtualMachineTemplateRequest controller CRD validation", func
 		BeforeEach(func() {
 			fakeClient = fake.NewClientBuilder().
 				WithScheme(testScheme).
-				WithStatusSubresource(&v1alpha1.VirtualMachineTemplateRequest{}).
+				WithStatusSubresource(&v1beta1.VirtualMachineTemplateRequest{}).
 				WithStatusSubresource(&snapshotv1beta1.VirtualMachineSnapshot{}).
 				WithStatusSubresource(&snapshotv1beta1.VirtualMachineSnapshotContent{}).
 				WithStatusSubresource(&cdiv1beta1.DataVolume{}).
@@ -106,13 +106,13 @@ var _ = Describe("VirtualMachineTemplateRequest controller CRD validation", func
 		})
 
 		It("should fail request when VirtualMachineRef.Namespace is empty", func() {
-			tplReq := &v1alpha1.VirtualMachineTemplateRequest{
+			tplReq := &v1beta1.VirtualMachineTemplateRequest{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-empty-ns",
 					Namespace: testNamespace,
 				},
-				Spec: v1alpha1.VirtualMachineTemplateRequestSpec{
-					VirtualMachineRef: v1alpha1.VirtualMachineReference{
+				Spec: v1beta1.VirtualMachineTemplateRequestSpec{
+					VirtualMachineRef: v1beta1.VirtualMachineReference{
 						Namespace: "",
 						Name:      testVMName,
 					},
@@ -126,19 +126,19 @@ var _ = Describe("VirtualMachineTemplateRequest controller CRD validation", func
 			Expect(err).ToNot(HaveOccurred())
 
 			Expect(fakeClient.Get(context.Background(), client.ObjectKeyFromObject(tplReq), tplReq)).To(Succeed())
-			expectCondition(tplReq, v1alpha1.ConditionReady, metav1.ConditionFalse, v1alpha1.ReasonInvalidConfiguration,
+			expectCondition(tplReq, v1beta1.ConditionReady, metav1.ConditionFalse, v1beta1.ReasonInvalidConfiguration,
 				Equal("virtualMachineRef.namespace cannot be empty"))
-			expectCondition(tplReq, v1alpha1.ConditionProgressing, metav1.ConditionFalse, v1alpha1.ReasonInvalidConfiguration)
+			expectCondition(tplReq, v1beta1.ConditionProgressing, metav1.ConditionFalse, v1beta1.ReasonInvalidConfiguration)
 		})
 
 		It("should fail request when VirtualMachineRef.Name is empty", func() {
-			tplReq := &v1alpha1.VirtualMachineTemplateRequest{
+			tplReq := &v1beta1.VirtualMachineTemplateRequest{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-empty-name",
 					Namespace: testNamespace,
 				},
-				Spec: v1alpha1.VirtualMachineTemplateRequestSpec{
-					VirtualMachineRef: v1alpha1.VirtualMachineReference{
+				Spec: v1beta1.VirtualMachineTemplateRequestSpec{
+					VirtualMachineRef: v1beta1.VirtualMachineReference{
 						Namespace: testVMNamespace,
 						Name:      "",
 					},
@@ -152,9 +152,9 @@ var _ = Describe("VirtualMachineTemplateRequest controller CRD validation", func
 			Expect(err).ToNot(HaveOccurred())
 
 			Expect(fakeClient.Get(context.Background(), client.ObjectKeyFromObject(tplReq), tplReq)).To(Succeed())
-			expectCondition(tplReq, v1alpha1.ConditionReady, metav1.ConditionFalse, v1alpha1.ReasonInvalidConfiguration,
+			expectCondition(tplReq, v1beta1.ConditionReady, metav1.ConditionFalse, v1beta1.ReasonInvalidConfiguration,
 				Equal("virtualMachineRef.name cannot be empty"))
-			expectCondition(tplReq, v1alpha1.ConditionProgressing, metav1.ConditionFalse, v1alpha1.ReasonInvalidConfiguration)
+			expectCondition(tplReq, v1beta1.ConditionProgressing, metav1.ConditionFalse, v1beta1.ReasonInvalidConfiguration)
 		})
 
 		It("should fail when source VirtualMachine has no template spec", func() {
@@ -175,8 +175,8 @@ var _ = Describe("VirtualMachineTemplateRequest controller CRD validation", func
 			Expect(err).To(MatchError(matcher))
 
 			Expect(fakeClient.Get(context.Background(), client.ObjectKeyFromObject(tplReq), tplReq)).To(Succeed())
-			expectCondition(tplReq, v1alpha1.ConditionReady, metav1.ConditionFalse, v1alpha1.ReasonFailed, matcher)
-			expectCondition(tplReq, v1alpha1.ConditionProgressing, metav1.ConditionFalse, v1alpha1.ReasonFailed)
+			expectCondition(tplReq, v1beta1.ConditionReady, metav1.ConditionFalse, v1beta1.ReasonFailed, matcher)
+			expectCondition(tplReq, v1beta1.ConditionProgressing, metav1.ConditionFalse, v1beta1.ReasonFailed)
 		})
 	})
 })
