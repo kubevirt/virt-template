@@ -47,11 +47,6 @@ spec:
 EOF
 ```
 
-```sh
-# Process and create a VM
-virttemplatectl process fedora -p NAME=my-fedora --create
-```
-
 ## Description
 
 `virt-template` enables users to create, share, and manage VM blueprints
@@ -71,7 +66,6 @@ traditional virtualization experience within Kubernetes.
 - `virt-template-controller`: Kubernetes controller that watches and validates
   `VirtualMachineTemplate` and `VirtualMachineTemplateRequest` resources
 - `virt-template-apiserver`: API server providing subresource APIs for templates
-- `virttemplatectl`: CLI tool for local template processing and management
 
 ### Key Features
 
@@ -112,7 +106,6 @@ traditional virtualization experience within Kubernetes.
 ```sh
 make build              # Build controller binary
 make build-apiserver    # Build apiserver binary
-make build-virttemplatectl  # Build CLI tool
 ```
 
 **Run linting and formatting:**
@@ -224,26 +217,6 @@ make undeploy-openshift        # Remove controllers
 make uninstall                 # Remove CRDs
 ```
 
-### Using virttemplatectl
-
-Process a template locally:
-
-```sh
-virttemplatectl process -f template.yaml -p NAME=myvm -p INSTANCETYPE=u1.small
-```
-
-Convert OpenShift templates to VirtualMachineTemplate:
-
-```sh
-virttemplatectl convert -f openshift-template.yaml
-```
-
-Create a VirtualMachineTemplate from an existing VirtualMachine:
-
-```sh
-virttemplatectl create --vm-name my-vm --name my-template
-```
-
 ## Usage
 
 ### VirtualMachineTemplate CRD
@@ -305,41 +278,6 @@ Supported character classes:
 - `\d` - digits
 - `\a` - alphabetic characters
 - `\A` - special characters
-
-### Processing Templates
-
-**Process VirtualMachineTemplate via API:**
-
-```sh
-virttemplatectl process my-template \
-  -p NAME=myvm \
-  -p MEMORY=4Gi
-```
-
-**Process VirtualMachineTemplate and create VirtualMachine via API:**
-
-```sh
-virttemplatectl process my-template \
-  -p NAME=myvm \
-  -p MEMORY=4Gi \
-  --create
-```
-
-**Process local template file:**
-
-```sh
-virttemplatectl process -f my-template.yaml \
-  -p NAME=myvm \
-  -p MEMORY=4Gi
-```
-
-**Process from stdin:**
-
-```sh
-cat my-template.yaml | virttemplatectl process -f - \
-  -p NAME=myvm \
-  -p MEMORY=4Gi
-```
 
 ### VirtualMachineTemplateRequest CRD
 

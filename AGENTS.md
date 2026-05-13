@@ -14,11 +14,10 @@ virt-template is a KubeVirt add-on that provides native VM templating within Kub
 
 ## Architecture
 
-Kubebuilder v4 project with three binaries:
+Kubebuilder v4 project with two binaries:
 
 - **controller manager** (`cmd/main.go`) - reconciles VirtualMachineTemplate and VirtualMachineTemplateRequest CRs
 - **API server** (`cmd/apiserver/main.go`) - serves `process` and `create` subresources on VirtualMachineTemplate
-- **virttemplatectl** (`cmd/virttemplatectl/main.go`) - CLI tool / kubectl plugin for local and remote template processing
 
 ### Multi-module Go workspace
 
@@ -26,7 +25,7 @@ The project uses `go.work` with four modules:
 
 | Module | Path | Purpose |
 |--------|------|---------|
-| `kubevirt.io/virt-template` | `.` | Main module (controllers, webhooks, apiserver, CLI) |
+| `kubevirt.io/virt-template` | `.` | Main module (controllers, webhooks, apiserver) |
 | `kubevirt.io/virt-template-api` | `./api` | Public API types (CRD structs) |
 | `kubevirt.io/virt-template-client-go` | `./staging/src/kubevirt.io/virt-template-client-go` | Generated typed client |
 | `kubevirt.io/virt-template-engine` | `./staging/src/kubevirt.io/virt-template-engine` | Template processing engine |
@@ -39,7 +38,6 @@ api/core/subresourcesv1alpha1/ - Subresource types (ProcessOptions, CreateOption
 internal/controller/     - Reconcilers
 internal/webhook/        - Validation webhooks
 internal/apiserver/      - REST storage and subresource handlers
-internal/virttemplatectl/ - CLI commands (process, convert, create, templates)
 staging/.../virt-template-engine/template/ - Parameter substitution, generation, visitor pattern
 config/                  - Kubebuilder-based Kustomize overlays (default, openshift, virt-operator), CRDs, RBAC, webhooks
 tests/                   - Functional/integration tests (Ginkgo)
@@ -59,7 +57,6 @@ hack/                    - Build scripts, code generation, linting
 ```
 make build               - Build controller manager
 make build-apiserver     - Build API server
-make build-virttemplatectl - Build CLI for all platforms
 ```
 
 ### Key make targets
@@ -177,15 +174,6 @@ Aggregated API server serving subresources only (no direct storage for the paren
 
 Parent resource uses a dummy REST storage required by the k8s.io/apiserver framework. The APIResourceList is filtered to hide it.
 
-## CLI Tool (virttemplatectl)
-
-Also works as kubectl plugin (`kubectl virttemplate`) via Krew symlink detection.
-
-Subcommands:
-- `process` - process a template from file (`-f`) or cluster (`--name`), output YAML/JSON. `--create` to create VM via server subresource. `--local` forces local processing.
-- `convert` - convert OpenShift Template to VirtualMachineTemplate
-- `create` - create a VirtualMachineTemplateRequest from an existing VM (`--vm-name`, `--vm-namespace`)
-
 ## Deployment
 
 Three Kustomize overlays in `config/`:
@@ -199,10 +187,10 @@ All overlays set namespace prefix `virt-template-` and deploy to their respectiv
 
 - API group: `template.kubevirt.io`, version `v1alpha1`
 - All source files carry Apache 2.0 license headers from `hack/boilerplate.go.txt`
-- Commit messages: conventional commits with scope, e.g. `feat(config,admission): ...`, `fix(virttemplatectl,process): ...`
+- Commit messages: conventional commits with scope, e.g. `feat(config,admission): ...`
 - Commits must be signed off (`git commit -s`)
 - PRs and issues must follow the GitHub templates in `.github/` (`.github/PULL_REQUEST_TEMPLATE.md`, `.github/ISSUE_TEMPLATE.md`). Always read the template before creating a PR or issue and fill in all sections.
 - Container images: `quay.io/kubevirt/virt-template-controller` and `virt-template-apiserver`
-- Multi-arch: linux/amd64, linux/arm64, linux/s390x; CLI adds darwin and windows
+- Multi-arch: linux/amd64, linux/arm64, linux/s390x
 - Generated client code lives in `staging/`; expansion interfaces (`*_expansion.go`) are hand-written
 - Logging levels: `V(1)` for debug, `V(2)` for trace
