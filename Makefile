@@ -1,7 +1,6 @@
 VERSION ?= latest
 IMG_REGISTRY ?= quay.io/kubevirt
 IMG_PLATFORMS ?= linux/amd64,linux/arm64,linux/s390x
-CLI_PLATFORMS ?= $(IMG_PLATFORMS),darwin/amd64,darwin/arm64,windows/amd64
 IMG_CONTROLLER ?= ${IMG_REGISTRY}/virt-template-controller:${VERSION}
 IMG_APISERVER ?= ${IMG_REGISTRY}/virt-template-apiserver:${VERSION}
 
@@ -141,10 +140,6 @@ build: manifests generate fmt vet ## Build manager binary.
 .PHONY: build-apiserver
 build-apiserver: manifests generate fmt vet ## Build apiserver binary.
 	go build -o bin/apiserver cmd/apiserver/main.go
-
-.PHONY: build-virttemplatectl
-build-virttemplatectl: manifests generate fmt vet ## Build virttemplatectl binaries for all platforms in CLI_PLATFORMS.
-	CLI_PLATFORMS=$(CLI_PLATFORMS) VERSION=$(VERSION) ./hack/cli-build.sh
 
 .PHONY: run
 run: manifests generate fmt vet ## Run a controller from your host.

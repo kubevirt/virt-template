@@ -57,10 +57,9 @@ function build_release_artifacts() {
     make build-installer
     make build-installer-openshift
     make build-installer-virt-operator
-    make build-virttemplatectl
     make container-build
     make container-push
-    sha256sum dist/install*.yaml bin/virttemplatectl-"${TARGET_TAG}"-* | sed 's|  .*/|  |' > dist/CHECKSUMS.sha256
+    sha256sum dist/install*.yaml | sed 's|  .*/|  |' > dist/CHECKSUMS.sha256
 }
 
 function update_github_release() {
@@ -76,7 +75,6 @@ function update_github_release() {
     fi
 
     gh release upload --repo "${GITHUB_REPOSITORY}" --clobber "${TARGET_TAG}" \
-        bin/virttemplatectl-"${TARGET_TAG}"-* \
         dist/install.yaml \
         dist/install-openshift.yaml \
         dist/install-virt-operator.yaml \
