@@ -32,7 +32,7 @@ import (
 	"k8s.io/client-go/rest"
 
 	templateapi "kubevirt.io/virt-template-api/core"
-	"kubevirt.io/virt-template-api/core/v1alpha1"
+	"kubevirt.io/virt-template-api/core/v1beta1"
 	templateclient "kubevirt.io/virt-template-client-go/virttemplate"
 )
 
@@ -51,7 +51,7 @@ var _ = Describe("VirtualMachineTemplateRequest Authorization", func() {
 		serviceAccount *corev1.ServiceAccount
 		roles          []*rbacv1.Role
 		roleBindings   []*rbacv1.RoleBinding
-		tplReq         *v1alpha1.VirtualMachineTemplateRequest
+		tplReq         *v1beta1.VirtualMachineTemplateRequest
 	)
 
 	BeforeEach(func() {
@@ -73,7 +73,7 @@ var _ = Describe("VirtualMachineTemplateRequest Authorization", func() {
 				To(Or(Succeed(), MatchError(k8serrors.IsNotFound, "k8serrors.IsNotFound")))
 		}
 		if tplReq != nil && tplReq.Name != "" {
-			Expect(tplClient.TemplateV1alpha1().VirtualMachineTemplateRequests(NamespaceTest).
+			Expect(tplClient.TemplateV1beta1().VirtualMachineTemplateRequests(NamespaceTest).
 				Delete(context.Background(), tplReq.Name, metav1.DeleteOptions{})).
 				To(Or(Succeed(), MatchError(k8serrors.IsNotFound, "k8serrors.IsNotFound")))
 		}
@@ -133,19 +133,19 @@ var _ = Describe("VirtualMachineTemplateRequest Authorization", func() {
 		saClient, err := templateclient.NewForConfig(cfg)
 		ExpectWithOffset(1, err).ToNot(HaveOccurred())
 
-		tplReq = &v1alpha1.VirtualMachineTemplateRequest{
+		tplReq = &v1beta1.VirtualMachineTemplateRequest{
 			ObjectMeta: metav1.ObjectMeta{
 				GenerateName: vmtrAuthzTest,
 				Namespace:    NamespaceTest,
 			},
-			Spec: v1alpha1.VirtualMachineTemplateRequestSpec{
-				VirtualMachineRef: v1alpha1.VirtualMachineReference{
+			Spec: v1beta1.VirtualMachineTemplateRequestSpec{
+				VirtualMachineRef: v1beta1.VirtualMachineReference{
 					Namespace: sourceNamespace,
 					Name:      testVMName,
 				},
 			},
 		}
-		tplReq, err = saClient.TemplateV1alpha1().VirtualMachineTemplateRequests(NamespaceTest).
+		tplReq, err = saClient.TemplateV1beta1().VirtualMachineTemplateRequests(NamespaceTest).
 			Create(context.Background(), tplReq, metav1.CreateOptions{})
 		return err
 	}

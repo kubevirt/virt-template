@@ -7,7 +7,7 @@
  *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, softwarec
+ * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
@@ -33,22 +33,22 @@ import (
 
 	virtv1 "kubevirt.io/api/core/v1"
 
-	"kubevirt.io/virt-template-api/core/subresourcesv1beta1"
-	"kubevirt.io/virt-template-api/core/v1beta1"
+	"kubevirt.io/virt-template-api/core/subresourcesv1alpha1"
+	"kubevirt.io/virt-template-api/core/v1alpha1"
 )
 
 //nolint:dupl
-var _ = Describe("VirtualMachineTemplate", Ordered, func() {
-	It("should process a VirtualMachineTemplate and return a VirtualMachine", func() {
+var _ = Describe("v1alpha1 backward compatibility", Ordered, func() {
+	It("should create and process a VirtualMachineTemplate via v1alpha1 API", func() {
 		const desiredCPUs = 4
 
-		template := &v1beta1.VirtualMachineTemplate{
+		template := &v1alpha1.VirtualMachineTemplate{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      "simple-template",
+				Name:      "v1alpha1-compat-template",
 				Namespace: NamespaceTest,
 			},
-			Spec: v1beta1.VirtualMachineTemplateSpec{
-				Parameters: []v1beta1.Parameter{
+			Spec: v1alpha1.VirtualMachineTemplateSpec{
+				Parameters: []v1alpha1.Parameter{
 					{
 						Name:  "CPU_COUNT",
 						Value: "2",
@@ -75,31 +75,31 @@ var _ = Describe("VirtualMachineTemplate", Ordered, func() {
 				},
 			},
 		}
-		_, err := tplClient.TemplateV1beta1().VirtualMachineTemplates(NamespaceTest).
+		_, err := tplClient.TemplateV1alpha1().VirtualMachineTemplates(NamespaceTest).
 			Create(context.Background(), template, metav1.CreateOptions{})
 		Expect(err).NotTo(HaveOccurred())
 
-		// Process with parameter override
-		opts := subresourcesv1beta1.ProcessOptions{
+		opts := subresourcesv1alpha1.ProcessOptions{
 			Parameters: map[string]string{"CPU_COUNT": fmt.Sprintf("%d", desiredCPUs)},
 		}
-		processed, err := tplClient.TemplateV1beta1().VirtualMachineTemplates(NamespaceTest).Process(context.Background(), template.Name, opts)
+		processed, err := tplClient.TemplateV1alpha1().VirtualMachineTemplates(NamespaceTest).
+			Process(context.Background(), template.Name, opts)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(processed.VirtualMachine).NotTo(BeNil())
 		Expect(processed.VirtualMachine.Spec.Template.Spec.Domain.CPU.Cores).To(Equal(uint32(desiredCPUs)))
 	})
 
-	It("should create a VirtualMachine from VirtualMachineTemplate", func() {
-		template := &v1beta1.VirtualMachineTemplate{
+	It("should create a VirtualMachine from VirtualMachineTemplate via v1alpha1 API", func() {
+		template := &v1alpha1.VirtualMachineTemplate{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      "create-template",
+				Name:      "v1alpha1-compat-create-template",
 				Namespace: NamespaceTest,
 			},
-			Spec: v1beta1.VirtualMachineTemplateSpec{
+			Spec: v1alpha1.VirtualMachineTemplateSpec{
 				VirtualMachine: &runtime.RawExtension{
 					Object: &virtv1.VirtualMachine{
 						ObjectMeta: metav1.ObjectMeta{
-							Name: "vm-from-template",
+							Name: "v1alpha1-vm-from-template",
 						},
 						Spec: virtv1.VirtualMachineSpec{
 							RunStrategy: ptr.To(virtv1.RunStrategyHalted),
@@ -109,22 +109,41 @@ var _ = Describe("VirtualMachineTemplate", Ordered, func() {
 				},
 			},
 		}
-		_, err := tplClient.TemplateV1beta1().VirtualMachineTemplates(NamespaceTest).
+		_, err := tplClient.TemplateV1alpha1().VirtualMachineTemplates(NamespaceTest).
 			Create(context.Background(), template, metav1.CreateOptions{})
 		Expect(err).NotTo(HaveOccurred())
 
-		// Create VM from template
-		opts := subresourcesv1beta1.ProcessOptions{}
-		processed, err := tplClient.TemplateV1beta1().VirtualMachineTemplates(NamespaceTest).CreateVirtualMachine(
-			context.Background(),
-			template.Name,
-			opts)
+		opts := subresourcesv1alpha1.ProcessOptions{}
+		processed, err := tplClient.TemplateV1alpha1().VirtualMachineTemplates(NamespaceTest).
+			CreateVirtualMachine(context.Background(), template.Name, opts)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(processed).NotTo(BeNil())
 		Expect(processed.VirtualMachine.RunStrategy()).To(Equal(virtv1.RunStrategyHalted))
 
-		// Clean up created VM
 		err = virtClient.VirtualMachine(NamespaceTest).Delete(context.Background(), processed.VirtualMachine.Name, metav1.DeleteOptions{})
 		Expect(err).NotTo(HaveOccurred())
+	})
+
+	It("should create a VirtualMachineTemplateRequest via v1alpha1 API", func() {
+		tplReq := &v1alpha1.VirtualMachineTemplateRequest{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "v1alpha1-compat-request",
+				Namespace: NamespaceTest,
+			},
+			Spec: v1alpha1.VirtualMachineTemplateRequestSpec{
+				VirtualMachineRef: v1alpha1.VirtualMachineReference{
+					Namespace: NamespaceTest,
+					Name:      "nonexistent-vm",
+				},
+			},
+		}
+		_, err := tplClient.TemplateV1alpha1().VirtualMachineTemplateRequests(NamespaceTest).
+			Create(context.Background(), tplReq, metav1.CreateOptions{})
+		Expect(err).NotTo(HaveOccurred())
+
+		fetched, err := tplClient.TemplateV1alpha1().VirtualMachineTemplateRequests(NamespaceTest).
+			Get(context.Background(), tplReq.Name, metav1.GetOptions{})
+		Expect(err).NotTo(HaveOccurred())
+		Expect(fetched.Spec.VirtualMachineRef.Name).To(Equal("nonexistent-vm"))
 	})
 })
