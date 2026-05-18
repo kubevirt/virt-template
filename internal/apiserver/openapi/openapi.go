@@ -54,8 +54,9 @@ func NewConfig(scheme *runtime.Scheme) *common.Config {
 				Description: "Default Response.",
 			},
 		},
-		GetDefinitionName: openapi.NewDefinitionNamer(scheme).GetDefinitionName,
-		GetDefinitions:    api.GetOpenAPIDefinitions,
+		GetOperationIDAndTags: openapi.GetOperationIDAndTags,
+		GetDefinitionName:     openapi.NewDefinitionNamer(scheme).GetDefinitionName,
+		GetDefinitions:        api.GetOpenAPIDefinitions,
 	}
 }
 
@@ -67,8 +68,9 @@ func NewV3Config(scheme *runtime.Scheme) *common.OpenAPIV3Config {
 				Description: "Default Response.",
 			},
 		},
-		GetDefinitionName: openapi.NewDefinitionNamer(scheme).GetDefinitionName,
-		GetDefinitions:    api.GetOpenAPIDefinitions,
+		GetOperationIDAndTags: openapi.GetOperationIDAndTags,
+		GetDefinitionName:     openapi.NewDefinitionNamer(scheme).GetDefinitionName,
+		GetDefinitions:        api.GetOpenAPIDefinitions,
 	}
 	config.Definitions = config.GetDefinitions(func(name string) spec.Ref {
 		defName, _ := config.GetDefinitionName(name)

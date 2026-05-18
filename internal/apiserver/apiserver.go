@@ -76,8 +76,6 @@ func (a *apiserver) Run(
 	config.EffectiveVersion = compatibility.DefaultBuildEffectiveVersion()
 	config.OpenAPIConfig = openAPIConfig
 	config.OpenAPIV3Config = openapiV3Config
-	// Disable discovery to not confuse kubectl and other client with dummy resources
-	config.EnableDiscovery = false
 
 	a.authzOpts.AlwaysAllowPaths = append(a.authzOpts.AlwaysAllowPaths,
 		"/", genericapiserver.APIGroupPrefix, "/openapi/v2", "/openapi/v3", "/openapi/v3/*",
@@ -105,15 +103,13 @@ func (a *apiserver) Run(
 		return err
 	}
 
-	for gv, resourcesStorage := range apiGroups {
-		groupInfo := genericapiserver.NewDefaultAPIGroupInfo(
-			gv.Group, scheme, runtime.NewParameterCodec(scheme), factory,
-		)
-		groupInfo.VersionedResourcesStorageMap[gv.Version] = resourcesStorage
-		if err := server.InstallAPIGroup(&groupInfo); err != nil {
+	for _, gi := range buildAPIGroupInfos(apiGroups, scheme, factory) {
+		if err := server.InstallAPIGroup(&gi); err != nil {
 			klog.Errorf("Failed to install APIGroup: %v", err)
 			return err
 		}
+	}
+	for gv, resourcesStorage := range apiGroups {
 		resourcesToHide := getParentResourceNames(resourcesStorage)
 		if len(resourcesToHide) > 0 {
 			klog.Infof("Hiding parent resources from APIResourceList: %v", resourcesToHide)
@@ -144,4 +140,21 @@ func getAdditionalAlwaysAllowPaths(apiGroups APIGroups) []string {
 		)
 	}
 	return additionalAlwaysAllowPaths
+}
+
+func buildAPIGroupInfos(
+	apiGroups APIGroups, scheme *runtime.Scheme, factory serializer.CodecFactory,
+) map[string]genericapiserver.APIGroupInfo {
+	result := map[string]genericapiserver.APIGroupInfo{}
+	for gv, storage := range apiGroups {
+		gi, ok := result[gv.Group]
+		if !ok {
+			gi = genericapiserver.NewDefaultAPIGroupInfo(
+				gv.Group, scheme, runtime.NewParameterCodec(scheme), factory,
+			)
+		}
+		gi.VersionedResourcesStorageMap[gv.Version] = storage
+		result[gv.Group] = gi
+	}
+	return result
 }

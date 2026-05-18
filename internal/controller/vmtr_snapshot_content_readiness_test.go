@@ -32,7 +32,7 @@ import (
 
 	snapshotv1beta1 "kubevirt.io/api/snapshot/v1beta1"
 
-	"kubevirt.io/virt-template-api/core/v1alpha1"
+	"kubevirt.io/virt-template-api/core/v1beta1"
 
 	"kubevirt.io/virt-template/internal/controller"
 )
@@ -40,7 +40,7 @@ import (
 var _ = Describe("VirtualMachineTemplateRequest Controller VirtualMachineSnapshotContent readiness", func() {
 	var (
 		reconciler  *controller.VirtualMachineTemplateRequestReconciler
-		tplReq      *v1alpha1.VirtualMachineTemplateRequest
+		tplReq      *v1beta1.VirtualMachineTemplateRequest
 		snapContent *snapshotv1beta1.VirtualMachineSnapshotContent
 	)
 
@@ -69,9 +69,9 @@ var _ = Describe("VirtualMachineTemplateRequest Controller VirtualMachineSnapsho
 		Expect(result.RequeueAfter).To(Equal(10 * time.Second))
 
 		Expect(k8sClient.Get(context.Background(), client.ObjectKeyFromObject(tplReq), tplReq)).To(Succeed())
-		expectCondition(tplReq, v1alpha1.ConditionReady, metav1.ConditionFalse, v1alpha1.ReasonWaiting,
+		expectCondition(tplReq, v1beta1.ConditionReady, metav1.ConditionFalse, v1beta1.ReasonWaiting,
 			ContainSubstring("Waiting for VirtualMachineSnapshotContent"))
-		expectCondition(tplReq, v1alpha1.ConditionProgressing, metav1.ConditionTrue, v1alpha1.ReasonWaiting)
+		expectCondition(tplReq, v1beta1.ConditionProgressing, metav1.ConditionTrue, v1beta1.ReasonWaiting)
 	},
 		Entry("when status is not set", false),
 		Entry("when ReadyToUse is false", true),
@@ -90,7 +90,7 @@ var _ = Describe("VirtualMachineTemplateRequest Controller VirtualMachineSnapsho
 		Expect(err).To(MatchError(matcher))
 
 		Expect(k8sClient.Get(context.Background(), client.ObjectKeyFromObject(tplReq), tplReq)).To(Succeed())
-		expectCondition(tplReq, v1alpha1.ConditionReady, metav1.ConditionFalse, v1alpha1.ReasonFailed, matcher)
-		expectCondition(tplReq, v1alpha1.ConditionProgressing, metav1.ConditionFalse, v1alpha1.ReasonFailed)
+		expectCondition(tplReq, v1beta1.ConditionReady, metav1.ConditionFalse, v1beta1.ReasonFailed, matcher)
+		expectCondition(tplReq, v1beta1.ConditionProgressing, metav1.ConditionFalse, v1beta1.ReasonFailed)
 	})
 })

@@ -31,7 +31,7 @@ import (
 
 	snapshotv1beta1 "kubevirt.io/api/snapshot/v1beta1"
 
-	"kubevirt.io/virt-template-api/core/v1alpha1"
+	"kubevirt.io/virt-template-api/core/v1beta1"
 
 	"kubevirt.io/virt-template/internal/controller"
 )
@@ -39,7 +39,7 @@ import (
 var _ = Describe("VirtualMachineTemplateRequest Controller VirtualMachineSnapshotStatus sync", func() {
 	var (
 		reconciler *controller.VirtualMachineTemplateRequestReconciler
-		tplReq     *v1alpha1.VirtualMachineTemplateRequest
+		tplReq     *v1beta1.VirtualMachineTemplateRequest
 		snap       *snapshotv1beta1.VirtualMachineSnapshot
 	)
 
@@ -61,9 +61,9 @@ var _ = Describe("VirtualMachineTemplateRequest Controller VirtualMachineSnapsho
 		Expect(err).ToNot(HaveOccurred())
 
 		Expect(k8sClient.Get(context.Background(), client.ObjectKeyFromObject(tplReq), tplReq)).To(Succeed())
-		expectCondition(tplReq, v1alpha1.ConditionReady, metav1.ConditionFalse, v1alpha1.ReasonWaiting,
+		expectCondition(tplReq, v1beta1.ConditionReady, metav1.ConditionFalse, v1beta1.ReasonWaiting,
 			ContainSubstring("Waiting for VirtualMachineSnapshot"))
-		expectCondition(tplReq, v1alpha1.ConditionProgressing, metav1.ConditionTrue, v1alpha1.ReasonReconciling)
+		expectCondition(tplReq, v1beta1.ConditionProgressing, metav1.ConditionTrue, v1beta1.ReasonReconciling)
 	})
 
 	DescribeTable("should set Failed condition", func(opts ...snapshotStatusOpt) {
@@ -75,9 +75,9 @@ var _ = Describe("VirtualMachineTemplateRequest Controller VirtualMachineSnapsho
 		Expect(err).ToNot(HaveOccurred())
 
 		Expect(k8sClient.Get(context.Background(), client.ObjectKeyFromObject(tplReq), tplReq)).To(Succeed())
-		expectCondition(tplReq, v1alpha1.ConditionReady, metav1.ConditionFalse, v1alpha1.ReasonFailed,
+		expectCondition(tplReq, v1beta1.ConditionReady, metav1.ConditionFalse, v1beta1.ReasonFailed,
 			MatchRegexp("VirtualMachineSnapshot .* failed"))
-		expectCondition(tplReq, v1alpha1.ConditionProgressing, metav1.ConditionFalse, v1alpha1.ReasonFailed)
+		expectCondition(tplReq, v1beta1.ConditionProgressing, metav1.ConditionFalse, v1beta1.ReasonFailed)
 	},
 		Entry("when snapshot has failure condition",
 			withPhase(snapshotv1beta1.InProgress), withFailed()),
@@ -98,9 +98,9 @@ var _ = Describe("VirtualMachineTemplateRequest Controller VirtualMachineSnapsho
 		Expect(err).ToNot(HaveOccurred())
 
 		Expect(k8sClient.Get(context.Background(), client.ObjectKeyFromObject(tplReq), tplReq)).To(Succeed())
-		expectCondition(tplReq, v1alpha1.ConditionReady, metav1.ConditionFalse, v1alpha1.ReasonWaiting,
+		expectCondition(tplReq, v1beta1.ConditionReady, metav1.ConditionFalse, v1beta1.ReasonWaiting,
 			ContainSubstring("Waiting for VirtualMachineSnapshot"))
-		expectCondition(tplReq, v1alpha1.ConditionProgressing, metav1.ConditionTrue, v1alpha1.ReasonReconciling)
+		expectCondition(tplReq, v1beta1.ConditionProgressing, metav1.ConditionTrue, v1beta1.ReasonReconciling)
 	})
 
 	It("should wait when snapshot phase is unset", func() {
@@ -112,9 +112,9 @@ var _ = Describe("VirtualMachineTemplateRequest Controller VirtualMachineSnapsho
 		Expect(err).ToNot(HaveOccurred())
 
 		Expect(k8sClient.Get(context.Background(), client.ObjectKeyFromObject(tplReq), tplReq)).To(Succeed())
-		expectCondition(tplReq, v1alpha1.ConditionReady, metav1.ConditionFalse, v1alpha1.ReasonWaiting,
+		expectCondition(tplReq, v1beta1.ConditionReady, metav1.ConditionFalse, v1beta1.ReasonWaiting,
 			ContainSubstring("Waiting for VirtualMachineSnapshot"))
-		expectCondition(tplReq, v1alpha1.ConditionProgressing, metav1.ConditionTrue, v1alpha1.ReasonReconciling)
+		expectCondition(tplReq, v1beta1.ConditionProgressing, metav1.ConditionTrue, v1beta1.ReasonReconciling)
 	})
 
 	It("should wait when snapshot phase is in progress", func() {
@@ -126,8 +126,8 @@ var _ = Describe("VirtualMachineTemplateRequest Controller VirtualMachineSnapsho
 		Expect(err).ToNot(HaveOccurred())
 
 		Expect(k8sClient.Get(context.Background(), client.ObjectKeyFromObject(tplReq), tplReq)).To(Succeed())
-		expectCondition(tplReq, v1alpha1.ConditionReady, metav1.ConditionFalse, v1alpha1.ReasonWaiting,
+		expectCondition(tplReq, v1beta1.ConditionReady, metav1.ConditionFalse, v1beta1.ReasonWaiting,
 			ContainSubstring("Waiting for VirtualMachineSnapshot"))
-		expectCondition(tplReq, v1alpha1.ConditionProgressing, metav1.ConditionTrue, v1alpha1.ReasonReconciling)
+		expectCondition(tplReq, v1beta1.ConditionProgressing, metav1.ConditionTrue, v1beta1.ReasonReconciling)
 	})
 })

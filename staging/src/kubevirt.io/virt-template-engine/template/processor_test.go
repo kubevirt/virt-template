@@ -30,7 +30,7 @@ import (
 
 	virtv1 "kubevirt.io/api/core/v1"
 
-	"kubevirt.io/virt-template-api/core/v1alpha1"
+	"kubevirt.io/virt-template-api/core/v1beta1"
 	"kubevirt.io/virt-template-engine/template"
 )
 
@@ -54,9 +54,9 @@ var _ = Describe("Processor", func() {
 	p := template.GetDefaultProcessor()
 
 	It("should return error for parameter generation failure", func() {
-		tmpl := &v1alpha1.VirtualMachineTemplate{
-			Spec: v1alpha1.VirtualMachineTemplateSpec{
-				Parameters: []v1alpha1.Parameter{
+		tmpl := &v1beta1.VirtualMachineTemplate{
+			Spec: v1beta1.VirtualMachineTemplateSpec{
+				Parameters: []v1beta1.Parameter{
 					{
 						Name:     param1Name,
 						Generate: "unknown",
@@ -75,8 +75,8 @@ var _ = Describe("Processor", func() {
 	})
 
 	DescribeTable("should return error when trying to process empty virtualMachine", func(templateVM *runtime.RawExtension) {
-		t := &v1alpha1.VirtualMachineTemplate{
-			Spec: v1alpha1.VirtualMachineTemplateSpec{
+		t := &v1beta1.VirtualMachineTemplate{
+			Spec: v1beta1.VirtualMachineTemplateSpec{
 				VirtualMachine: templateVM,
 			},
 		}
@@ -91,8 +91,8 @@ var _ = Describe("Processor", func() {
 	)
 
 	It("should return error for invalid raw VM data", func() {
-		t := &v1alpha1.VirtualMachineTemplate{
-			Spec: v1alpha1.VirtualMachineTemplateSpec{
+		t := &v1beta1.VirtualMachineTemplate{
+			Spec: v1beta1.VirtualMachineTemplateSpec{
 				VirtualMachine: &runtime.RawExtension{
 					Raw: []byte(`invalid json`),
 				},
@@ -106,9 +106,9 @@ var _ = Describe("Processor", func() {
 	})
 
 	It("should return error when trying to set string field to non-string value", func() {
-		t := &v1alpha1.VirtualMachineTemplate{
-			Spec: v1alpha1.VirtualMachineTemplateSpec{
-				Parameters: []v1alpha1.Parameter{
+		t := &v1beta1.VirtualMachineTemplate{
+			Spec: v1beta1.VirtualMachineTemplateSpec{
+				Parameters: []v1beta1.Parameter{
 					{
 						Name:  param3Name,
 						Value: param3Val,
@@ -131,9 +131,9 @@ var _ = Describe("Processor", func() {
 	})
 
 	It("should return error when trying to process non-VM object", func() {
-		t := &v1alpha1.VirtualMachineTemplate{
-			Spec: v1alpha1.VirtualMachineTemplateSpec{
-				Parameters: []v1alpha1.Parameter{
+		t := &v1beta1.VirtualMachineTemplate{
+			Spec: v1beta1.VirtualMachineTemplateSpec{
+				Parameters: []v1beta1.Parameter{
 					{
 						Name:  param1Name,
 						Value: param1Val,
@@ -156,9 +156,9 @@ var _ = Describe("Processor", func() {
 	})
 
 	DescribeTable("should return error when encountering unknown field with", func(templateVM *runtime.RawExtension) {
-		t := &v1alpha1.VirtualMachineTemplate{
-			Spec: v1alpha1.VirtualMachineTemplateSpec{
-				Parameters: []v1alpha1.Parameter{
+		t := &v1beta1.VirtualMachineTemplate{
+			Spec: v1beta1.VirtualMachineTemplateSpec{
+				Parameters: []v1beta1.Parameter{
 					{
 						Name:  param1Name,
 						Value: param1Val,
@@ -202,9 +202,9 @@ var _ = Describe("Processor", func() {
 	)
 
 	DescribeTable("should process template with", func(templateVM *runtime.RawExtension) {
-		t := &v1alpha1.VirtualMachineTemplate{
-			Spec: v1alpha1.VirtualMachineTemplateSpec{
-				Parameters: []v1alpha1.Parameter{
+		t := &v1beta1.VirtualMachineTemplate{
+			Spec: v1beta1.VirtualMachineTemplateSpec{
+				Parameters: []v1beta1.Parameter{
 					{
 						Name:  param1Name,
 						Value: param1Val,
@@ -315,9 +315,9 @@ var _ = Describe("Processor", func() {
 	)
 
 	DescribeTable("should process template and force correct GVK with", func(templateVM *runtime.RawExtension) {
-		t := &v1alpha1.VirtualMachineTemplate{
-			Spec: v1alpha1.VirtualMachineTemplateSpec{
-				Parameters: []v1alpha1.Parameter{
+		t := &v1beta1.VirtualMachineTemplate{
+			Spec: v1beta1.VirtualMachineTemplateSpec{
+				Parameters: []v1beta1.Parameter{
 					{
 						Name:  param1Name,
 						Value: param1Val,
@@ -390,8 +390,8 @@ var _ = Describe("Processor", func() {
 	)
 
 	It("should remove hardcoded namespace", func() {
-		t := &v1alpha1.VirtualMachineTemplate{
-			Spec: v1alpha1.VirtualMachineTemplateSpec{
+		t := &v1beta1.VirtualMachineTemplate{
+			Spec: v1beta1.VirtualMachineTemplateSpec{
 				VirtualMachine: &runtime.RawExtension{
 					Object: &virtv1.VirtualMachine{
 						ObjectMeta: metav1.ObjectMeta{
@@ -411,9 +411,9 @@ var _ = Describe("Processor", func() {
 	})
 
 	It("should substitute message field", func() {
-		t := &v1alpha1.VirtualMachineTemplate{
-			Spec: v1alpha1.VirtualMachineTemplateSpec{
-				Parameters: []v1alpha1.Parameter{
+		t := &v1beta1.VirtualMachineTemplate{
+			Spec: v1beta1.VirtualMachineTemplateSpec{
+				Parameters: []v1beta1.Parameter{
 					{
 						Name:  param1Name,
 						Value: param1Val,

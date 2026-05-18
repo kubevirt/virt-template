@@ -17,7 +17,7 @@
  *
  */
 
-package virtualmachinetemplate_test
+package v1alpha1_test
 
 import (
 	"bytes"
@@ -32,18 +32,18 @@ import (
 	"kubevirt.io/virt-template-api/core/subresourcesv1alpha1"
 	virttemplatefake "kubevirt.io/virt-template-client-go/virttemplate/fake"
 
-	"kubevirt.io/virt-template/internal/apiserver/storage/virtualmachinetemplate"
+	vmtv1alpha1 "kubevirt.io/virt-template/internal/apiserver/storage/virtualmachinetemplate/v1alpha1"
 )
 
 var _ = Describe("ProcessREST", func() {
 	var (
-		processREST *virtualmachinetemplate.ProcessREST
+		processREST *vmtv1alpha1.V1alpha1ProcessREST
 		fakeClient  *virttemplatefake.Clientset
 	)
 
 	BeforeEach(func() {
 		fakeClient = virttemplatefake.NewSimpleClientset(newVirtualMachineTemplate())
-		processREST = virtualmachinetemplate.NewProcessREST(fakeClient)
+		processREST = vmtv1alpha1.NewV1alpha1ProcessREST(fakeClient)
 	})
 
 	It("NewProcessREST should create a new ProcessREST instance", func() {
@@ -89,13 +89,7 @@ var _ = Describe("ProcessREST", func() {
 			Expect(handler).To(BeNil())
 		})
 
-		It("should return a valid http.Handler when namespace is present", func() {
-			handler, err := processREST.Connect(ctx, testTemplateName, nil, responder)
-			Expect(err).ToNot(HaveOccurred())
-			Expect(handler).ToNot(BeNil())
-		})
-
-		It("should process template successfully", func() {
+		It("should process template and return v1alpha1 result", func() {
 			handler, err := processREST.Connect(ctx, testTemplateName, nil, responder)
 			Expect(err).ToNot(HaveOccurred())
 

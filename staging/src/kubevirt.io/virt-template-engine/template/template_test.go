@@ -30,7 +30,7 @@ import (
 
 	virtv1 "kubevirt.io/api/core/v1"
 
-	"kubevirt.io/virt-template-api/core/v1alpha1"
+	"kubevirt.io/virt-template-api/core/v1beta1"
 	"kubevirt.io/virt-template-engine/template/generator"
 )
 
@@ -63,7 +63,7 @@ var _ = Describe("Template", func() {
 		})
 
 		It("should generate value for parameter with Generate field", func() {
-			params := []v1alpha1.Parameter{
+			params := []v1beta1.Parameter{
 				{
 					Name:     param1Name,
 					Generate: "expression",
@@ -78,7 +78,7 @@ var _ = Describe("Template", func() {
 		})
 
 		It("should generate values for multiple parameters with Generate field", func() {
-			params := []v1alpha1.Parameter{
+			params := []v1beta1.Parameter{
 				{
 					Name:     param1Name,
 					Generate: "expression",
@@ -99,7 +99,7 @@ var _ = Describe("Template", func() {
 		})
 
 		It("should use existing value when provided", func() {
-			params := []v1alpha1.Parameter{
+			params := []v1beta1.Parameter{
 				{
 					Name:  param1Name,
 					Value: param1Val,
@@ -113,7 +113,7 @@ var _ = Describe("Template", func() {
 		})
 
 		It("should not generate value when both Value and Generate are provided", func() {
-			params := []v1alpha1.Parameter{
+			params := []v1beta1.Parameter{
 				{
 					Name:     param1Name,
 					Value:    param1Val,
@@ -129,7 +129,7 @@ var _ = Describe("Template", func() {
 		})
 
 		It("should ignore malformed pattern in From field", func() {
-			params := []v1alpha1.Parameter{
+			params := []v1beta1.Parameter{
 				{
 					Name:     param1Name,
 					Generate: "expression",
@@ -144,7 +144,7 @@ var _ = Describe("Template", func() {
 		})
 
 		It("should handle empty parameters list", func() {
-			params := []v1alpha1.Parameter{}
+			params := []v1beta1.Parameter{}
 
 			gen, err := generateParameterValues(params, generators)
 			Expect(err).ToNot(HaveOccurred())
@@ -152,7 +152,7 @@ var _ = Describe("Template", func() {
 		})
 
 		It("should return error for unknown generator", func() {
-			params := []v1alpha1.Parameter{
+			params := []v1beta1.Parameter{
 				{
 					Name:     param1Name,
 					Generate: "unknown",
@@ -166,7 +166,7 @@ var _ = Describe("Template", func() {
 		})
 
 		It("should return error for required parameter without value", func() {
-			params := []v1alpha1.Parameter{
+			params := []v1beta1.Parameter{
 				{
 					Name:     param1Name,
 					Required: true,
@@ -179,7 +179,7 @@ var _ = Describe("Template", func() {
 		})
 
 		It("should return error for parameter with Generate field but empty From", func() {
-			params := []v1alpha1.Parameter{
+			params := []v1beta1.Parameter{
 				{
 					Name:     param1Name,
 					Generate: "expression",
@@ -195,7 +195,7 @@ var _ = Describe("Template", func() {
 		})
 
 		It("should return error for duplicate parameter names", func() {
-			params := []v1alpha1.Parameter{
+			params := []v1beta1.Parameter{
 				{
 					Name:  param1Name,
 					Value: param1Val,
@@ -212,7 +212,7 @@ var _ = Describe("Template", func() {
 		})
 
 		It("should return error for empty parameter name", func() {
-			params := []v1alpha1.Parameter{
+			params := []v1beta1.Parameter{
 				{
 					Name:  "",
 					Value: param1Val,
@@ -288,10 +288,10 @@ var _ = Describe("Template", func() {
 	})
 
 	Describe("Substitution", func() {
-		var params map[string]v1alpha1.Parameter
+		var params map[string]v1beta1.Parameter
 
 		BeforeEach(func() {
-			params = map[string]v1alpha1.Parameter{
+			params = map[string]v1beta1.Parameter{
 				param1Name: {Name: param1Name, Value: param1Val},
 				param2Name: {Name: param2Name, Value: param2Val},
 				param3Name: {Name: param3Name, Value: param3Val},
@@ -385,23 +385,23 @@ var _ = Describe("Template", func() {
 				Expect(asString).To(BeFalse())
 			})
 
-			DescribeTable("should return error when param not found", func(params map[string]v1alpha1.Parameter) {
+			DescribeTable("should return error when param not found", func(params map[string]v1beta1.Parameter) {
 				val, asString, err := substituteParameters(param1Placeholder, params)
 				Expect(err).To(MatchError("found parameter 'NAME' but it was not defined"))
 				Expect(val).To(BeEmpty())
 				Expect(asString).To(BeFalse())
 			},
-				Entry("on empty map", make(map[string]v1alpha1.Parameter)),
+				Entry("on empty map", make(map[string]v1beta1.Parameter)),
 				Entry("on nil map", nil),
 			)
 
-			DescribeTable("should handle params map", func(params map[string]v1alpha1.Parameter) {
+			DescribeTable("should handle params map", func(params map[string]v1beta1.Parameter) {
 				val, asString, err := substituteParameters("", params)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(val).To(BeEmpty())
 				Expect(asString).To(BeTrue())
 			},
-				Entry("when empty", make(map[string]v1alpha1.Parameter)),
+				Entry("when empty", make(map[string]v1beta1.Parameter)),
 				Entry("when nil", nil),
 			)
 		})

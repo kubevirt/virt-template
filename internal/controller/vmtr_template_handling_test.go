@@ -39,7 +39,7 @@ import (
 	snapshotv1beta1 "kubevirt.io/api/snapshot/v1beta1"
 	cdiv1beta1 "kubevirt.io/containerized-data-importer-api/pkg/apis/core/v1beta1"
 
-	"kubevirt.io/virt-template-api/core/v1alpha1"
+	"kubevirt.io/virt-template-api/core/v1beta1"
 
 	"kubevirt.io/virt-template/internal/apimachinery"
 	"kubevirt.io/virt-template/internal/controller"
@@ -87,8 +87,8 @@ var _ = Describe("VirtualMachineTemplateRequest Controller VirtualMachineTemplat
 		Expect(err).To(MatchError(matcher))
 
 		Expect(k8sClient.Get(context.Background(), client.ObjectKeyFromObject(tplReq), tplReq)).To(Succeed())
-		expectCondition(tplReq, v1alpha1.ConditionReady, metav1.ConditionFalse, v1alpha1.ReasonFailed, matcher)
-		expectCondition(tplReq, v1alpha1.ConditionProgressing, metav1.ConditionFalse, v1alpha1.ReasonFailed)
+		expectCondition(tplReq, v1beta1.ConditionReady, metav1.ConditionFalse, v1beta1.ReasonFailed, matcher)
+		expectCondition(tplReq, v1beta1.ConditionProgressing, metav1.ConditionFalse, v1beta1.ReasonFailed)
 	})
 
 	It("should fail when ExpandSpec returns an error", func() {
@@ -109,8 +109,8 @@ var _ = Describe("VirtualMachineTemplateRequest Controller VirtualMachineTemplat
 		Expect(err).To(MatchError(msg))
 
 		Expect(k8sClient.Get(context.Background(), client.ObjectKeyFromObject(tplReq), tplReq)).To(Succeed())
-		expectCondition(tplReq, v1alpha1.ConditionReady, metav1.ConditionFalse, v1alpha1.ReasonFailed, Equal(msg))
-		expectCondition(tplReq, v1alpha1.ConditionProgressing, metav1.ConditionTrue, v1alpha1.ReasonReconciling)
+		expectCondition(tplReq, v1beta1.ConditionReady, metav1.ConditionFalse, v1beta1.ReasonFailed, Equal(msg))
+		expectCondition(tplReq, v1beta1.ConditionProgressing, metav1.ConditionTrue, v1beta1.ReasonReconciling)
 	})
 
 	It("should use request name when TemplateName is not specified", func() {
@@ -121,7 +121,7 @@ var _ = Describe("VirtualMachineTemplateRequest Controller VirtualMachineTemplat
 		})
 		Expect(err).ToNot(HaveOccurred())
 
-		tpl := &v1alpha1.VirtualMachineTemplate{
+		tpl := &v1beta1.VirtualMachineTemplate{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      p.TplReq.Name,
 				Namespace: p.TplReq.Namespace,
@@ -132,13 +132,13 @@ var _ = Describe("VirtualMachineTemplateRequest Controller VirtualMachineTemplat
 
 	It("should use TemplateName when specified", func() {
 		const templateName = "my-custom-template"
-		tplReq := &v1alpha1.VirtualMachineTemplateRequest{
+		tplReq := &v1beta1.VirtualMachineTemplateRequest{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "test-custom-name",
 				Namespace: testNamespace,
 			},
-			Spec: v1alpha1.VirtualMachineTemplateRequestSpec{
-				VirtualMachineRef: v1alpha1.VirtualMachineReference{
+			Spec: v1beta1.VirtualMachineTemplateRequestSpec{
+				VirtualMachineRef: v1beta1.VirtualMachineReference{
 					Namespace: testVMNamespace,
 					Name:      testVMName,
 				},
@@ -158,7 +158,7 @@ var _ = Describe("VirtualMachineTemplateRequest Controller VirtualMachineTemplat
 		})
 		Expect(err).ToNot(HaveOccurred())
 
-		tpl := &v1alpha1.VirtualMachineTemplate{
+		tpl := &v1beta1.VirtualMachineTemplate{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      templateName,
 				Namespace: tplReq.Namespace,
@@ -175,7 +175,7 @@ var _ = Describe("VirtualMachineTemplateRequest Controller VirtualMachineTemplat
 		})
 		Expect(err).ToNot(HaveOccurred())
 
-		tpl := &v1alpha1.VirtualMachineTemplate{
+		tpl := &v1beta1.VirtualMachineTemplate{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      p.TplReq.Name,
 				Namespace: p.TplReq.Namespace,
@@ -183,9 +183,9 @@ var _ = Describe("VirtualMachineTemplateRequest Controller VirtualMachineTemplat
 		}
 		Expect(k8sClient.Get(context.Background(), client.ObjectKeyFromObject(tpl), tpl)).To(Succeed())
 
-		Expect(tpl.Labels).To(HaveKeyWithValue(v1alpha1.LabelRequestUID, string(p.TplReq.UID)))
+		Expect(tpl.Labels).To(HaveKeyWithValue(v1beta1.LabelRequestUID, string(p.TplReq.UID)))
 		Expect(tpl.Spec.Parameters).To(ContainElement(
-			v1alpha1.Parameter{Name: paramNameName, Required: true},
+			v1beta1.Parameter{Name: paramNameName, Required: true},
 		))
 
 		vm := decodeVM(tpl.Spec.VirtualMachine.Raw)
@@ -246,7 +246,7 @@ var _ = Describe("VirtualMachineTemplateRequest Controller VirtualMachineTemplat
 		})
 		Expect(err).ToNot(HaveOccurred())
 
-		tpl := &v1alpha1.VirtualMachineTemplate{}
+		tpl := &v1beta1.VirtualMachineTemplate{}
 		Expect(k8sClient.Get(context.Background(), client.ObjectKeyFromObject(tplReq), tpl)).To(Succeed())
 
 		vm := decodeVM(tpl.Spec.VirtualMachine.Raw)
@@ -276,7 +276,7 @@ var _ = Describe("VirtualMachineTemplateRequest Controller VirtualMachineTemplat
 		})
 		Expect(err).ToNot(HaveOccurred())
 
-		tpl := &v1alpha1.VirtualMachineTemplate{}
+		tpl := &v1beta1.VirtualMachineTemplate{}
 		Expect(k8sClient.Get(context.Background(), client.ObjectKeyFromObject(p.TplReq), tpl)).To(Succeed())
 
 		err = k8sClient.Get(context.Background(), client.ObjectKeyFromObject(p.Snap), p.Snap)
@@ -286,15 +286,15 @@ var _ = Describe("VirtualMachineTemplateRequest Controller VirtualMachineTemplat
 	It("should fail when template exists with different UID", func() {
 		tplReq := createRequest(k8sClient, testNamespace, testVMNamespace)
 
-		tpl := &v1alpha1.VirtualMachineTemplate{
+		tpl := &v1beta1.VirtualMachineTemplate{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      tplReq.Name,
 				Namespace: testNamespace,
 				Labels: map[string]string{
-					v1alpha1.LabelRequestUID: wrongUID,
+					v1beta1.LabelRequestUID: wrongUID,
 				},
 			},
-			Spec: v1alpha1.VirtualMachineTemplateSpec{
+			Spec: v1beta1.VirtualMachineTemplateSpec{
 				VirtualMachine: &runtime.RawExtension{
 					Object: &virtv1.VirtualMachine{},
 				},
@@ -309,8 +309,8 @@ var _ = Describe("VirtualMachineTemplateRequest Controller VirtualMachineTemplat
 		Expect(err).To(MatchError(matcher))
 
 		Expect(k8sClient.Get(context.Background(), client.ObjectKeyFromObject(tplReq), tplReq)).To(Succeed())
-		expectCondition(tplReq, v1alpha1.ConditionReady, metav1.ConditionFalse, v1alpha1.ReasonFailed, matcher)
-		expectCondition(tplReq, v1alpha1.ConditionProgressing, metav1.ConditionFalse, v1alpha1.ReasonFailed)
+		expectCondition(tplReq, v1beta1.ConditionReady, metav1.ConditionFalse, v1beta1.ReasonFailed, matcher)
+		expectCondition(tplReq, v1beta1.ConditionProgressing, metav1.ConditionFalse, v1beta1.ReasonFailed)
 	})
 
 	It("should transfer DataVolume ownership from request to template", func() {
@@ -321,7 +321,7 @@ var _ = Describe("VirtualMachineTemplateRequest Controller VirtualMachineTemplat
 		})
 		Expect(err).ToNot(HaveOccurred())
 
-		tpl := &v1alpha1.VirtualMachineTemplate{
+		tpl := &v1beta1.VirtualMachineTemplate{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      p.TplReq.Name,
 				Namespace: p.TplReq.Namespace,
@@ -370,15 +370,15 @@ var _ = Describe("VirtualMachineTemplateRequest Controller VirtualMachineTemplat
 	It("should set templateRef in status when template already exists", func() {
 		tplReq := createRequest(k8sClient, testNamespace, testVMNamespace)
 
-		tpl := &v1alpha1.VirtualMachineTemplate{
+		tpl := &v1beta1.VirtualMachineTemplate{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      tplReq.Name,
 				Namespace: testNamespace,
 				Labels: map[string]string{
-					v1alpha1.LabelRequestUID: string(tplReq.UID),
+					v1beta1.LabelRequestUID: string(tplReq.UID),
 				},
 			},
-			Spec: v1alpha1.VirtualMachineTemplateSpec{
+			Spec: v1beta1.VirtualMachineTemplateSpec{
 				VirtualMachine: &runtime.RawExtension{
 					Object: &virtv1.VirtualMachine{},
 				},
@@ -433,15 +433,15 @@ var _ = Describe("VirtualMachineTemplateRequest Controller VirtualMachineTemplat
 	It("should sync conditions from existing template with matching UID", func() {
 		tplReq := createRequest(k8sClient, testNamespace, testVMNamespace)
 
-		tpl := &v1alpha1.VirtualMachineTemplate{
+		tpl := &v1beta1.VirtualMachineTemplate{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      tplReq.Name,
 				Namespace: testNamespace,
 				Labels: map[string]string{
-					v1alpha1.LabelRequestUID: string(tplReq.UID),
+					v1beta1.LabelRequestUID: string(tplReq.UID),
 				},
 			},
-			Spec: v1alpha1.VirtualMachineTemplateSpec{
+			Spec: v1beta1.VirtualMachineTemplateSpec{
 				VirtualMachine: &runtime.RawExtension{
 					Object: &virtv1.VirtualMachine{},
 				},
@@ -456,13 +456,13 @@ var _ = Describe("VirtualMachineTemplateRequest Controller VirtualMachineTemplat
 
 		Expect(k8sClient.Get(context.Background(), client.ObjectKeyFromObject(tplReq), tplReq)).To(Succeed())
 		matcher := ContainSubstring("Waiting for VirtualMachineTemplate")
-		expectCondition(tplReq, v1alpha1.ConditionReady, metav1.ConditionFalse, v1alpha1.ReasonWaiting, matcher)
-		expectCondition(tplReq, v1alpha1.ConditionProgressing, metav1.ConditionTrue, v1alpha1.ReasonReconciling)
+		expectCondition(tplReq, v1beta1.ConditionReady, metav1.ConditionFalse, v1beta1.ReasonWaiting, matcher)
+		expectCondition(tplReq, v1beta1.ConditionProgressing, metav1.ConditionTrue, v1beta1.ReasonReconciling)
 
 		meta.SetStatusCondition(&tpl.Status.Conditions, metav1.Condition{
-			Type:   v1alpha1.ConditionReady,
+			Type:   v1beta1.ConditionReady,
 			Status: metav1.ConditionFalse,
-			Reason: v1alpha1.ReasonReconciling,
+			Reason: v1beta1.ReasonReconciling,
 		})
 		Expect(k8sClient.Status().Update(context.Background(), tpl)).To(Succeed())
 
@@ -472,14 +472,14 @@ var _ = Describe("VirtualMachineTemplateRequest Controller VirtualMachineTemplat
 		Expect(err).ToNot(HaveOccurred())
 
 		Expect(k8sClient.Get(context.Background(), client.ObjectKeyFromObject(tplReq), tplReq)).To(Succeed())
-		expectCondition(tplReq, v1alpha1.ConditionReady, metav1.ConditionFalse, v1alpha1.ReasonWaiting, matcher)
-		expectCondition(tplReq, v1alpha1.ConditionProgressing, metav1.ConditionTrue, v1alpha1.ReasonReconciling)
+		expectCondition(tplReq, v1beta1.ConditionReady, metav1.ConditionFalse, v1beta1.ReasonWaiting, matcher)
+		expectCondition(tplReq, v1beta1.ConditionProgressing, metav1.ConditionTrue, v1beta1.ReasonReconciling)
 
 		const msg = "VirtualMachineTemplate is ready to be processed"
 		meta.SetStatusCondition(&tpl.Status.Conditions, metav1.Condition{
-			Type:    v1alpha1.ConditionReady,
+			Type:    v1beta1.ConditionReady,
 			Status:  metav1.ConditionTrue,
-			Reason:  v1alpha1.ReasonReconciled,
+			Reason:  v1beta1.ReasonReconciled,
 			Message: msg,
 		})
 		Expect(k8sClient.Status().Update(context.Background(), tpl)).To(Succeed())
@@ -490,8 +490,8 @@ var _ = Describe("VirtualMachineTemplateRequest Controller VirtualMachineTemplat
 		Expect(err).ToNot(HaveOccurred())
 
 		Expect(k8sClient.Get(context.Background(), client.ObjectKeyFromObject(tplReq), tplReq)).To(Succeed())
-		expectCondition(tplReq, v1alpha1.ConditionReady, metav1.ConditionTrue, v1alpha1.ReasonReconciled, Equal(msg))
-		expectCondition(tplReq, v1alpha1.ConditionProgressing, metav1.ConditionFalse, v1alpha1.ReasonReconciled)
+		expectCondition(tplReq, v1beta1.ConditionReady, metav1.ConditionTrue, v1beta1.ReasonReconciled, Equal(msg))
+		expectCondition(tplReq, v1beta1.ConditionProgressing, metav1.ConditionFalse, v1beta1.ReasonReconciled)
 	})
 
 	It("should skip backend storage PVC when creating template", func() {
@@ -569,7 +569,7 @@ var _ = Describe("VirtualMachineTemplateRequest Controller VirtualMachineTemplat
 		})
 		Expect(err).ToNot(HaveOccurred())
 
-		tpl := &v1alpha1.VirtualMachineTemplate{}
+		tpl := &v1beta1.VirtualMachineTemplate{}
 		Expect(k8sClient.Get(context.Background(), client.ObjectKeyFromObject(tplReq), tpl)).To(Succeed())
 
 		vm := decodeVM(tpl.Spec.VirtualMachine.Raw)
@@ -579,7 +579,7 @@ var _ = Describe("VirtualMachineTemplateRequest Controller VirtualMachineTemplat
 })
 
 type testPipeline struct {
-	TplReq      *v1alpha1.VirtualMachineTemplateRequest
+	TplReq      *v1beta1.VirtualMachineTemplateRequest
 	Snap        *snapshotv1beta1.VirtualMachineSnapshot
 	SnapContent *snapshotv1beta1.VirtualMachineSnapshotContent
 	DV          *cdiv1beta1.DataVolume
@@ -620,7 +620,7 @@ func reconcileWithModifiedContent(
 	})
 	ExpectWithOffset(1, err).ToNot(HaveOccurred())
 
-	tpl := &v1alpha1.VirtualMachineTemplate{}
+	tpl := &v1beta1.VirtualMachineTemplate{}
 	ExpectWithOffset(1, cli.Get(context.Background(), client.ObjectKeyFromObject(tplReq), tpl)).To(Succeed())
 	return decodeVM(tpl.Spec.VirtualMachine.Raw)
 }

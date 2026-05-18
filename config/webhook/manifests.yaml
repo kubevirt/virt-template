@@ -24,3 +24,23 @@ webhooks:
     resources:
     - virtualmachinetemplates
   sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /validate-template-kubevirt-io-v1beta1-virtualmachinetemplate
+  failurePolicy: Fail
+  name: vvirtualmachinetemplate-v1beta1.kb.io
+  rules:
+  - apiGroups:
+    - template.kubevirt.io
+    apiVersions:
+    - v1beta1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - virtualmachinetemplates
+  sideEffects: None

@@ -31,7 +31,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	"kubevirt.io/virt-template-api/core/v1alpha1"
+	"kubevirt.io/virt-template-api/core/v1beta1"
 
 	"kubevirt.io/virt-template/internal/controller"
 )
@@ -59,7 +59,7 @@ var _ = Describe("VirtualMachineTemplateRequest controller finalizer management 
 
 	It("should add finalizer on first reconcile", func() {
 		tplReq := createRequest(k8sClient, testNamespace, testVMNamespace)
-		Expect(controllerutil.ContainsFinalizer(tplReq, v1alpha1.FinalizerSnapshotCleanup)).To(BeFalse())
+		Expect(controllerutil.ContainsFinalizer(tplReq, v1beta1.FinalizerSnapshotCleanup)).To(BeFalse())
 
 		_, err := reconciler.Reconcile(ctx, reconcile.Request{
 			NamespacedName: client.ObjectKeyFromObject(tplReq),
@@ -67,12 +67,12 @@ var _ = Describe("VirtualMachineTemplateRequest controller finalizer management 
 		Expect(err).ToNot(HaveOccurred())
 
 		Expect(k8sClient.Get(context.Background(), client.ObjectKeyFromObject(tplReq), tplReq)).To(Succeed())
-		Expect(controllerutil.ContainsFinalizer(tplReq, v1alpha1.FinalizerSnapshotCleanup)).To(BeTrue())
+		Expect(controllerutil.ContainsFinalizer(tplReq, v1beta1.FinalizerSnapshotCleanup)).To(BeTrue())
 	})
 
 	It("should not add duplicate finalizers", func() {
 		tplReq := createRequest(k8sClient, testNamespace, testVMNamespace)
-		Expect(controllerutil.ContainsFinalizer(tplReq, v1alpha1.FinalizerSnapshotCleanup)).To(BeFalse())
+		Expect(controllerutil.ContainsFinalizer(tplReq, v1beta1.FinalizerSnapshotCleanup)).To(BeFalse())
 
 		_, err := reconciler.Reconcile(ctx, reconcile.Request{
 			NamespacedName: client.ObjectKeyFromObject(tplReq),
@@ -80,7 +80,7 @@ var _ = Describe("VirtualMachineTemplateRequest controller finalizer management 
 		Expect(err).ToNot(HaveOccurred())
 
 		Expect(k8sClient.Get(context.Background(), client.ObjectKeyFromObject(tplReq), tplReq)).To(Succeed())
-		Expect(controllerutil.ContainsFinalizer(tplReq, v1alpha1.FinalizerSnapshotCleanup)).To(BeTrue())
+		Expect(controllerutil.ContainsFinalizer(tplReq, v1beta1.FinalizerSnapshotCleanup)).To(BeTrue())
 
 		_, err = reconciler.Reconcile(ctx, reconcile.Request{
 			NamespacedName: client.ObjectKeyFromObject(tplReq),
@@ -90,7 +90,7 @@ var _ = Describe("VirtualMachineTemplateRequest controller finalizer management 
 		Expect(k8sClient.Get(context.Background(), client.ObjectKeyFromObject(tplReq), tplReq)).To(Succeed())
 		count := 0
 		for _, f := range tplReq.Finalizers {
-			if f == v1alpha1.FinalizerSnapshotCleanup {
+			if f == v1beta1.FinalizerSnapshotCleanup {
 				count++
 			}
 		}
@@ -106,7 +106,7 @@ var _ = Describe("VirtualMachineTemplateRequest controller finalizer management 
 		Expect(err).ToNot(HaveOccurred())
 
 		Expect(k8sClient.Get(context.Background(), client.ObjectKeyFromObject(tplReq), tplReq)).To(Succeed())
-		Expect(controllerutil.ContainsFinalizer(tplReq, v1alpha1.FinalizerSnapshotCleanup)).To(BeTrue())
+		Expect(controllerutil.ContainsFinalizer(tplReq, v1beta1.FinalizerSnapshotCleanup)).To(BeTrue())
 
 		Expect(k8sClient.Delete(context.Background(), tplReq)).To(Succeed())
 
