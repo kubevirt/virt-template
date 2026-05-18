@@ -17,7 +17,7 @@
  *
  */
 
-package v1alpha1
+package v1beta1
 
 import (
 	corev1 "k8s.io/api/core/v1"
@@ -92,8 +92,6 @@ type VirtualMachineTemplateRequestStatus struct {
 }
 
 // +kubebuilder:object:root=true
-// +kubebuilder:storageversion
-// +kubebuilder:deprecatedversion
 // +kubebuilder:printcolumn:name="Template",type=string,JSONPath=`.status.templateRef.name`
 // +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
 // +kubebuilder:printcolumn:name="Ready",type=string,JSONPath=`.status.conditions[?(@.type=="Ready")].status`
