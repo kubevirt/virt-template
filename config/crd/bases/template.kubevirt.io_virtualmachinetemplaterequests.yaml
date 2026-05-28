@@ -60,9 +60,14 @@ spec:
               templateLabels:
                 additionalProperties:
                   type: string
-                description: TemplateLabels holds optional labels to apply to the
-                  created VirtualMachineTemplate.
+                description: |-
+                  TemplateLabels holds optional labels to apply to the created VirtualMachineTemplate.
+                  Labels with the "template.kubevirt.io/" prefix are reserved for system use and are not allowed.
                 type: object
+                x-kubernetes-validations:
+                - message: labels with the prefix "template.kubevirt.io/" are reserved
+                    for system use
+                  rule: self.all(k, !k.startsWith('template.kubevirt.io/'))
               templateName:
                 description: |-
                   TemplateName holds the optional name for the new VirtualMachineTemplate.
@@ -233,9 +238,14 @@ spec:
               templateLabels:
                 additionalProperties:
                   type: string
-                description: TemplateLabels holds optional labels to apply to the
-                  created VirtualMachineTemplate.
+                description: |-
+                  TemplateLabels holds optional labels to apply to the created VirtualMachineTemplate.
+                  Labels with the "template.kubevirt.io/" prefix are reserved for system use and are not allowed.
                 type: object
+                x-kubernetes-validations:
+                - message: labels with the prefix "template.kubevirt.io/" are reserved
+                    for system use
+                  rule: self.all(k, !k.startsWith('template.kubevirt.io/'))
               templateName:
                 description: |-
                   TemplateName holds the optional name for the new VirtualMachineTemplate.

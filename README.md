@@ -287,7 +287,7 @@ a golden image scenario where you want to convert an existing `VirtualMachine`
 into a reusable template.
 
 ```yaml
-apiVersion: template.kubevirt.io/v1alpha1
+apiVersion: template.kubevirt.io/v1beta1
 kind: VirtualMachineTemplateRequest
 metadata:
   name: my-template-request
@@ -296,11 +296,24 @@ spec:
   virtualMachineRef:
     namespace: my-vm-namespace     # Namespace of the source VM
     name: my-vm                    # Name of the source VM
+  templateLabels:                  # Optional: labels to apply to the created template
+    example.com/os: linux
+    example.com/workload: server
 ```
 
 Once created, the controller will generate a `VirtualMachineTemplate` based on
 the referenced `VirtualMachine` in the namespace of the
 `VirtualMachineTemplateRequest`.
+
+#### Template Labels
+
+The `templateLabels` field (available in v1beta1) allows you to apply custom
+labels to the created `VirtualMachineTemplate`. This is useful for organizing
+templates, adding metadata, or enabling label-based queries and filtering.
+
+**Note**: Labels with the prefix `template.kubevirt.io/` are reserved for
+system use. Any such labels specified in `templateLabels` will be rejected and
+filtered out, and the system-managed values will be used instead.
 
 #### Authorization
 

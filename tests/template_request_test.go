@@ -75,6 +75,10 @@ var _ = Describe("VirtualMachineTemplateRequest", func() {
 					Namespace: vm.Namespace,
 					Name:      vm.Name,
 				},
+				TemplateLabels: map[string]string{
+					"example.com/os":       "linux",
+					"example.com/workload": "server",
+				},
 			},
 		}
 
@@ -87,6 +91,10 @@ var _ = Describe("VirtualMachineTemplateRequest", func() {
 		tpl, err := tplClient.TemplateV1beta1().VirtualMachineTemplates(NamespaceTest).
 			Get(context.Background(), tplReq.Status.TemplateRef.Name, metav1.GetOptions{})
 		Expect(err).ToNot(HaveOccurred())
+
+		Expect(tpl.Labels).To(HaveKeyWithValue("example.com/os", "linux"))
+		Expect(tpl.Labels).To(HaveKeyWithValue("example.com/workload", "server"))
+		Expect(tpl.Labels).To(HaveKeyWithValue(v1beta1.LabelRequestUID, string(tplReq.UID)))
 
 		tplVM := decodeFunctestVM(tpl.Spec.VirtualMachine.Raw)
 		for _, iface := range tplVM.Spec.Template.Spec.Domain.Devices.Interfaces {

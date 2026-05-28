@@ -494,6 +494,71 @@ var _ = Describe("VirtualMachineTemplateRequest Controller VirtualMachineTemplat
 		expectCondition(tplReq, v1beta1.ConditionProgressing, metav1.ConditionFalse, v1beta1.ReasonReconciled)
 	})
 
+	It("should apply templateLabels to created VirtualMachineTemplate", func() {
+		tplReq := &v1beta1.VirtualMachineTemplateRequest{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test-labels",
+				Namespace: testNamespace,
+			},
+			Spec: v1beta1.VirtualMachineTemplateRequestSpec{
+				VirtualMachineRef: v1beta1.VirtualMachineReference{
+					Namespace: testVMNamespace,
+					Name:      testVMName,
+				},
+				TemplateLabels: map[string]string{
+					"example.com/os":       "linux",
+					"example.com/workload": "server",
+					"custom-label":         "custom-value",
+				},
+			},
+		}
+		Expect(k8sClient.Create(context.Background(), tplReq)).To(Succeed())
+		snap := createSnapshot(k8sClient, tplReq)
+		snap = setSnapshotStatus(k8sClient, snap, withPhase(snapshotv1beta1.Succeeded), withReady())
+		snapContent := createSnapshotContent(k8sClient, snap)
+		setSnapshotContentStatus(k8sClient, snapContent, true)
+		dv := createDataVolume(k8sClient, tplReq)
+		setDataVolumeStatus(k8sClient, dv, cdiv1beta1.Succeeded, true, false)
+
+		_, err := reconciler.Reconcile(ctx, reconcile.Request{
+			NamespacedName: client.ObjectKeyFromObject(tplReq),
+		})
+		Expect(err).ToNot(HaveOccurred())
+
+		tpl := &v1beta1.VirtualMachineTemplate{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      tplReq.Name,
+				Namespace: tplReq.Namespace,
+			},
+		}
+		Expect(k8sClient.Get(context.Background(), client.ObjectKeyFromObject(tpl), tpl)).To(Succeed())
+
+		Expect(tpl.Labels).To(HaveKeyWithValue("example.com/os", "linux"))
+		Expect(tpl.Labels).To(HaveKeyWithValue("example.com/workload", "server"))
+		Expect(tpl.Labels).To(HaveKeyWithValue("custom-label", "custom-value"))
+		Expect(tpl.Labels).To(HaveKeyWithValue(v1beta1.LabelRequestUID, string(tplReq.UID)))
+	})
+
+	It("should create VirtualMachineTemplate without additional labels when templateLabels is empty", func() {
+		p := setupTestPipeline(k8sClient, testNamespace, testVMNamespace)
+
+		_, err := reconciler.Reconcile(ctx, reconcile.Request{
+			NamespacedName: client.ObjectKeyFromObject(p.TplReq),
+		})
+		Expect(err).ToNot(HaveOccurred())
+
+		tpl := &v1beta1.VirtualMachineTemplate{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      p.TplReq.Name,
+				Namespace: p.TplReq.Namespace,
+			},
+		}
+		Expect(k8sClient.Get(context.Background(), client.ObjectKeyFromObject(tpl), tpl)).To(Succeed())
+
+		Expect(tpl.Labels).To(HaveKey(v1beta1.LabelRequestUID))
+		Expect(tpl.Labels).To(HaveLen(1))
+	})
+
 	It("should skip backend storage PVC when creating template", func() {
 		const (
 			backendStorageVolumeName = "persistent-state-for-test-vm"

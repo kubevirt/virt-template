@@ -790,9 +790,15 @@ func emptyDv(namespace, name string) *cdiv1beta1.DataVolume {
 
 func newTemplate(tplReq *v1beta1.VirtualMachineTemplateRequest, vmSpec *virtv1.VirtualMachineSpec) *v1beta1.VirtualMachineTemplate {
 	tpl := emptyTemplate(tplReq)
-	tpl.Labels = map[string]string{
-		v1beta1.LabelRequestUID: string(tplReq.UID),
+	tpl.Labels = make(map[string]string)
+	// Copy user-provided labels, filtering out reserved system labels
+	for k, v := range tplReq.Spec.TemplateLabels {
+		if !strings.HasPrefix(k, templateapi.GroupName+"/") {
+			tpl.Labels[k] = v
+		}
 	}
+	// Set system labels
+	tpl.Labels[v1beta1.LabelRequestUID] = string(tplReq.UID)
 	tpl.Spec = v1beta1.VirtualMachineTemplateSpec{
 		VirtualMachine: &runtime.RawExtension{
 			Object: &virtv1.VirtualMachine{
