@@ -33720,7 +33720,7 @@ func schema_kubevirtio_virt_template_api_core_v1alpha1_VirtualMachineTemplateReq
 					},
 					"templateLabels": {
 						SchemaProps: spec.SchemaProps{
-							Description: "TemplateLabels holds optional labels to apply to the created VirtualMachineTemplate.",
+							Description: "TemplateLabels holds optional labels to apply to the created VirtualMachineTemplate. Labels with the \"template.kubevirt.io/\" prefix are reserved for system use and are not allowed.",
 							Type:        []string{"object"},
 							AdditionalProperties: &spec.SchemaOrBool{
 								Allows: true,
@@ -34186,7 +34186,7 @@ func schema_kubevirtio_virt_template_api_core_v1beta1_VirtualMachineTemplateRequ
 					},
 					"templateLabels": {
 						SchemaProps: spec.SchemaProps{
-							Description: "TemplateLabels holds optional labels to apply to the created VirtualMachineTemplate.",
+							Description: "TemplateLabels holds optional labels to apply to the created VirtualMachineTemplate. Labels with the \"template.kubevirt.io/\" prefix are reserved for system use and are not allowed.",
 							Type:        []string{"object"},
 							AdditionalProperties: &spec.SchemaOrBool{
 								Allows: true,

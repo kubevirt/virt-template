@@ -11,3 +11,7 @@ spec:
   virtualMachineRef:
     namespace: my-vm-namespace
     name: my-vm
+  # Optional: labels to apply to the created VirtualMachineTemplate
+  templateLabels:
+    example.com/os: linux
+    example.com/workload: server

@@ -39,7 +39,9 @@ type VirtualMachineTemplateRequestSpec struct {
 	TemplateName string `json:"templateName,omitempty" protobuf:"bytes,2,name=templateName"`
 
 	// TemplateLabels holds optional labels to apply to the created VirtualMachineTemplate.
+	// Labels with the "template.kubevirt.io/" prefix are reserved for system use and are not allowed.
 	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:XValidation:rule="self.all(k, !k.startsWith('template.kubevirt.io/'))",message="labels with the prefix \"template.kubevirt.io/\" are reserved for system use"
 	// +optional
 	TemplateLabels map[string]string `json:"templateLabels,omitempty" protobuf:"bytes,3,rep,name=templateLabels"`
 
