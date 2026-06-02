@@ -293,6 +293,7 @@ metadata:
   name: my-template-request
 spec:
   templateName: my-template        # Optional: name for the created template
+  ttlSecondsAfterFinished: 3600    # Optional: auto-delete after 1 hour
   virtualMachineRef:
     namespace: my-vm-namespace     # Namespace of the source VM
     name: my-vm                    # Name of the source VM
@@ -304,6 +305,12 @@ spec:
 Once created, the controller will generate a `VirtualMachineTemplate` based on
 the referenced `VirtualMachine` in the namespace of the
 `VirtualMachineTemplateRequest`.
+
+The optional `ttlSecondsAfterFinished` field limits the lifetime of a
+successfully completed request. After the specified number of seconds the request
+is automatically deleted. Failed requests are never cleaned up by the TTL
+controller so they remain available for debugging. If unset, the request is not
+automatically deleted.
 
 #### Template Labels
 

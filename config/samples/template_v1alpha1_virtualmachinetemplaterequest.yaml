@@ -8,6 +8,7 @@ metadata:
     kubevirt.io: virtualmachinetemplaterequest-sample
 spec:
   templateName: my-template
+  ttlSecondsAfterFinished: 3600
   virtualMachineRef:
     namespace: my-vm-namespace
     name: my-vm

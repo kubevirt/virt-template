@@ -100,7 +100,7 @@ type VirtualMachineTemplateRequestReconciler struct {
 // +kubebuilder:rbac:groups=cdi.kubevirt.io,resources=datavolumes,verbs=get;list;watch;create;patch;delete
 // +kubebuilder:rbac:groups=cdi.kubevirt.io,resources=datavolumes/source,verbs=create
 // +kubebuilder:rbac:groups=template.kubevirt.io,resources=virtualmachinetemplates,verbs=get;list;watch;create
-// +kubebuilder:rbac:groups=template.kubevirt.io,resources=virtualmachinetemplaterequests,verbs=get;list;watch;patch
+// +kubebuilder:rbac:groups=template.kubevirt.io,resources=virtualmachinetemplaterequests,verbs=get;list;watch;patch;delete
 // +kubebuilder:rbac:groups=template.kubevirt.io,resources=virtualmachinetemplaterequests/status,verbs=get;patch
 // +kubebuilder:rbac:groups=template.kubevirt.io,resources=virtualmachinetemplaterequests/finalizers,verbs=update
 // +kubebuilder:rbac:groups=snapshot.kubevirt.io,resources=virtualmachinesnapshots,verbs=get;list;watch;create;delete
@@ -133,7 +133,7 @@ func (r *VirtualMachineTemplateRequestReconciler) Reconcile(ctx context.Context,
 
 	if !shouldReconcile(tplReq) {
 		log.V(logs.DebugLevel).Info("VirtualMachineTemplateRequest is no longer progressing, not reconciling")
-		return ctrl.Result{}, nil
+		return r.handleTTL(ctx, tplReq)
 	}
 
 	helper, err := patch.NewHelper(tplReq, r.Client)
@@ -216,6 +216,31 @@ func (r *VirtualMachineTemplateRequestReconciler) handleDeletion(
 	}
 
 	return nil
+}
+
+func (r *VirtualMachineTemplateRequestReconciler) handleTTL(
+	ctx context.Context, tplReq *v1beta1.VirtualMachineTemplateRequest,
+) (ctrl.Result, error) {
+	if tplReq.Spec.TTLSecondsAfterFinished == nil {
+		return ctrl.Result{}, nil
+	}
+
+	readyCond := meta.FindStatusCondition(tplReq.Status.Conditions, v1beta1.ConditionReady)
+	if readyCond == nil || readyCond.Status != metav1.ConditionTrue {
+		return ctrl.Result{}, nil
+	}
+
+	ttl := time.Duration(*tplReq.Spec.TTLSecondsAfterFinished) * time.Second
+	expiresAt := readyCond.LastTransitionTime.Add(ttl)
+	remaining := time.Until(expiresAt)
+
+	if remaining > 0 {
+		logf.FromContext(ctx).V(logs.DebugLevel).Info("TTL not yet expired, requeueing", "remaining", remaining)
+		return ctrl.Result{RequeueAfter: remaining}, nil
+	}
+
+	logf.FromContext(ctx).Info("TTL expired, deleting VirtualMachineTemplateRequest")
+	return ctrl.Result{}, r.Delete(ctx, tplReq)
 }
 
 func (r *VirtualMachineTemplateRequestReconciler) getTemplate(
