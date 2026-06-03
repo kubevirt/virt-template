@@ -185,7 +185,7 @@ var _ = Describe("VirtualMachineTemplateRequest Controller VirtualMachineTemplat
 
 		Expect(tpl.Labels).To(HaveKeyWithValue(v1beta1.LabelRequestUID, string(p.TplReq.UID)))
 		Expect(tpl.Spec.Parameters).To(ContainElement(
-			v1beta1.Parameter{Name: paramNameName, Required: true},
+			v1beta1.Parameter{Name: paramNameName, Required: true, Generate: "expression", From: "vm-[a-z0-9]{5}"},
 		))
 
 		vm := decodeVM(tpl.Spec.VirtualMachine.Raw)

@@ -837,6 +837,8 @@ func newTemplate(tplReq *v1beta1.VirtualMachineTemplateRequest, vmSpec *virtv1.V
 			{
 				Name:     paramNameName,
 				Required: true,
+				Generate: "expression",
+				From:     "vm-[a-z0-9]{5}",
 			},
 		},
 	}
