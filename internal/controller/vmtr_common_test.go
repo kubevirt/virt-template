@@ -328,14 +328,23 @@ func expectCondition(
 	conditionType string, status metav1.ConditionStatus, reason string,
 	messageMatchers ...gomegatypes.GomegaMatcher,
 ) {
+	gExpectCondition(Default, tplReq, conditionType, status, reason, messageMatchers...)
+}
+
+func gExpectCondition(
+	g Gomega,
+	tplReq *v1beta1.VirtualMachineTemplateRequest,
+	conditionType string, status metav1.ConditionStatus, reason string,
+	messageMatchers ...gomegatypes.GomegaMatcher,
+) {
 	cond := meta.FindStatusCondition(tplReq.Status.Conditions, conditionType)
-	ExpectWithOffset(1, cond).ToNot(BeNil())
+	g.ExpectWithOffset(1, cond).ToNot(BeNil())
 	// Satisfy linters, but already ensured above
 	if cond != nil {
-		ExpectWithOffset(1, cond.Status).To(Equal(status))
-		ExpectWithOffset(1, cond.Reason).To(Equal(reason))
+		g.ExpectWithOffset(1, cond.Status).To(Equal(status))
+		g.ExpectWithOffset(1, cond.Reason).To(Equal(reason))
 		for _, matcher := range messageMatchers {
-			ExpectWithOffset(1, cond.Message).To(matcher)
+			g.ExpectWithOffset(1, cond.Message).To(matcher)
 		}
 	}
 }
