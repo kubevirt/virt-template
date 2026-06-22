@@ -30,8 +30,7 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
 	"github.com/go-logr/logr"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/selection"
+	"k8s.io/client-go/discovery"
 	cliflag "k8s.io/component-base/cli/flag"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
@@ -42,11 +41,7 @@ import (
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
-	snapshotv1beta1 "kubevirt.io/api/snapshot/v1beta1"
 	"kubevirt.io/client-go/kubecli"
-	cdiv1beta1 "kubevirt.io/containerized-data-importer-api/pkg/apis/core/v1beta1"
-
-	"kubevirt.io/virt-template-api/core/v1beta1"
 
 	"kubevirt.io/virt-template/internal/controller"
 	"kubevirt.io/virt-template/internal/scheme"
@@ -172,13 +167,11 @@ func main() {
 		metricsServerOptions.KeyName = metricsCertKey
 	}
 
-	uidSelector, err := getUIDSelector()
-	if err != nil {
-		setupLog.Error(err, "failed to create RequestUID selector")
-		os.Exit(1)
-	}
+	cfg := ctrl.GetConfigOrDie()
+	discoveryClient := discovery.NewDiscoveryClientForConfigOrDie(cfg)
+	cacheByObject, clientDisableFor := controller.ExternalCRDCacheConfig(discoveryClient)
 
-	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
+	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
 		Scheme:                 scheme.New(),
 		Metrics:                metricsServerOptions,
 		WebhookServer:          webhookServer,
@@ -199,20 +192,11 @@ func main() {
 		Cache: cache.Options{
 			ReaderFailOnMissingInformer: true,
 			DefaultTransform:            cache.TransformStripManagedFields(),
-			ByObject: map[client.Object]cache.ByObject{
-				&snapshotv1beta1.VirtualMachineSnapshot{}: {
-					Label: uidSelector,
-				},
-				&cdiv1beta1.DataVolume{}: {
-					Label: uidSelector,
-				},
-			},
+			ByObject:                    cacheByObject,
 		},
 		Client: client.Options{
 			Cache: &client.CacheOptions{
-				DisableFor: []client.Object{
-					&snapshotv1beta1.VirtualMachineSnapshotContent{},
-				},
+				DisableFor: clientDisableFor,
 			},
 		},
 	})
@@ -234,12 +218,13 @@ func main() {
 		setupLog.Error(err, "Failed to create controller", "controller", "VirtualMachineTemplate")
 		os.Exit(1)
 	}
-	if err := (&controller.VirtualMachineTemplateRequestReconciler{
-		Client:     mgr.GetClient(),
-		VirtClient: virtClient,
-		Scheme:     mgr.GetScheme(),
-	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "Failed to create controller", "controller", "VirtualMachineTemplateRequest")
+
+	if err := mgr.Add(&controller.VMTRAvailabilityController{
+		Manager:         mgr,
+		VirtClient:      virtClient,
+		DiscoveryClient: discoveryClient,
+	}); err != nil {
+		setupLog.Error(err, "Failed to add VMTR availability controller")
 		os.Exit(1)
 	}
 	if os.Getenv("ENABLE_WEBHOOKS") != "false" {
@@ -272,14 +257,6 @@ func setupWebhooks(setupLog logr.Logger, mgr ctrl.Manager) {
 		setupLog.Error(err, "Failed to create webhook", "webhook", "VirtualMachineTemplate v1beta1")
 		os.Exit(1)
 	}
-}
-
-func getUIDSelector() (labels.Selector, error) {
-	uidReq, err := labels.NewRequirement(v1beta1.LabelRequestUID, selection.Exists, nil)
-	if err != nil {
-		return nil, err
-	}
-	return labels.NewSelector().Add(*uidReq), nil
 }
 
 func appendCipherSuites(setupLog logr.Logger, tlsOpts []func(*tls.Config), cipherSuites string) []func(*tls.Config) {
