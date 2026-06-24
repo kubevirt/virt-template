@@ -43,6 +43,10 @@ const (
 	validVMWithParams     = `{"metadata":{"name":"${NAME}"},"spec":{"preference":{"name":"${PREFERENCE}"}}}`
 	invalidVMWithoutParam = `{"metadata":{"something":"something"}}`
 	invalidVMWithParam    = `{"metadata":{"something":"${NAME}"}}`
+
+	testVMValue       = "test-vm"
+	testGeneratorFrom = "[a-z]{8}"
+	testGeneratorExpr = "expression"
 )
 
 var _ = Describe("VirtualMachineTemplate Webhook Unit", func() {
@@ -60,7 +64,8 @@ var _ = Describe("VirtualMachineTemplate Webhook Unit", func() {
 		return validator.ValidateUpdate(context.Background(), nil, tpl)
 	}
 
-	DescribeTable("should accept a template with all parameters referenced",
+	DescribeTable(
+		"should accept a template with all parameters referenced",
 		func(validate func(tpl *v1alpha1.VirtualMachineTemplate) (admission.Warnings, error)) {
 			tpl := newVirtualMachineTemplateWithSpec(
 				&v1alpha1.VirtualMachineTemplateSpec{
@@ -86,7 +91,8 @@ var _ = Describe("VirtualMachineTemplate Webhook Unit", func() {
 		Entry("on update", validateOnUpdate),
 	)
 
-	DescribeTable("should reject a template with undefined parameter reference",
+	DescribeTable(
+		"should reject a template with undefined parameter reference",
 		func(validate func(tpl *v1alpha1.VirtualMachineTemplate) (admission.Warnings, error)) {
 			tpl := newVirtualMachineTemplateWithSpec(
 				&v1alpha1.VirtualMachineTemplateSpec{
@@ -109,7 +115,8 @@ var _ = Describe("VirtualMachineTemplate Webhook Unit", func() {
 		Entry("on update", validateOnUpdate),
 	)
 
-	DescribeTable("should warn about unused parameter",
+	DescribeTable(
+		"should warn about unused parameter",
 		func(validate func(tpl *v1alpha1.VirtualMachineTemplate) (admission.Warnings, error)) {
 			tpl := newVirtualMachineTemplateWithSpec(
 				&v1alpha1.VirtualMachineTemplateSpec{
@@ -135,7 +142,8 @@ var _ = Describe("VirtualMachineTemplate Webhook Unit", func() {
 		Entry("on update", validateOnUpdate),
 	)
 
-	DescribeTable("should reject and warn for template with both undefined and unused parameters",
+	DescribeTable(
+		"should reject and warn for template with both undefined and unused parameters",
 		func(validate func(tpl *v1alpha1.VirtualMachineTemplate) (admission.Warnings, error)) {
 			tpl := newVirtualMachineTemplateWithSpec(
 				&v1alpha1.VirtualMachineTemplateSpec{
@@ -161,7 +169,8 @@ var _ = Describe("VirtualMachineTemplate Webhook Unit", func() {
 		Entry("on update", validateOnUpdate),
 	)
 
-	DescribeTable("should skip processing validation and warn when required parameter has no value or generator",
+	DescribeTable(
+		"should skip processing validation and warn when required parameter has no value or generator",
 		func(validate func(tpl *v1alpha1.VirtualMachineTemplate) (admission.Warnings, error), params []v1alpha1.Parameter) {
 			tpl := newVirtualMachineTemplateWithSpec(
 				&v1alpha1.VirtualMachineTemplateSpec{
@@ -189,7 +198,8 @@ var _ = Describe("VirtualMachineTemplate Webhook Unit", func() {
 			[]v1alpha1.Parameter{{Name: param1Name, Required: true}, {Name: param2Name, Required: true}}),
 	)
 
-	DescribeTable("should reject invalid template when processing validation runs",
+	DescribeTable(
+		"should reject invalid template when processing validation runs",
 		func(validate func(tpl *v1alpha1.VirtualMachineTemplate) (admission.Warnings, error), raw string, params []v1alpha1.Parameter) {
 			tpl := newVirtualMachineTemplateWithSpec(
 				&v1alpha1.VirtualMachineTemplateSpec{
@@ -207,16 +217,16 @@ var _ = Describe("VirtualMachineTemplate Webhook Unit", func() {
 		Entry("no params on create", validateOnCreate, invalidVMWithoutParam, nil),
 		Entry("no params on update", validateOnUpdate, invalidVMWithoutParam, nil),
 		Entry("required param with value on create", validateOnCreate, invalidVMWithParam, []v1alpha1.Parameter{
-			{Name: param1Name, Required: true, Value: "test-vm"},
+			{Name: param1Name, Required: true, Value: testVMValue},
 		}),
 		Entry("required param with value on update", validateOnUpdate, invalidVMWithParam, []v1alpha1.Parameter{
-			{Name: param1Name, Required: true, Value: "test-vm"},
+			{Name: param1Name, Required: true, Value: testVMValue},
 		}),
 		Entry("required param with generator on create", validateOnCreate, invalidVMWithParam, []v1alpha1.Parameter{
-			{Name: param1Name, Required: true, Generate: "expression", From: "[a-z]{8}"},
+			{Name: param1Name, Required: true, Generate: testGeneratorExpr, From: testGeneratorFrom},
 		}),
 		Entry("required param with generator on update", validateOnUpdate, invalidVMWithParam, []v1alpha1.Parameter{
-			{Name: param1Name, Required: true, Generate: "expression", From: "[a-z]{8}"},
+			{Name: param1Name, Required: true, Generate: testGeneratorExpr, From: testGeneratorFrom},
 		}),
 	)
 })

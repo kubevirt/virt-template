@@ -67,12 +67,14 @@ func generateParameterValues(
 		if newParam.Value == "" && newParam.Generate != "" {
 			g, ok := generators[newParam.Generate]
 			if !ok {
-				return nil, field.Invalid(path.Child("generate"), newParam.Generate,
+				return nil, field.Invalid(
+					path.Child("generate"), newParam.Generate,
 					fmt.Sprintf("unknown generator name '%v' for parameter '%s'", newParam.Generate, newParam.Name),
 				)
 			}
 			if newParam.From == "" {
-				return nil, field.Invalid(path.Child("from"), newParam.From,
+				return nil, field.Invalid(
+					path.Child("from"), newParam.From,
 					fmt.Sprintf("from cannot be empty for parameter '%s' using generator '%s'", newParam.Name, newParam.Generate),
 				)
 			}
@@ -85,7 +87,8 @@ func generateParameterValues(
 		}
 
 		if newParam.Value == "" && newParam.Required {
-			return nil, field.Required(path.Child("value"),
+			return nil, field.Required(
+				path.Child("value"),
 				fmt.Sprintf("parameter '%s' is required and a value must be specified", param.Name),
 			)
 		}

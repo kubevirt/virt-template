@@ -350,11 +350,12 @@ var _ = Describe("ExpressionValue", func() {
 			Expect(a).To(Equal("01234567"))
 		})
 
-		DescribeTable("should create alphabet from mixed range", func(from, to, expected string) {
-			a, err := subAlphabet(from[0], to[0])
-			Expect(err).ToNot(HaveOccurred())
-			Expect(a).To(Equal(expected))
-		},
+		DescribeTable(
+			"should create alphabet from mixed range", func(from, to, expected string) {
+				a, err := subAlphabet(from[0], to[0])
+				Expect(err).ToNot(HaveOccurred())
+				Expect(a).To(Equal(expected))
+			},
 			Entry("a to 7", "a", "7", "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ01234567"),
 			Entry("a to 7", "a", "Z", "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"),
 			Entry("a to 7", "j", "9", "jklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"),

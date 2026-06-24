@@ -57,22 +57,23 @@ var _ = Describe("VirtualMachineTemplateRequest Controller VirtualMachineSnapsho
 		snapContent = createSnapshotContent(k8sClient, snap)
 	})
 
-	DescribeTable("should wait and requeue after 10 seconds when snapshot content is not ready", func(setStatus bool) {
-		if setStatus {
-			setSnapshotContentStatus(k8sClient, snapContent, false)
-		}
+	DescribeTable(
+		"should wait and requeue after 10 seconds when snapshot content is not ready", func(setStatus bool) {
+			if setStatus {
+				setSnapshotContentStatus(k8sClient, snapContent, false)
+			}
 
-		result, err := reconciler.Reconcile(ctx, reconcile.Request{
-			NamespacedName: client.ObjectKeyFromObject(tplReq),
-		})
-		Expect(err).ToNot(HaveOccurred())
-		Expect(result.RequeueAfter).To(Equal(10 * time.Second))
+			result, err := reconciler.Reconcile(ctx, reconcile.Request{
+				NamespacedName: client.ObjectKeyFromObject(tplReq),
+			})
+			Expect(err).ToNot(HaveOccurred())
+			Expect(result.RequeueAfter).To(Equal(10 * time.Second))
 
-		Expect(k8sClient.Get(context.Background(), client.ObjectKeyFromObject(tplReq), tplReq)).To(Succeed())
-		expectCondition(tplReq, v1beta1.ConditionReady, metav1.ConditionFalse, v1beta1.ReasonWaiting,
-			ContainSubstring("Waiting for VirtualMachineSnapshotContent"))
-		expectCondition(tplReq, v1beta1.ConditionProgressing, metav1.ConditionTrue, v1beta1.ReasonWaiting)
-	},
+			Expect(k8sClient.Get(context.Background(), client.ObjectKeyFromObject(tplReq), tplReq)).To(Succeed())
+			expectCondition(tplReq, v1beta1.ConditionReady, metav1.ConditionFalse, v1beta1.ReasonWaiting,
+				ContainSubstring("Waiting for VirtualMachineSnapshotContent"))
+			expectCondition(tplReq, v1beta1.ConditionProgressing, metav1.ConditionTrue, v1beta1.ReasonWaiting)
+		},
 		Entry("when status is not set", false),
 		Entry("when ReadyToUse is false", true),
 	)

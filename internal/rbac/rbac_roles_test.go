@@ -43,6 +43,17 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
+const (
+	verbCreate           = "create"
+	verbDelete           = "delete"
+	verbDeletecollection = "deletecollection"
+	verbGet              = "get"
+	verbList             = "list"
+	verbPatch            = "patch"
+	verbUpdate           = "update"
+	verbWatch            = "watch"
+)
+
 func TestRBACRoles(t *testing.T) {
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "RBAC Roles Test Suite")
@@ -156,7 +167,7 @@ var _ = Describe("RBAC Roles", func() {
 	}
 
 	// All resource verbs we assert; tests define expected allowed subset per role.
-	allVerbs := []string{"create", "delete", "deletecollection", "get", "list", "patch", "update", "watch"}
+	allVerbs := []string{verbCreate, verbDelete, verbDeletecollection, verbGet, verbList, verbPatch, verbUpdate, verbWatch}
 
 	checkPermission := func(sa *corev1.ServiceAccount, apiGroup, resource, verb string) bool {
 		sar := &authorizationv1.SubjectAccessReview{
@@ -192,12 +203,13 @@ var _ = Describe("RBAC Roles", func() {
 		}
 	}
 
-	adminVerbs := []string{"create", "delete", "deletecollection", "get", "list", "patch", "update", "watch"}
-	editorVerbs := []string{"create", "delete", "get", "list", "patch", "update", "watch"}
-	viewerVerbs := []string{"get", "list", "watch"}
+	adminVerbs := []string{verbCreate, verbDelete, verbDeletecollection, verbGet, verbList, verbPatch, verbUpdate, verbWatch}
+	editorVerbs := []string{verbCreate, verbDelete, verbGet, verbList, verbPatch, verbUpdate, verbWatch}
+	viewerVerbs := []string{verbGet, verbList, verbWatch}
 
 	Context("VirtualMachineTemplate roles", func() {
-		DescribeTable("RBAC permissions", testRBACPermissions,
+		DescribeTable(
+			"RBAC permissions", testRBACPermissions,
 			Entry("Admin role", "virtualmachinetemplate-admin-role", templateapi.PluralResourceName, templateapi.GroupName, adminVerbs),
 			Entry("Editor role", "virtualmachinetemplate-editor-role", templateapi.PluralResourceName, templateapi.GroupName, editorVerbs),
 			Entry("Viewer role", "virtualmachinetemplate-viewer-role", templateapi.PluralResourceName, templateapi.GroupName, viewerVerbs),
@@ -205,7 +217,8 @@ var _ = Describe("RBAC Roles", func() {
 	})
 
 	Context("VirtualMachineTemplateRequest roles", func() {
-		DescribeTable("RBAC permissions", testRBACPermissions,
+		DescribeTable(
+			"RBAC permissions", testRBACPermissions,
 			Entry("Admin role", "virtualmachinetemplaterequest-admin-role",
 				templateapi.PluralRequestResourceName, templateapi.GroupName, adminVerbs),
 			Entry("Editor role", "virtualmachinetemplaterequest-editor-role",

@@ -45,12 +45,17 @@ import (
 // This file contains common constants and helpers shared among the vmtr_*_test.go files.
 
 const (
-	testVMName       = "test-vm"
-	testVolumeName   = "test-volume"
-	testDVName       = "test-dv"
-	testSnapshotName = "test-volume-snapshot"
-	testClaimName    = "test-claim"
-	wrongUID         = "wrong-uid"
+	testVMName          = "test-vm"
+	testVolumeName      = "test-volume"
+	testDVName          = "test-dv"
+	testSnapshotName    = "test-volume-snapshot"
+	testClaimName       = "test-claim"
+	wrongUID            = "wrong-uid"
+	testRequestPrefix   = "test-request-"
+	labelOS             = "example.com/os"
+	labelWorkload       = "example.com/workload"
+	labelOSLinux        = "linux"
+	labelWorkloadServer = "server"
 )
 
 type fakeKubevirtClient struct {
@@ -77,7 +82,7 @@ func (f *fakeExpandSpecInterface) ForVirtualMachine(vm *virtv1.VirtualMachine) (
 func createRequest(cli client.Client, testNamespace, testVMNamespace string) *v1beta1.VirtualMachineTemplateRequest {
 	tplReq := &v1beta1.VirtualMachineTemplateRequest{
 		ObjectMeta: metav1.ObjectMeta{
-			GenerateName: "test-request-",
+			GenerateName: testRequestPrefix,
 			Namespace:    testNamespace,
 		},
 		Spec: v1beta1.VirtualMachineTemplateRequestSpec{

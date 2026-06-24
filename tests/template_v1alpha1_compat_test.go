@@ -50,27 +50,13 @@ var _ = Describe("v1alpha1 backward compatibility", Ordered, func() {
 			Spec: v1alpha1.VirtualMachineTemplateSpec{
 				Parameters: []v1alpha1.Parameter{
 					{
-						Name:  "CPU_COUNT",
+						Name:  cpuCountParam,
 						Value: "2",
 					},
 				},
 				VirtualMachine: &runtime.RawExtension{
 					Object: &unstructured.Unstructured{
-						Object: map[string]any{
-							"apiVersion": "kubevirt.io/v1",
-							"kind":       "VirtualMachine",
-							"spec": map[string]any{
-								"template": map[string]any{
-									"spec": map[string]any{
-										"domain": map[string]any{
-											"cpu": map[string]any{
-												"cores": "${{CPU_COUNT}}",
-											},
-										},
-									},
-								},
-							},
-						},
+						Object: vmCPUCountTemplateUnstructured(),
 					},
 				},
 			},
@@ -80,7 +66,7 @@ var _ = Describe("v1alpha1 backward compatibility", Ordered, func() {
 		Expect(err).NotTo(HaveOccurred())
 
 		opts := subresourcesv1alpha1.ProcessOptions{
-			Parameters: map[string]string{"CPU_COUNT": fmt.Sprintf("%d", desiredCPUs)},
+			Parameters: map[string]string{cpuCountParam: fmt.Sprintf("%d", desiredCPUs)},
 		}
 		processed, err := tplClient.TemplateV1alpha1().VirtualMachineTemplates(NamespaceTest).
 			Process(context.Background(), template.Name, opts)

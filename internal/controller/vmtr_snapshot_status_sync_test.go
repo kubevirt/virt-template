@@ -66,19 +66,20 @@ var _ = Describe("VirtualMachineTemplateRequest Controller VirtualMachineSnapsho
 		expectCondition(tplReq, v1beta1.ConditionProgressing, metav1.ConditionTrue, v1beta1.ReasonReconciling)
 	})
 
-	DescribeTable("should set Failed condition", func(opts ...snapshotStatusOpt) {
-		setSnapshotStatus(k8sClient, snap, opts...)
+	DescribeTable(
+		"should set Failed condition", func(opts ...snapshotStatusOpt) {
+			setSnapshotStatus(k8sClient, snap, opts...)
 
-		_, err := reconciler.Reconcile(ctx, reconcile.Request{
-			NamespacedName: client.ObjectKeyFromObject(tplReq),
-		})
-		Expect(err).ToNot(HaveOccurred())
+			_, err := reconciler.Reconcile(ctx, reconcile.Request{
+				NamespacedName: client.ObjectKeyFromObject(tplReq),
+			})
+			Expect(err).ToNot(HaveOccurred())
 
-		Expect(k8sClient.Get(context.Background(), client.ObjectKeyFromObject(tplReq), tplReq)).To(Succeed())
-		expectCondition(tplReq, v1beta1.ConditionReady, metav1.ConditionFalse, v1beta1.ReasonFailed,
-			MatchRegexp("VirtualMachineSnapshot .* failed"))
-		expectCondition(tplReq, v1beta1.ConditionProgressing, metav1.ConditionFalse, v1beta1.ReasonFailed)
-	},
+			Expect(k8sClient.Get(context.Background(), client.ObjectKeyFromObject(tplReq), tplReq)).To(Succeed())
+			expectCondition(tplReq, v1beta1.ConditionReady, metav1.ConditionFalse, v1beta1.ReasonFailed,
+				MatchRegexp("VirtualMachineSnapshot .* failed"))
+			expectCondition(tplReq, v1beta1.ConditionProgressing, metav1.ConditionFalse, v1beta1.ReasonFailed)
+		},
 		Entry("when snapshot has failure condition",
 			withPhase(snapshotv1beta1.InProgress), withFailed()),
 		Entry("when snapshot phase is failed",

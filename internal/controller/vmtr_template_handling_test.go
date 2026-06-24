@@ -57,6 +57,9 @@ var _ = Describe("VirtualMachineTemplateRequest Controller VirtualMachineTemplat
 		testSecondaryIfaceName  = "secondary"
 		testSerial              = "source-serial-12345"
 		testUUID                = "source-uuid-abcde"
+
+		dataPVCName = "data-pvc"
+		efiPVCName  = "efi-pvc"
 	)
 
 	var reconciler *controller.VirtualMachineTemplateRequestReconciler
@@ -506,9 +509,9 @@ var _ = Describe("VirtualMachineTemplateRequest Controller VirtualMachineTemplat
 					Name:      testVMName,
 				},
 				TemplateLabels: map[string]string{
-					"example.com/os":       "linux",
-					"example.com/workload": "server",
-					"custom-label":         "custom-value",
+					labelOS:        labelOSLinux,
+					labelWorkload:  labelWorkloadServer,
+					"custom-label": "custom-value",
 				},
 			},
 		}
@@ -533,8 +536,8 @@ var _ = Describe("VirtualMachineTemplateRequest Controller VirtualMachineTemplat
 		}
 		Expect(k8sClient.Get(context.Background(), client.ObjectKeyFromObject(tpl), tpl)).To(Succeed())
 
-		Expect(tpl.Labels).To(HaveKeyWithValue("example.com/os", "linux"))
-		Expect(tpl.Labels).To(HaveKeyWithValue("example.com/workload", "server"))
+		Expect(tpl.Labels).To(HaveKeyWithValue(labelOS, labelOSLinux))
+		Expect(tpl.Labels).To(HaveKeyWithValue(labelWorkload, labelWorkloadServer))
 		Expect(tpl.Labels).To(HaveKeyWithValue("custom-label", "custom-value"))
 		Expect(tpl.Labels).To(HaveKeyWithValue(v1beta1.LabelRequestUID, string(tplReq.UID)))
 	})
@@ -576,7 +579,7 @@ var _ = Describe("VirtualMachineTemplateRequest Controller VirtualMachineTemplat
 				VolumeSource: virtv1.VolumeSource{
 					PersistentVolumeClaim: &virtv1.PersistentVolumeClaimVolumeSource{
 						PersistentVolumeClaimVolumeSource: corev1.PersistentVolumeClaimVolumeSource{
-							ClaimName: "data-pvc",
+							ClaimName: dataPVCName,
 						},
 					},
 				},
@@ -586,7 +589,7 @@ var _ = Describe("VirtualMachineTemplateRequest Controller VirtualMachineTemplat
 				VolumeSource: virtv1.VolumeSource{
 					PersistentVolumeClaim: &virtv1.PersistentVolumeClaimVolumeSource{
 						PersistentVolumeClaimVolumeSource: corev1.PersistentVolumeClaimVolumeSource{
-							ClaimName: "efi-pvc",
+							ClaimName: efiPVCName,
 						},
 					},
 				},
@@ -596,14 +599,14 @@ var _ = Describe("VirtualMachineTemplateRequest Controller VirtualMachineTemplat
 			{
 				VolumeName: regularVolumeName,
 				PersistentVolumeClaim: snapshotv1beta1.PersistentVolumeClaim{
-					ObjectMeta: metav1.ObjectMeta{Name: "data-pvc"},
+					ObjectMeta: metav1.ObjectMeta{Name: dataPVCName},
 				},
 				VolumeSnapshotName: ptr.To("data-snapshot"),
 			},
 			{
 				VolumeName: backendStorageVolumeName,
 				PersistentVolumeClaim: snapshotv1beta1.PersistentVolumeClaim{
-					ObjectMeta: metav1.ObjectMeta{Name: "efi-pvc"},
+					ObjectMeta: metav1.ObjectMeta{Name: efiPVCName},
 				},
 				VolumeSnapshotName: ptr.To("efi-snapshot"),
 			},

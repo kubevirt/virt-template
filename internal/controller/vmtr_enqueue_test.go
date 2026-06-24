@@ -89,16 +89,18 @@ var _ = Describe("VirtualMachineTemplateRequest controller EnqueueRequestByUID",
 		Expect(requests).To(BeNil())
 	})
 
-	DescribeTable("should enqueue request when matching request is found", func(obj client.Object) {
-		tplReq := fakeRequest()
-		Expect(fakeClient.Create(context.Background(), tplReq)).To(Succeed())
+	DescribeTable(
+		"should enqueue request when matching request is found", func(obj client.Object) {
+			tplReq := fakeRequest()
+			Expect(fakeClient.Create(context.Background(), tplReq)).To(Succeed())
 
-		requests := reconciler.EnqueueRequestByUID(context.Background(), obj)
-		Expect(requests).To(HaveLen(1))
-		Expect(requests[0].Namespace).To(Equal(tplReq.Namespace))
-		Expect(requests[0].Name).To(Equal(tplReq.Name))
-	},
-		Entry("from VirtualMachineTemplate",
+			requests := reconciler.EnqueueRequestByUID(context.Background(), obj)
+			Expect(requests).To(HaveLen(1))
+			Expect(requests[0].Namespace).To(Equal(tplReq.Namespace))
+			Expect(requests[0].Name).To(Equal(tplReq.Name))
+		},
+		Entry(
+			"from VirtualMachineTemplate",
 			&v1beta1.VirtualMachineTemplate{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      testTemplateName,
@@ -109,7 +111,8 @@ var _ = Describe("VirtualMachineTemplateRequest controller EnqueueRequestByUID",
 				},
 			},
 		),
-		Entry("from VirtualMachineSnapshot",
+		Entry(
+			"from VirtualMachineSnapshot",
 			&snapshotv1beta1.VirtualMachineSnapshot{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      testSnapshotName,

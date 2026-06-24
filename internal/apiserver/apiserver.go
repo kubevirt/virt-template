@@ -77,10 +77,12 @@ func (a *apiserver) Run(
 	config.OpenAPIConfig = openAPIConfig
 	config.OpenAPIV3Config = openapiV3Config
 
-	a.authzOpts.AlwaysAllowPaths = append(a.authzOpts.AlwaysAllowPaths,
+	a.authzOpts.AlwaysAllowPaths = append(
+		a.authzOpts.AlwaysAllowPaths,
 		"/", genericapiserver.APIGroupPrefix, "/openapi/v2", "/openapi/v3", "/openapi/v3/*",
 	)
-	a.authzOpts.AlwaysAllowPaths = append(a.authzOpts.AlwaysAllowPaths,
+	a.authzOpts.AlwaysAllowPaths = append(
+		a.authzOpts.AlwaysAllowPaths,
 		getAdditionalAlwaysAllowPaths(apiGroups)...,
 	)
 
@@ -134,7 +136,8 @@ func (a *apiserver) Run(
 func getAdditionalAlwaysAllowPaths(apiGroups APIGroups) []string {
 	var additionalAlwaysAllowPaths []string
 	for gv := range apiGroups {
-		additionalAlwaysAllowPaths = append(additionalAlwaysAllowPaths,
+		additionalAlwaysAllowPaths = append(
+			additionalAlwaysAllowPaths,
 			genericapiserver.APIGroupPrefix+"/"+gv.Group,
 			genericapiserver.APIGroupPrefix+"/"+gv.String(),
 		)

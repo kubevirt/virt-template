@@ -46,8 +46,10 @@ import (
 )
 
 const (
-	sourceSerial = "cf5d0f13-7075-48fe-a8e6-108f74e13633"
-	sourceUUID   = "354b1c05-8b0e-446c-8a0d-43d897f96c25"
+	sourceSerial       = "cf5d0f13-7075-48fe-a8e6-108f74e13633"
+	sourceUUID         = "354b1c05-8b0e-446c-8a0d-43d897f96c25"
+	vmParamNameKey     = "NAME"
+	defaultNetworkName = "default"
 )
 
 var macSeq atomic.Uint32
@@ -110,7 +112,7 @@ var _ = Describe("VirtualMachineTemplateRequest", func() {
 			context.Background(), tpl.Name,
 			subresourcesv1beta1.ProcessOptions{
 				Parameters: map[string]string{
-					"NAME": name,
+					vmParamNameKey: name,
 				},
 			},
 		)
@@ -138,7 +140,8 @@ var _ = Describe("VirtualMachineTemplateRequest", func() {
 
 	It("should create a VirtualMachineTemplate from a VM with backend storage", func() {
 		vm, err := virtClient.VirtualMachine(NamespaceSecondaryTest).Create(
-			context.Background(), newVMWithPersistentEFI(), metav1.CreateOptions{})
+			context.Background(), newVMWithPersistentEFI(), metav1.CreateOptions{},
+		)
 		Expect(err).ToNot(HaveOccurred())
 
 		Eventually(func(g Gomega) {
@@ -181,7 +184,7 @@ var _ = Describe("VirtualMachineTemplateRequest", func() {
 			context.Background(), tpl.Name,
 			subresourcesv1beta1.ProcessOptions{
 				Parameters: map[string]string{
-					"NAME": name,
+					vmParamNameKey: name,
 				},
 			},
 		)
@@ -190,7 +193,8 @@ var _ = Describe("VirtualMachineTemplateRequest", func() {
 
 		Eventually(func(g Gomega) {
 			newVM, err := virtClient.VirtualMachine(NamespaceTest).Get(
-				context.Background(), processedResult.VirtualMachine.Name, metav1.GetOptions{})
+				context.Background(), processedResult.VirtualMachine.Name, metav1.GetOptions{},
+			)
 			g.Expect(err).ToNot(HaveOccurred())
 			g.Expect(newVM.Status.Ready).To(BeTrue())
 		}, 5*time.Minute, 1*time.Second).Should(Succeed())
@@ -257,7 +261,7 @@ func newVM() *virtv1.VirtualMachine {
 						Devices: virtv1.Devices{
 							Interfaces: []virtv1.Interface{
 								{
-									Name:       "default",
+									Name:       defaultNetworkName,
 									MacAddress: nextSourceMACAddress(),
 									InterfaceBindingMethod: virtv1.InterfaceBindingMethod{
 										Masquerade: &virtv1.InterfaceMasquerade{},
@@ -272,7 +276,7 @@ func newVM() *virtv1.VirtualMachine {
 					},
 					Networks: []virtv1.Network{
 						{
-							Name:          "default",
+							Name:          defaultNetworkName,
 							NetworkSource: virtv1.NetworkSource{Pod: &virtv1.PodNetwork{}},
 						},
 					},
