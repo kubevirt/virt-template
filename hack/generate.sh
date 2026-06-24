@@ -20,13 +20,15 @@
 set -e
 
 _base_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
-_bin_dir="${_base_dir}/bin"
 _client_staging_dir="${_base_dir}/staging/src/kubevirt.io/virt-template-client-go"
 _out_dir="${_base_dir}/_out"
 
 mkdir -p "${_out_dir}"
 
-"${_bin_dir}/openapi-gen" \
+_openapi_gen=$(GOWORK=off go -C "${_base_dir}/tools" tool -n openapi-gen)
+_client_gen=$(GOWORK=off go -C "${_base_dir}/tools" tool -n client-gen)
+
+"${_openapi_gen}" \
   --output-dir "${_client_staging_dir}/api" \
   --output-pkg kubevirt.io/virt-template-client-go/api \
   --output-file openapi_generated.go \
@@ -46,7 +48,7 @@ mkdir -p "${_out_dir}"
   kubevirt.io/virt-template-api/core/subresourcesv1alpha1 \
   kubevirt.io/virt-template-api/core/subresourcesv1beta1
 
-"${_bin_dir}/client-gen" \
+"${_client_gen}" \
   --clientset-name virttemplate \
   --input-base kubevirt.io/virt-template-api \
   --input core/v1alpha1 \
