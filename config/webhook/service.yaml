@@ -9,9 +9,6 @@ metadata:
     kubevirt.io: virt-template-webhook-service
 spec:
   ipFamilyPolicy: PreferDualStack
-  ipFamilies:
-    - IPv4
-    - IPv6
   ports:
     - name: http-webhook
       port: 443
