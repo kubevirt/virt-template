@@ -10,9 +10,6 @@ metadata:
     kubevirt.io: virt-template-controller-manager-metrics-service
 spec:
   ipFamilyPolicy: PreferDualStack
-  ipFamilies:
-    - IPv4
-    - IPv6
   ports:
   - name: http-metrics
     port: 8443
