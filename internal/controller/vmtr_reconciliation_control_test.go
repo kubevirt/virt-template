@@ -103,7 +103,8 @@ var _ = Describe("VirtualMachineTemplateRequest controller reconciliation contro
 		expectCondition(tplReq, v1beta1.ConditionProgressing, metav1.ConditionTrue, v1beta1.ReasonReconciling)
 	})
 
-	DescribeTable("TTL handling",
+	DescribeTable(
+		"TTL handling",
 		func(ttl *int32, ready bool, readyAge time.Duration, expectDeleted, expectRequeue bool) {
 			status := metav1.ConditionFalse
 			reason := v1beta1.ReasonFailed
@@ -114,7 +115,7 @@ var _ = Describe("VirtualMachineTemplateRequest controller reconciliation contro
 
 			tplReq := &v1beta1.VirtualMachineTemplateRequest{
 				ObjectMeta: metav1.ObjectMeta{
-					GenerateName: "test-request-",
+					GenerateName: testRequestPrefix,
 					Namespace:    testNamespace,
 				},
 				Spec: v1beta1.VirtualMachineTemplateRequestSpec{

@@ -68,20 +68,21 @@ var _ = Describe("VirtualMachineTemplateRequest Controller VirtualMachineSnapsho
 		expectCondition(tplReq, v1beta1.ConditionProgressing, metav1.ConditionTrue, v1beta1.ReasonReconciling)
 	})
 
-	DescribeTable("should fail when VirtualMachineSnapshotContentName", func(name *string) {
-		snap.Status.VirtualMachineSnapshotContentName = name
-		Expect(k8sClient.Status().Update(context.Background(), snap)).To(Succeed())
+	DescribeTable(
+		"should fail when VirtualMachineSnapshotContentName", func(name *string) {
+			snap.Status.VirtualMachineSnapshotContentName = name
+			Expect(k8sClient.Status().Update(context.Background(), snap)).To(Succeed())
 
-		_, err := reconciler.Reconcile(ctx, reconcile.Request{
-			NamespacedName: client.ObjectKeyFromObject(tplReq),
-		})
-		matcher := ContainSubstring("does not have a VirtualMachineSnapshotContentName")
-		Expect(err).To(MatchError(matcher))
+			_, err := reconciler.Reconcile(ctx, reconcile.Request{
+				NamespacedName: client.ObjectKeyFromObject(tplReq),
+			})
+			matcher := ContainSubstring("does not have a VirtualMachineSnapshotContentName")
+			Expect(err).To(MatchError(matcher))
 
-		Expect(k8sClient.Get(context.Background(), client.ObjectKeyFromObject(tplReq), tplReq)).To(Succeed())
-		expectCondition(tplReq, v1beta1.ConditionReady, metav1.ConditionFalse, v1beta1.ReasonFailed, matcher)
-		expectCondition(tplReq, v1beta1.ConditionProgressing, metav1.ConditionFalse, v1beta1.ReasonFailed)
-	},
+			Expect(k8sClient.Get(context.Background(), client.ObjectKeyFromObject(tplReq), tplReq)).To(Succeed())
+			expectCondition(tplReq, v1beta1.ConditionReady, metav1.ConditionFalse, v1beta1.ReasonFailed, matcher)
+			expectCondition(tplReq, v1beta1.ConditionProgressing, metav1.ConditionFalse, v1beta1.ReasonFailed)
+		},
 		Entry("is nil", nil),
 		Entry("is empty", ptr.To("")),
 	)

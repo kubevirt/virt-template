@@ -38,6 +38,9 @@ var _ = Describe("Filter", func() {
 		virtualmachines                = "virtualmachines"
 		virtualmachinetemplates        = "virtualmachinetemplates"
 		virtualmachinetemplaterequests = "virtualmachinetemplaterequests"
+		virtualmachinesProcess         = virtualmachines + "/process"
+		virtualmachinesCreate          = virtualmachines + "/create"
+		virtualmachinetemplatesStatus  = virtualmachinetemplates + "/status"
 	)
 
 	Context("getParentResourceNames", func() {
@@ -58,9 +61,9 @@ var _ = Describe("Filter", func() {
 
 		It("should extract parent resource from single subresource", func() {
 			resourcesStorage := map[string]rest.Storage{
-				virtualmachines:           nil,
-				"virtualmachines/process": nil,
-				virtualmachinetemplates:   nil,
+				virtualmachines:         nil,
+				virtualmachinesProcess:  nil,
+				virtualmachinetemplates: nil,
 			}
 			parents := getParentResourceNames(resourcesStorage)
 			Expect(parents).To(ConsistOf(virtualmachines))
@@ -68,11 +71,11 @@ var _ = Describe("Filter", func() {
 
 		It("should extract parent resources from multiple subresources", func() {
 			resourcesStorage := map[string]rest.Storage{
-				virtualmachines:                  nil,
-				"virtualmachines/process":        nil,
-				"virtualmachines/create":         nil,
-				virtualmachinetemplates:          nil,
-				"virtualmachinetemplates/status": nil,
+				virtualmachines:               nil,
+				virtualmachinesProcess:        nil,
+				virtualmachinesCreate:         nil,
+				virtualmachinetemplates:       nil,
+				virtualmachinetemplatesStatus: nil,
 			}
 			parents := getParentResourceNames(resourcesStorage)
 			Expect(parents).To(ConsistOf(virtualmachines, virtualmachinetemplates))
@@ -80,10 +83,10 @@ var _ = Describe("Filter", func() {
 
 		It("should deduplicate parents with multiple subresources", func() {
 			resourcesStorage := map[string]rest.Storage{
-				virtualmachines:           nil,
-				"virtualmachines/process": nil,
-				"virtualmachines/create":  nil,
-				"virtualmachines/status":  nil,
+				virtualmachines:          nil,
+				virtualmachinesProcess:   nil,
+				virtualmachinesCreate:    nil,
+				"virtualmachines/status": nil,
 			}
 			parents := getParentResourceNames(resourcesStorage)
 			Expect(parents).To(ConsistOf(virtualmachines))
@@ -109,10 +112,10 @@ var _ = Describe("Filter", func() {
 				GroupVersion: v1alpha1,
 				APIResources: []metav1.APIResource{
 					{Name: virtualmachines, Namespaced: true},
-					{Name: "virtualmachines/process", Namespaced: true},
-					{Name: "virtualmachines/create", Namespaced: true},
+					{Name: virtualmachinesProcess, Namespaced: true},
+					{Name: virtualmachinesCreate, Namespaced: true},
 					{Name: virtualmachinetemplates, Namespaced: true},
-					{Name: "virtualmachinetemplates/status", Namespaced: true},
+					{Name: virtualmachinetemplatesStatus, Namespaced: true},
 				},
 			}
 
@@ -138,7 +141,7 @@ var _ = Describe("Filter", func() {
 
 		It("should filter out multiple resources", func() {
 			lister := &filteringAPIResourceLister{
-				groupVersion:    "v1alpha1",
+				groupVersion:    v1alpha1,
 				originalHandler: originalHandler,
 				resourcesToHide: []string{virtualmachines, virtualmachinetemplates},
 			}
@@ -186,14 +189,15 @@ var _ = Describe("Filter", func() {
 
 		It("should return cached list on subsequent calls", func() {
 			lister := &filteringAPIResourceLister{
-				groupVersion:    "v1alpha1",
+				groupVersion:    v1alpha1,
 				originalHandler: originalHandler,
 				resourcesToHide: []string{virtualmachines},
 			}
 
 			resources1 := lister.ListAPIResources()
 
-			apiResourceList.APIResources = append(apiResourceList.APIResources,
+			apiResourceList.APIResources = append(
+				apiResourceList.APIResources,
 				metav1.APIResource{
 					Name: virtualmachinetemplaterequests,
 				},

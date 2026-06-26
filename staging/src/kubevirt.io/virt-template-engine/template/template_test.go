@@ -226,13 +226,14 @@ var _ = Describe("Template", func() {
 	})
 
 	Describe("removeHardcodedNamespace", func() {
-		DescribeTable("should remove hardcoded namespace", func(obj runtime.Object) {
-			err := removeHardcodedNamespace(obj)
-			Expect(err).ToNot(HaveOccurred())
-			objMeta, err := meta.Accessor(obj)
-			Expect(err).ToNot(HaveOccurred())
-			Expect(objMeta.GetNamespace()).To(BeEmpty())
-		},
+		DescribeTable(
+			"should remove hardcoded namespace", func(obj runtime.Object) {
+				err := removeHardcodedNamespace(obj)
+				Expect(err).ToNot(HaveOccurred())
+				objMeta, err := meta.Accessor(obj)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(objMeta.GetNamespace()).To(BeEmpty())
+			},
 			Entry("from unstructured VirtualMachine object", &unstructured.Unstructured{
 				Object: map[string]any{
 					"apiVersion": "kubevirt.io/v1",
@@ -301,12 +302,13 @@ var _ = Describe("Template", func() {
 		})
 
 		Describe("substituteParameters", func() {
-			DescribeTable("should substitute string parameter", func(s, expected string) {
-				val, asString, err := substituteParameters(s, params)
-				Expect(err).ToNot(HaveOccurred())
-				Expect(val).To(Equal(expected))
-				Expect(asString).To(BeTrue())
-			},
+			DescribeTable(
+				"should substitute string parameter", func(s, expected string) {
+					val, asString, err := substituteParameters(s, params)
+					Expect(err).ToNot(HaveOccurred())
+					Expect(val).To(Equal(expected))
+					Expect(asString).To(BeTrue())
+				},
 				Entry("only param", param1Placeholder, param1Val),
 				Entry("with prefix", "prefix-"+param1Placeholder, "prefix-"+param1Val),
 				Entry("with suffix", param1Placeholder+"-suffix", param1Val+"-suffix"),
@@ -385,22 +387,24 @@ var _ = Describe("Template", func() {
 				Expect(asString).To(BeFalse())
 			})
 
-			DescribeTable("should return error when param not found", func(params map[string]v1beta1.Parameter) {
-				val, asString, err := substituteParameters(param1Placeholder, params)
-				Expect(err).To(MatchError("found parameter 'NAME' but it was not defined"))
-				Expect(val).To(BeEmpty())
-				Expect(asString).To(BeFalse())
-			},
+			DescribeTable(
+				"should return error when param not found", func(params map[string]v1beta1.Parameter) {
+					val, asString, err := substituteParameters(param1Placeholder, params)
+					Expect(err).To(MatchError("found parameter 'NAME' but it was not defined"))
+					Expect(val).To(BeEmpty())
+					Expect(asString).To(BeFalse())
+				},
 				Entry("on empty map", make(map[string]v1beta1.Parameter)),
 				Entry("on nil map", nil),
 			)
 
-			DescribeTable("should handle params map", func(params map[string]v1beta1.Parameter) {
-				val, asString, err := substituteParameters("", params)
-				Expect(err).ToNot(HaveOccurred())
-				Expect(val).To(BeEmpty())
-				Expect(asString).To(BeTrue())
-			},
+			DescribeTable(
+				"should handle params map", func(params map[string]v1beta1.Parameter) {
+					val, asString, err := substituteParameters("", params)
+					Expect(err).ToNot(HaveOccurred())
+					Expect(val).To(BeEmpty())
+					Expect(asString).To(BeTrue())
+				},
 				Entry("when empty", make(map[string]v1beta1.Parameter)),
 				Entry("when nil", nil),
 			)

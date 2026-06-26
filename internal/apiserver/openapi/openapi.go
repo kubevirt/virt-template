@@ -45,13 +45,15 @@ var info = &spec.Info{
 	},
 }
 
+const defaultResponseDescription = "Default Response."
+
 func NewConfig(scheme *runtime.Scheme) *common.Config {
 	return &common.Config{
 		ProtocolList: []string{"https"},
 		Info:         info,
 		DefaultResponse: &spec.Response{
 			ResponseProps: spec.ResponseProps{
-				Description: "Default Response.",
+				Description: defaultResponseDescription,
 			},
 		},
 		GetOperationIDAndTags: openapi.GetOperationIDAndTags,
@@ -65,7 +67,7 @@ func NewV3Config(scheme *runtime.Scheme) *common.OpenAPIV3Config {
 		Info: info,
 		DefaultResponse: &spec3.Response{
 			ResponseProps: spec3.ResponseProps{
-				Description: "Default Response.",
+				Description: defaultResponseDescription,
 			},
 		},
 		GetOperationIDAndTags: openapi.GetOperationIDAndTags,

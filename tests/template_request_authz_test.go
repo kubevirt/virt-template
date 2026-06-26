@@ -38,13 +38,15 @@ import (
 
 var _ = Describe("VirtualMachineTemplateRequest Authorization", func() {
 	const (
-		vmtrAuthzTest     = "vmtr-authz-test-"
-		roleKind          = "Role"
-		clusterRoleKind   = "ClusterRole"
-		sourceRoleName    = "virt-template-virtualmachinetemplaterequest-source-role"
-		sourceSubresource = templateapi.PluralRequestResourceName + "/source"
-		testVMName        = "test-vm"
-		verbCreate        = "create"
+		vmtrAuthzTest       = "vmtr-authz-test-"
+		roleKind            = "Role"
+		clusterRoleKind     = "ClusterRole"
+		sourceRoleName      = "virt-template-virtualmachinetemplaterequest-source-role"
+		sourceSubresource   = templateapi.PluralRequestResourceName + "/source"
+		testVMName          = "test-vm"
+		verbCreate          = "create"
+		cdiAPIGroup         = "cdi.kubevirt.io"
+		dataVolumesResource = "datavolumes"
 	)
 
 	var (
@@ -212,8 +214,8 @@ var _ = Describe("VirtualMachineTemplateRequest Authorization", func() {
 					Verbs:     []string{verbCreate},
 				},
 				{
-					APIGroups: []string{"cdi.kubevirt.io"},
-					Resources: []string{"datavolumes"},
+					APIGroups: []string{cdiAPIGroup},
+					Resources: []string{dataVolumesResource},
 					Verbs:     []string{verbCreate},
 				},
 			})
@@ -238,8 +240,8 @@ var _ = Describe("VirtualMachineTemplateRequest Authorization", func() {
 					Verbs:     []string{verbCreate},
 				},
 				{
-					APIGroups: []string{"cdi.kubevirt.io"},
-					Resources: []string{"datavolumes"},
+					APIGroups: []string{cdiAPIGroup},
+					Resources: []string{dataVolumesResource},
 					Verbs:     []string{verbCreate},
 				},
 			})

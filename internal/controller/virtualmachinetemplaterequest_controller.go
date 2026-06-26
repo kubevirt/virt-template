@@ -696,7 +696,8 @@ func isSnapshotProgressing(snap *snapshotv1beta1.VirtualMachineSnapshot) bool {
 
 func syncDataVolumeStatusConditions(ctx context.Context, tplReq *v1beta1.VirtualMachineTemplateRequest, dv *cdiv1beta1.DataVolume) {
 	logf.FromContext(ctx).V(logs.DebugLevel).Info(
-		"Syncing status conditions from DataVolume", logDVNS, dv.Namespace, logDVName, dv.Name)
+		"Syncing status conditions from DataVolume", logDVNS, dv.Namespace, logDVName, dv.Name,
+	)
 
 	progressing, present := isDataVolumeStatusConditionTrue(dv, cdiv1beta1.DataVolumeRunning)
 
@@ -946,7 +947,8 @@ func stripUniqueIdentifiers(vmSpec *virtv1.VirtualMachineSpec) {
 // SetupWithManager sets up the controller with the Manager.
 func (r *VirtualMachineTemplateRequestReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	// Add indexer required for enqueueRequestByUID
-	err := mgr.GetFieldIndexer().IndexField(context.Background(), &v1beta1.VirtualMachineTemplateRequest{}, uidField,
+	err := mgr.GetFieldIndexer().IndexField(
+		context.Background(), &v1beta1.VirtualMachineTemplateRequest{}, uidField,
 		func(obj client.Object) []string {
 			return []string{string(obj.GetUID())}
 		},

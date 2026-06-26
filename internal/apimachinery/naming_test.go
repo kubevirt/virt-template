@@ -76,11 +76,12 @@ var _ = Describe("GetStableName", func() {
 		Expect(validation.IsDNS1035Label(name)).To(BeEmpty())
 	})
 
-	DescribeTable("should truncate long base names", func(base string) {
-		name := apimachinery.GetStableName(base, input1)
-		Expect(len(name)).To(BeNumerically("<=", validation.DNS1035LabelMaxLength))
-		Expect(validation.IsDNS1035Label(name)).To(BeEmpty())
-	},
+	DescribeTable(
+		"should truncate long base names", func(base string) {
+			name := apimachinery.GetStableName(base, input1)
+			Expect(len(name)).To(BeNumerically("<=", validation.DNS1035LabelMaxLength))
+			Expect(validation.IsDNS1035Label(name)).To(BeEmpty())
+		},
 		Entry("base at max length", strings.Repeat("a", apimachinery.MaxGeneratedNameLength)),
 		Entry("base exceeding max length", strings.Repeat("b", 100)),
 	)
@@ -129,12 +130,13 @@ var _ = Describe("GetStableName", func() {
 		Expect(parts[2]).To(HaveLen(apimachinery.HashLength))
 	})
 
-	DescribeTable("should generate valid DNS-1035 labels for edge cases", func(base string, inputs ...string) {
-		name := apimachinery.GetStableName(base, inputs...)
-		Expect(name).ToNot(BeEmpty())
-		Expect(validation.IsDNS1035Label(name)).To(BeEmpty(),
-			"expected valid DNS-1035 label, got: %s", name)
-	},
+	DescribeTable(
+		"should generate valid DNS-1035 labels for edge cases", func(base string, inputs ...string) {
+			name := apimachinery.GetStableName(base, inputs...)
+			Expect(name).ToNot(BeEmpty())
+			Expect(validation.IsDNS1035Label(name)).To(BeEmpty(),
+				"expected valid DNS-1035 label, got: %s", name)
+		},
 		Entry("single character base", "a"),
 		Entry("base starting with hyphen", "-resource"),
 		Entry("base ending with hyphen", "resource-"),

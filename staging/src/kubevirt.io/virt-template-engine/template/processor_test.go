@@ -74,18 +74,19 @@ var _ = Describe("Processor", func() {
 		Expect(msg).To(BeEmpty())
 	})
 
-	DescribeTable("should return error when trying to process empty virtualMachine", func(templateVM *runtime.RawExtension) {
-		t := &v1beta1.VirtualMachineTemplate{
-			Spec: v1beta1.VirtualMachineTemplateSpec{
-				VirtualMachine: templateVM,
-			},
-		}
+	DescribeTable(
+		"should return error when trying to process empty virtualMachine", func(templateVM *runtime.RawExtension) {
+			t := &v1beta1.VirtualMachineTemplate{
+				Spec: v1beta1.VirtualMachineTemplateSpec{
+					VirtualMachine: templateVM,
+				},
+			}
 
-		vm, msg, err := p.Process(t)
-		Expect(err).To(MatchError(ContainSubstring("virtualMachine is required and cannot be empty")))
-		Expect(vm).To(BeNil())
-		Expect(msg).To(BeEmpty())
-	},
+			vm, msg, err := p.Process(t)
+			Expect(err).To(MatchError(ContainSubstring("virtualMachine is required and cannot be empty")))
+			Expect(vm).To(BeNil())
+			Expect(msg).To(BeEmpty())
+		},
 		Entry("nil", nil),
 		Entry("empty object", &runtime.RawExtension{}),
 	)
@@ -155,24 +156,25 @@ var _ = Describe("Processor", func() {
 		Expect(msg).To(BeEmpty())
 	})
 
-	DescribeTable("should return error when encountering unknown field with", func(templateVM *runtime.RawExtension) {
-		t := &v1beta1.VirtualMachineTemplate{
-			Spec: v1beta1.VirtualMachineTemplateSpec{
-				Parameters: []v1beta1.Parameter{
-					{
-						Name:  param1Name,
-						Value: param1Val,
+	DescribeTable(
+		"should return error when encountering unknown field with", func(templateVM *runtime.RawExtension) {
+			t := &v1beta1.VirtualMachineTemplate{
+				Spec: v1beta1.VirtualMachineTemplateSpec{
+					Parameters: []v1beta1.Parameter{
+						{
+							Name:  param1Name,
+							Value: param1Val,
+						},
 					},
+					VirtualMachine: templateVM,
 				},
-				VirtualMachine: templateVM,
-			},
-		}
+			}
 
-		vm, msg, err := p.Process(t)
-		Expect(err).To(MatchError(ContainSubstring("strict decoding error: unknown field \"spec.somefield\"")))
-		Expect(vm).To(BeNil())
-		Expect(msg).To(BeEmpty())
-	},
+			vm, msg, err := p.Process(t)
+			Expect(err).To(MatchError(ContainSubstring("strict decoding error: unknown field \"spec.somefield\"")))
+			Expect(vm).To(BeNil())
+			Expect(msg).To(BeEmpty())
+		},
 		Entry("VM in Raw field", &runtime.RawExtension{
 			Raw: []byte(`{
                   "apiVersion": "kubevirt.io/v1",
@@ -201,44 +203,45 @@ var _ = Describe("Processor", func() {
 		}),
 	)
 
-	DescribeTable("should process template with", func(templateVM *runtime.RawExtension) {
-		t := &v1beta1.VirtualMachineTemplate{
-			Spec: v1beta1.VirtualMachineTemplateSpec{
-				Parameters: []v1beta1.Parameter{
-					{
-						Name:  param1Name,
-						Value: param1Val,
+	DescribeTable(
+		"should process template with", func(templateVM *runtime.RawExtension) {
+			t := &v1beta1.VirtualMachineTemplate{
+				Spec: v1beta1.VirtualMachineTemplateSpec{
+					Parameters: []v1beta1.Parameter{
+						{
+							Name:  param1Name,
+							Value: param1Val,
+						},
+						{
+							Name:  param2Name,
+							Value: param2Val,
+						},
+						{
+							Name:  param3Name,
+							Value: param3Val,
+						},
+						{
+							Name:  param4Name,
+							Value: param4Val,
+						},
+						{
+							Name:  param5Name,
+							Value: param5Val,
+						},
 					},
-					{
-						Name:  param2Name,
-						Value: param2Val,
-					},
-					{
-						Name:  param3Name,
-						Value: param3Val,
-					},
-					{
-						Name:  param4Name,
-						Value: param4Val,
-					},
-					{
-						Name:  param5Name,
-						Value: param5Val,
-					},
+					VirtualMachine: templateVM,
 				},
-				VirtualMachine: templateVM,
-			},
-		}
+			}
 
-		vm, msg, err := p.Process(t)
-		Expect(err).ToNot(HaveOccurred())
-		Expect(vm.GetObjectKind().GroupVersionKind()).To(Equal(virtv1.VirtualMachineGroupVersionKind))
-		Expect(vm.Spec.Preference.Name).To(Equal(param2Val))
-		Expect(vm.Name).To(Equal(param1Val))
-		Expect(vm.Spec.Template.Spec.Domain.CPU.Cores).To(Equal(uint32(5)))
-		Expect(vm.Spec.Template.Spec.Domain.CPU.IsolateEmulatorThread).To(BeTrue())
-		Expect(msg).To(BeEmpty())
-	},
+			vm, msg, err := p.Process(t)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(vm.GetObjectKind().GroupVersionKind()).To(Equal(virtv1.VirtualMachineGroupVersionKind))
+			Expect(vm.Spec.Preference.Name).To(Equal(param2Val))
+			Expect(vm.Name).To(Equal(param1Val))
+			Expect(vm.Spec.Template.Spec.Domain.CPU.Cores).To(Equal(uint32(5)))
+			Expect(vm.Spec.Template.Spec.Domain.CPU.IsolateEmulatorThread).To(BeTrue())
+			Expect(msg).To(BeEmpty())
+		},
 		Entry("VM in Raw field", &runtime.RawExtension{
 			Raw: []byte(`{
                   "apiVersion": "kubevirt.io/v1",
@@ -314,25 +317,26 @@ var _ = Describe("Processor", func() {
 		}),
 	)
 
-	DescribeTable("should process template and force correct GVK with", func(templateVM *runtime.RawExtension) {
-		t := &v1beta1.VirtualMachineTemplate{
-			Spec: v1beta1.VirtualMachineTemplateSpec{
-				Parameters: []v1beta1.Parameter{
-					{
-						Name:  param1Name,
-						Value: param1Val,
+	DescribeTable(
+		"should process template and force correct GVK with", func(templateVM *runtime.RawExtension) {
+			t := &v1beta1.VirtualMachineTemplate{
+				Spec: v1beta1.VirtualMachineTemplateSpec{
+					Parameters: []v1beta1.Parameter{
+						{
+							Name:  param1Name,
+							Value: param1Val,
+						},
 					},
+					VirtualMachine: templateVM,
 				},
-				VirtualMachine: templateVM,
-			},
-		}
+			}
 
-		vm, msg, err := p.Process(t)
-		Expect(err).ToNot(HaveOccurred())
-		Expect(vm.GetObjectKind().GroupVersionKind()).To(Equal(virtv1.VirtualMachineGroupVersionKind))
-		Expect(vm.Name).To(Equal(param1Val))
-		Expect(msg).To(BeEmpty())
-	},
+			vm, msg, err := p.Process(t)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(vm.GetObjectKind().GroupVersionKind()).To(Equal(virtv1.VirtualMachineGroupVersionKind))
+			Expect(vm.Name).To(Equal(param1Val))
+			Expect(msg).To(BeEmpty())
+		},
 		Entry("VM in Raw field with arbitrary GVK", &runtime.RawExtension{
 			Raw: []byte(`{
                   "apiVersion": "greatapi.io/v1alpha1",

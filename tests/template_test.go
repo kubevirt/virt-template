@@ -37,6 +37,29 @@ import (
 	"kubevirt.io/virt-template-api/core/v1beta1"
 )
 
+const (
+	cpuCountParam = "CPU_COUNT"
+	vmSpecKey     = "spec"
+)
+
+func vmCPUCountTemplateUnstructured() map[string]any {
+	return map[string]any{
+		"apiVersion": "kubevirt.io/v1",
+		"kind":       "VirtualMachine",
+		vmSpecKey: map[string]any{
+			"template": map[string]any{
+				vmSpecKey: map[string]any{
+					"domain": map[string]any{
+						"cpu": map[string]any{
+							"cores": "${{" + cpuCountParam + "}}",
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
 //nolint:dupl
 var _ = Describe("VirtualMachineTemplate", Ordered, func() {
 	It("should process a VirtualMachineTemplate and return a VirtualMachine", func() {
@@ -50,27 +73,13 @@ var _ = Describe("VirtualMachineTemplate", Ordered, func() {
 			Spec: v1beta1.VirtualMachineTemplateSpec{
 				Parameters: []v1beta1.Parameter{
 					{
-						Name:  "CPU_COUNT",
+						Name:  cpuCountParam,
 						Value: "2",
 					},
 				},
 				VirtualMachine: &runtime.RawExtension{
 					Object: &unstructured.Unstructured{
-						Object: map[string]any{
-							"apiVersion": "kubevirt.io/v1",
-							"kind":       "VirtualMachine",
-							"spec": map[string]any{
-								"template": map[string]any{
-									"spec": map[string]any{
-										"domain": map[string]any{
-											"cpu": map[string]any{
-												"cores": "${{CPU_COUNT}}",
-											},
-										},
-									},
-								},
-							},
-						},
+						Object: vmCPUCountTemplateUnstructured(),
 					},
 				},
 			},
@@ -81,7 +90,7 @@ var _ = Describe("VirtualMachineTemplate", Ordered, func() {
 
 		// Process with parameter override
 		opts := subresourcesv1beta1.ProcessOptions{
-			Parameters: map[string]string{"CPU_COUNT": fmt.Sprintf("%d", desiredCPUs)},
+			Parameters: map[string]string{cpuCountParam: fmt.Sprintf("%d", desiredCPUs)},
 		}
 		processed, err := tplClient.TemplateV1beta1().VirtualMachineTemplates(NamespaceTest).Process(context.Background(), template.Name, opts)
 		Expect(err).NotTo(HaveOccurred())
@@ -118,7 +127,8 @@ var _ = Describe("VirtualMachineTemplate", Ordered, func() {
 		processed, err := tplClient.TemplateV1beta1().VirtualMachineTemplates(NamespaceTest).CreateVirtualMachine(
 			context.Background(),
 			template.Name,
-			opts)
+			opts,
+		)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(processed).NotTo(BeNil())
 		Expect(processed.VirtualMachine.RunStrategy()).To(Equal(virtv1.RunStrategyHalted))
