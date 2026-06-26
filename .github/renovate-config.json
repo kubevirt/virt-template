@@ -1,0 +1,87 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [":gitSignOff"],
+  "requireConfig": "ignored",
+  "gitAuthor": "Renovate Bot <renovate@hollyhome.ath.cx>",
+  "baseBranchPatterns": [
+    "main"
+  ],
+  "enabledManagers": ["gomod", "github-actions"],
+  "postUpdateOptions": [
+    "gomodTidy"
+  ],
+  "packageRules": [
+    {
+      "description": "Disable openshift/api updates as they may require code changes",
+      "enabled": false,
+      "matchPackageNames": [
+        "github.com/openshift/api"
+      ]
+    },
+    {
+      "description": "Enable indirect dependency updates",
+      "matchManagers": ["gomod"],
+      "matchDepTypes": ["indirect"],
+      "enabled": true
+    },
+    {
+      "description": "Group patch and minor updates together",
+      "groupName": "all dependencies",
+      "matchUpdateTypes": [
+        "digest",
+        "patch",
+        "minor"
+      ],
+      "enabled": true
+    },
+    {
+      "description": "Group major updates separately with import path updates",
+      "groupName": "major dependencies",
+      "matchUpdateTypes": ["major"],
+      "matchDepTypes": ["require"],
+      "enabled": true,
+      "postUpdateOptions": [
+        "gomodUpdateImportPaths"
+      ]
+    },
+    {
+      "description": "Disable updates for packages that typically require code changes",
+      "matchPackageNames": [
+        "golang.org/x/{/,}**",
+        "google.golang.org/{/,}**",
+        "go.opentelemetry.io/{/,}**",
+        "github.com/onsi/ginkgo/{/,}**",
+        "github.com/go-openapi/{/,}**",
+        "github.com/grpc-ecosystem/{/,}**",
+        "github.com/prometheus/procfs{/,}**",
+        "go.etcd.io/etcd/{/,}**",
+        "k8s.io/{/,}**",
+        "kubevirt.io/{/,}**",
+        "sigs.k8s.io/{/,}**",
+        "github.com/openshift/{/,}**",
+        "github.com/prometheus-operator/{/,}**"
+      ],
+      "enabled": false
+    },
+    {
+      "description": "Disable major indirect updates as they often cause issues",
+      "groupName": "ignore",
+      "matchUpdateTypes": ["major"],
+      "matchDepTypes": ["indirect"],
+      "enabled": false
+    }
+  ],
+  "postUpgradeTasks": {
+    "commands": [
+      "make fmt",
+      "make vendor",
+      "make manifests",
+      "make generate",
+      "make vendor"
+    ],
+    "executionMode": "branch"
+  },
+  "prBodyNotes": [
+    "### Release note\n```release-note\nUpdate dependency {{depName}} to {{#if isPinDigest}}{{{newDigestShort}}}{{else}}{{#if isMajor}}{{prettyNewMajor}}{{else}}{{#if isSingleVersion}}{{prettyNewVersion}}{{else}}{{#if newValue}}{{{newValue}}}{{else}}{{{newDigestShort}}}{{/if}}{{/if}}{{/if}}{{/if}}\n```\n"
+  ]
+}
