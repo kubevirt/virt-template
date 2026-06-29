@@ -106,6 +106,9 @@ linters:
       - linters:
           - staticcheck
         text: 'SA1019: checks.SkipTestIfNoCPUManager'
+      - linters:
+          - staticcheck
+        text: 'SA1019: virttemplatefake.NewSimpleClientset'
     paths:
       - third_party$
       - builtin$
