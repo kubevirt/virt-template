@@ -21,10 +21,12 @@ package tests_test
 
 import (
 	"context"
+	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
+	authorizationv1 "k8s.io/api/authorization/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -38,13 +40,15 @@ import (
 
 var _ = Describe("VirtualMachineTemplateRequest Authorization", func() {
 	const (
-		vmtrAuthzTest     = "vmtr-authz-test-"
-		roleKind          = "Role"
-		clusterRoleKind   = "ClusterRole"
-		sourceRoleName    = "virt-template-virtualmachinetemplaterequest-source-role"
-		sourceSubresource = templateapi.PluralRequestResourceName + "/source"
-		testVMName        = "test-vm"
-		verbCreate        = "create"
+		vmtrAuthzTest       = "vmtr-authz-test-"
+		roleKind            = "Role"
+		clusterRoleKind     = "ClusterRole"
+		sourceRoleName      = "virt-template-virtualmachinetemplaterequest-source-role"
+		sourceSubresource   = templateapi.PluralRequestResourceName + "/source"
+		testVMName          = "test-vm"
+		verbCreate          = "create"
+		cdiAPIGroup         = "cdi.kubevirt.io"
+		dataVolumesResource = "datavolumes"
 	)
 
 	var (
@@ -101,7 +105,31 @@ var _ = Describe("VirtualMachineTemplateRequest Authorization", func() {
 		return role
 	}
 
-	createRoleBinding := func(namespace, roleKind, roleName string) {
+	// waitForPermission blocks until the RBAC cache reflects the expected permission for the service account.
+	waitForPermission := func(namespace, apiGroup, resource, subresource, resourceName string) {
+		GinkgoHelper()
+		userID := "system:serviceaccount:" + serviceAccount.Namespace + ":" + serviceAccount.Name
+		Eventually(func(g Gomega) {
+			sar := &authorizationv1.SubjectAccessReview{
+				Spec: authorizationv1.SubjectAccessReviewSpec{
+					User: userID,
+					ResourceAttributes: &authorizationv1.ResourceAttributes{
+						Namespace:   namespace,
+						Verb:        verbCreate,
+						Group:       apiGroup,
+						Resource:    resource,
+						Subresource: subresource,
+						Name:        resourceName,
+					},
+				},
+			}
+			result, err := virtClient.AuthorizationV1().SubjectAccessReviews().Create(context.Background(), sar, metav1.CreateOptions{})
+			g.Expect(err).ToNot(HaveOccurred())
+			g.Expect(result.Status.Allowed).To(BeTrue())
+		}, 30*time.Second, 1*time.Second).Should(Succeed())
+	}
+
+	createRoleBinding := func(namespace, roleRefKind, roleName, apiGroup, resource, subresource, resourceName string) {
 		rb := &rbacv1.RoleBinding{
 			ObjectMeta: metav1.ObjectMeta{
 				Namespace:    namespace,
@@ -116,13 +144,14 @@ var _ = Describe("VirtualMachineTemplateRequest Authorization", func() {
 			},
 			RoleRef: rbacv1.RoleRef{
 				APIGroup: "rbac.authorization.k8s.io",
-				Kind:     roleKind,
+				Kind:     roleRefKind,
 				Name:     roleName,
 			},
 		}
 		rb, err := virtClient.RbacV1().RoleBindings(namespace).Create(context.Background(), rb, metav1.CreateOptions{})
 		ExpectWithOffset(1, err).ToNot(HaveOccurred())
 		roleBindings = append(roleBindings, rb)
+		waitForPermission(namespace, apiGroup, resource, subresource, resourceName)
 	}
 
 	createTemplateRequest := func(sourceNamespace string) error {
@@ -159,7 +188,8 @@ var _ = Describe("VirtualMachineTemplateRequest Authorization", func() {
 					Verbs:     []string{verbCreate},
 				},
 			})
-			createRoleBinding(NamespaceTest, roleKind, requestRole.Name)
+			createRoleBinding(NamespaceTest, roleKind, requestRole.Name,
+				templateapi.GroupName, templateapi.PluralRequestResourceName, "", "")
 		})
 
 		It("should deny when user has no source role", func() {
@@ -175,7 +205,8 @@ var _ = Describe("VirtualMachineTemplateRequest Authorization", func() {
 					Verbs:         []string{verbCreate},
 				},
 			})
-			createRoleBinding(NamespaceSecondaryTest, roleKind, sourceRole.Name)
+			createRoleBinding(NamespaceSecondaryTest, roleKind, sourceRole.Name,
+				templateapi.GroupName, templateapi.PluralRequestResourceName, "source", "other-vm")
 
 			Expect(createTemplateRequest(NamespaceSecondaryTest)).To(MatchError(ContainSubstring("User is not allowed to use VirtualMachine")))
 		})
@@ -183,7 +214,8 @@ var _ = Describe("VirtualMachineTemplateRequest Authorization", func() {
 
 	Context("when user lacks permissions in request namespace", func() {
 		BeforeEach(func() {
-			createRoleBinding(NamespaceSecondaryTest, clusterRoleKind, sourceRoleName)
+			createRoleBinding(NamespaceSecondaryTest, clusterRoleKind, sourceRoleName,
+				templateapi.GroupName, templateapi.PluralRequestResourceName, "source", "")
 		})
 
 		It("should deny when user cannot create DataVolumes", func() {
@@ -199,7 +231,8 @@ var _ = Describe("VirtualMachineTemplateRequest Authorization", func() {
 					Verbs:     []string{verbCreate},
 				},
 			})
-			createRoleBinding(NamespaceTest, roleKind, role.Name)
+			createRoleBinding(NamespaceTest, roleKind, role.Name,
+				templateapi.GroupName, templateapi.PluralResourceName, "", "")
 
 			Expect(createTemplateRequest(NamespaceSecondaryTest)).To(MatchError(ContainSubstring("User is not allowed to create DataVolumes")))
 		})
@@ -217,7 +250,8 @@ var _ = Describe("VirtualMachineTemplateRequest Authorization", func() {
 					Verbs:     []string{verbCreate},
 				},
 			})
-			createRoleBinding(NamespaceTest, roleKind, role.Name)
+			createRoleBinding(NamespaceTest, roleKind, role.Name,
+				cdiAPIGroup, dataVolumesResource, "", "")
 
 			Expect(createTemplateRequest(NamespaceSecondaryTest)).
 				To(MatchError(ContainSubstring("User is not allowed to create VirtualMachineTemplates")))
@@ -243,7 +277,8 @@ var _ = Describe("VirtualMachineTemplateRequest Authorization", func() {
 					Verbs:     []string{verbCreate},
 				},
 			})
-			createRoleBinding(NamespaceTest, roleKind, requestRole.Name)
+			createRoleBinding(NamespaceTest, roleKind, requestRole.Name,
+				templateapi.GroupName, templateapi.PluralRequestResourceName, "", "")
 		})
 
 		It("should allow when source role restricts to the referenced resourceName", func() {
@@ -255,14 +290,16 @@ var _ = Describe("VirtualMachineTemplateRequest Authorization", func() {
 					Verbs:         []string{verbCreate},
 				},
 			})
-			createRoleBinding(NamespaceSecondaryTest, roleKind, sourceRole.Name)
+			createRoleBinding(NamespaceSecondaryTest, roleKind, sourceRole.Name,
+				templateapi.GroupName, templateapi.PluralRequestResourceName, "source", testVMName)
 
 			Expect(createTemplateRequest(NamespaceSecondaryTest)).To(Succeed())
 			Expect(tplReq.Name).ToNot(BeEmpty())
 		})
 
 		It("should allow when source role does not restrict resourceName", func() {
-			createRoleBinding(NamespaceSecondaryTest, clusterRoleKind, sourceRoleName)
+			createRoleBinding(NamespaceSecondaryTest, clusterRoleKind, sourceRoleName,
+				templateapi.GroupName, templateapi.PluralRequestResourceName, "source", "")
 
 			Expect(createTemplateRequest(NamespaceSecondaryTest)).To(Succeed())
 			Expect(tplReq.Name).ToNot(BeEmpty())
