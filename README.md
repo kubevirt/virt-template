@@ -397,6 +397,11 @@ kubectl apply -f dist/install-openshift.yaml
 
 Run `make help` to see all available make targets.
 
+Build tool versions (controller-gen, golangci-lint, gofumpt, etc.) are
+pinned in `tools/go.mod` and vendored in `tools/vendor/`. To upgrade a
+tool, update its version in `tools/go.mod` and run `make vendor` — the
+tool is rebuilt automatically on next use via `go tool`.
+
 **Kubevirtci workflows:**
 
 The project provides two kubevirtci-based development environments:

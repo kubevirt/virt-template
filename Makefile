@@ -42,33 +42,34 @@ help: ## Display this help.
 
 ##@ Development
 
-CONTROLLER_GEN_PATHS ?= "{./api/...,./internal/controller/...,./internal/webhook/...}"
-CONTROLLER_GEN_PATHS_APISERVER ?= "{./internal/apiserver/storage/...}"
+CONTROLLER_GEN_PATHS ?= "{$(CURDIR)/api/...,$(CURDIR)/internal/controller/...,$(CURDIR)/internal/webhook/...}"
+CONTROLLER_GEN_PATHS_APISERVER ?= "{$(CURDIR)/internal/apiserver/storage/...}"
+CONTROLLER_GEN_APISERVER_RBAC ?= rbac:roleName=apiserver-role,fileName=role_apiserver.yaml
 
 .PHONY: manifests
-manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
-	$(CONTROLLER_GEN) rbac:roleName=manager-role crd webhook paths=$(CONTROLLER_GEN_PATHS) output:crd:artifacts:config=config/crd/bases
-	$(CONTROLLER_GEN) rbac:roleName=apiserver-role,fileName=role_apiserver.yaml paths=$(CONTROLLER_GEN_PATHS_APISERVER)
+manifests: ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
+	$(call go-tool,controller-gen,rbac:roleName=manager-role crd webhook paths=$(CONTROLLER_GEN_PATHS) output:crd:artifacts:config=$(CURDIR)/config/crd/bases)
+	$(call go-tool,controller-gen,$(CONTROLLER_GEN_APISERVER_RBAC) paths=$(CONTROLLER_GEN_PATHS_APISERVER))
 	@# These are created by controller-gen because the subresource objects needed to be marked as root objects,
 	@# so all DeepCopy implementations are generated but we don't need them as CRDs.
-	rm config/crd/bases/subresources.template.kubevirt.io_*.yaml
+	rm $(CURDIR)/config/crd/bases/subresources.template.kubevirt.io_*.yaml
 
 .PHONY: generate
-generate: controller-gen openapi-gen client-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
-	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths=$(CONTROLLER_GEN_PATHS)
+generate: ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
+	$(call go-tool,controller-gen,object:headerFile="$(CURDIR)/hack/boilerplate.go.txt" paths=$(CONTROLLER_GEN_PATHS))
 	./hack/generate.sh
 
 .PHONY: fmt
-fmt: gofumpt ## Run gofumpt against code.
-	$(GOFUMPT) -w -extra .
+fmt: ## Run gofumpt against code.
+	$(call go-tool,gofumpt,-w -extra $(CURDIR))
 
 .PHONY: vet
 vet: ## Run go vet against code.
 	go vet ./...
 
 .PHONY: lint
-lint: golangci-lint ## Run golangci-lint linter and lint.sh script
-	$(GOLANGCI_LINT) run
+lint: ## Run golangci-lint linter and lint.sh script
+	$(call go-tool,golangci-lint,run,$(CURDIR))
 	./hack/lint.sh
 	./hack/license-header-check.sh
 
@@ -80,6 +81,7 @@ vendor: ## Update vendored modules
 	go mod tidy
 	go work sync
 	go work vendor
+	cd tools && GOWORK=off go mod tidy && GOWORK=off go mod vendor
 
 .PHONY: check-uncommitted
 check-uncommitted: ## Check for uncommitted changes.
@@ -87,14 +89,14 @@ check-uncommitted: ## Check for uncommitted changes.
 
 .PHONY: test
 test: manifests generate fmt vet setup-envtest ## Run tests.
-	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test $$(go list ./... ./staging/src/kubevirt.io/virt-template-engine/... | grep -v /tests) -coverprofile cover.out
+	KUBEBUILDER_ASSETS="$(shell GOWORK=off go -C $(CURDIR)/tools tool setup-envtest use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test $$(go list ./... ./staging/src/kubevirt.io/virt-template-engine/... | grep -v /tests) -coverprofile cover.out
 
 .PHONY: functest
 functest: manifests generate fmt vet ## Run the functional tests.
 	go test -v -timeout 0 ./tests/... -ginkgo.v -ginkgo.randomize-all $(FUNCTEST_EXTRA_ARGS)
 
 .PHONY: cluster-up
-cluster-up: cmctl ## Start a kubevirtci cluster running a stable version of KubeVirt.
+cluster-up: ## Start a kubevirtci cluster running a stable version of KubeVirt.
 	./hack/kubevirtci.sh up
 	KUBECONFIG=$$(./hack/kubevirtci.sh kubeconfig) $(MAKE) deploy-cert-manager
 
@@ -113,7 +115,7 @@ cluster-functest: ## Run the functional tests on the kubevirtci cluster running 
 	KUBECONFIG=$$(./hack/kubevirtci.sh kubeconfig) go test -v -timeout 0 ./tests/... -ginkgo.v -ginkgo.randomize-all $(FUNCTEST_EXTRA_ARGS)
 
 .PHONY: kubevirt-up
-kubevirt-up: cmctl ## Start a kubevirtci cluster running a git version of KubeVirt.
+kubevirt-up: ## Start a kubevirtci cluster running a git version of KubeVirt.
 	./hack/kubevirt.sh up
 	KUBECONFIG=$$(./hack/kubevirt.sh kubeconfig) $(MAKE) deploy-cert-manager
 
@@ -185,30 +187,30 @@ ifeq ($(CONTAINER_TOOL),podman)
 endif
 
 .PHONY: build-installer
-build-installer: manifests generate kustomize ## Generate a consolidated YAML with CRDs and deployment.
+build-installer: manifests generate ## Generate a consolidated YAML with CRDs and deployment.
 	mkdir -p dist
-	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG_CONTROLLER}
-	cd config/apiserver && $(KUSTOMIZE) edit set image apiserver=${IMG_APISERVER}
-	cd config/components/version && $(KUSTOMIZE) edit set annotation template.kubevirt.io/virt-template-version:${VERSION}
-	$(KUSTOMIZE) build config/default > dist/install.yaml
+	$(call go-tool,kustomize,edit set image controller=${IMG_CONTROLLER},$(CURDIR)/config/manager)
+	$(call go-tool,kustomize,edit set image apiserver=${IMG_APISERVER},$(CURDIR)/config/apiserver)
+	$(call go-tool,kustomize,edit set annotation template.kubevirt.io/virt-template-version:${VERSION},$(CURDIR)/config/components/version)
+	$(call go-tool,kustomize,build $(CURDIR)/config/default) > dist/install.yaml
 	hack/strip-namespace.sh dist/install.yaml
 
 .PHONY: build-installer-openshift
-build-installer-openshift: manifests generate kustomize ## Generate a consolidated YAML with CRDs and deployment for OpenShift.
+build-installer-openshift: manifests generate ## Generate a consolidated YAML with CRDs and deployment for OpenShift.
 	mkdir -p dist
-	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG_CONTROLLER}
-	cd config/apiserver && $(KUSTOMIZE) edit set image apiserver=${IMG_APISERVER}
-	cd config/components/version && $(KUSTOMIZE) edit set annotation template.kubevirt.io/virt-template-version:${VERSION}
-	$(KUSTOMIZE) build config/openshift > dist/install-openshift.yaml
+	$(call go-tool,kustomize,edit set image controller=${IMG_CONTROLLER},$(CURDIR)/config/manager)
+	$(call go-tool,kustomize,edit set image apiserver=${IMG_APISERVER},$(CURDIR)/config/apiserver)
+	$(call go-tool,kustomize,edit set annotation template.kubevirt.io/virt-template-version:${VERSION},$(CURDIR)/config/components/version)
+	$(call go-tool,kustomize,build $(CURDIR)/config/openshift) > dist/install-openshift.yaml
 	hack/strip-namespace.sh dist/install-openshift.yaml
 
 .PHONY: build-installer-virt-operator
-build-installer-virt-operator: manifests generate kustomize ## Generate a consolidated YAML with CRDs and deployment for virt-operator.
+build-installer-virt-operator: manifests generate ## Generate a consolidated YAML with CRDs and deployment for virt-operator.
 	mkdir -p dist
-	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG_CONTROLLER}
-	cd config/apiserver && $(KUSTOMIZE) edit set image apiserver=${IMG_APISERVER}
-	cd config/components/version && $(KUSTOMIZE) edit set annotation template.kubevirt.io/virt-template-version:${VERSION}
-	$(KUSTOMIZE) build config/virt-operator > dist/install-virt-operator.yaml
+	$(call go-tool,kustomize,edit set image controller=${IMG_CONTROLLER},$(CURDIR)/config/manager)
+	$(call go-tool,kustomize,edit set image apiserver=${IMG_APISERVER},$(CURDIR)/config/apiserver)
+	$(call go-tool,kustomize,edit set annotation template.kubevirt.io/virt-template-version:${VERSION},$(CURDIR)/config/components/version)
+	$(call go-tool,kustomize,build $(CURDIR)/config/virt-operator) > dist/install-virt-operator.yaml
 	hack/strip-namespace.sh dist/install-virt-operator.yaml
 
 ##@ Deployment
@@ -218,173 +220,66 @@ ifndef IGNORE_NOT_FOUND
 endif
 
 .PHONY: install
-install: manifests kustomize ## Install CRDs into the K8s cluster.
-	$(KUSTOMIZE) build config/crd | $(KUBECTL) apply -f -
+install: manifests ## Install CRDs into the K8s cluster.
+	$(call go-tool,kustomize,build $(CURDIR)/config/crd) | $(KUBECTL) apply -f -
 
 .PHONY: uninstall
-uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster. Call with ignore-not-found=true to ignore resource not found errors during deletion.
-	$(KUSTOMIZE) build config/crd | $(KUBECTL) delete --ignore-not-found=$(IGNORE_NOT_FOUND) -f -
+uninstall: manifests ## Uninstall CRDs from the K8s cluster. Call with ignore-not-found=true to ignore resource not found errors during deletion.
+	$(call go-tool,kustomize,build $(CURDIR)/config/crd) | $(KUBECTL) delete --ignore-not-found=$(IGNORE_NOT_FOUND) -f -
 
 .PHONY: deploy
-deploy: manifests kustomize ## Deploy controller and apiserver to the K8s cluster.
-	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG_CONTROLLER}
-	cd config/apiserver && $(KUSTOMIZE) edit set image apiserver=${IMG_APISERVER}
-	$(KUSTOMIZE) build config/default | $(KUBECTL) apply -f -
+deploy: manifests ## Deploy controller and apiserver to the K8s cluster.
+	$(call go-tool,kustomize,edit set image controller=${IMG_CONTROLLER},$(CURDIR)/config/manager)
+	$(call go-tool,kustomize,edit set image apiserver=${IMG_APISERVER},$(CURDIR)/config/apiserver)
+	$(call go-tool,kustomize,build $(CURDIR)/config/default) | $(KUBECTL) apply -f -
 
 .PHONY: deploy-openshift
-deploy-openshift: manifests kustomize ## Deploy controller and apiserver to the OpenShift cluster.
-	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG_CONTROLLER}
-	cd config/apiserver && $(KUSTOMIZE) edit set image apiserver=${IMG_APISERVER}
-	$(KUSTOMIZE) build config/openshift | $(KUBECTL) apply -f -
+deploy-openshift: manifests ## Deploy controller and apiserver to the OpenShift cluster.
+	$(call go-tool,kustomize,edit set image controller=${IMG_CONTROLLER},$(CURDIR)/config/manager)
+	$(call go-tool,kustomize,edit set image apiserver=${IMG_APISERVER},$(CURDIR)/config/apiserver)
+	$(call go-tool,kustomize,build $(CURDIR)/config/openshift) | $(KUBECTL) apply -f -
 
 .PHONY: undeploy
-undeploy: kustomize ## Undeploy controller and apiserver from the K8s cluster. Call with ignore-not-found=true to ignore resource not found errors during deletion.
-	$(KUSTOMIZE) build config/default | $(KUBECTL) delete --ignore-not-found=$(IGNORE_NOT_FOUND) -f -
+undeploy: ## Undeploy controller and apiserver from the K8s cluster. Call with ignore-not-found=true to ignore resource not found errors during deletion.
+	$(call go-tool,kustomize,build $(CURDIR)/config/default) | $(KUBECTL) delete --ignore-not-found=$(IGNORE_NOT_FOUND) -f -
 
 .PHONY: undeploy-openshift
-undeploy-openshift: kustomize ## Undeploy controller and apiserver from the OpenShift cluster. Call with ignore-not-found=true to ignore resource not found errors during deletion.
-	$(KUSTOMIZE) build config/openshift | $(KUBECTL) delete --ignore-not-found=$(IGNORE_NOT_FOUND) -f -
+undeploy-openshift: ## Undeploy controller and apiserver from the OpenShift cluster. Call with ignore-not-found=true to ignore resource not found errors during deletion.
+	$(call go-tool,kustomize,build $(CURDIR)/config/openshift) | $(KUBECTL) delete --ignore-not-found=$(IGNORE_NOT_FOUND) -f -
 
 CERT_MANAGER_VERSION ?= v1.20.0
 .PHONE: deploy-cert-manager
-deploy-cert-manager: cmctl
+deploy-cert-manager:
 	$(KUBECTL) apply -f "https://github.com/cert-manager/cert-manager/releases/download/$(CERT_MANAGER_VERSION)/cert-manager.yaml"
-	$(CMCTL) check api --wait=5m
+	$(call go-tool,cmctl,check api --wait=5m)
 
 ##@ Dependencies
 
-## Location to install dependencies to
+KUBECTL ?= kubectl
+
+## Location to install envtest k8s binaries
 LOCALBIN ?= $(shell pwd)/bin
 $(LOCALBIN):
 	mkdir -p $(LOCALBIN)
-
-## Platform detection
-OS ?= $(shell uname -s | tr '[:upper:]' '[:lower:]')
-ARCH ?= $(shell uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/')
-
-## Tool Binaries
-KUBECTL ?= kubectl
-KUSTOMIZE ?= $(LOCALBIN)/kustomize
-CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen
-OPENAPI_GEN ?= $(LOCALBIN)/openapi-gen
-CLIENT_GEN ?= $(LOCALBIN)/client-gen
-ENVTEST ?= $(LOCALBIN)/setup-envtest
-GOLANGCI_LINT ?= $(LOCALBIN)/golangci-lint
-GOFUMPT ?= $(LOCALBIN)/gofumpt
-CMCTL ?= $(LOCALBIN)/cmctl
-
-## Tool Versions
-CMCTL_VERSION ?= v2.4.1
-CONTROLLER_GEN_VERSION ?= v0.20.1
-#ENVTEST_VERSION is the version of controller-runtime release branch to fetch the envtest setup script (i.e. release-0.21)
-ENVTEST_VERSION ?= $(shell v='$(call gomodver,sigs.k8s.io/controller-runtime)'; \
-  [ -n "$$v" ] || { echo "Set ENVTEST_VERSION manually (controller-runtime replace has no tag)" >&2; exit 1; }; \
-  printf '%s\n' "$$v" | sed -E 's/^v?([0-9]+)\.([0-9]+).*/release-\1.\2/')
-CLIENT_GEN_VERSION ?= v0.34.3
-OPENAPI_GEN_VERSION ?= v0.0.0-20260319004828-5883c5ee87b9
-GOLANGCI_LINT_VERSION ?= v2.11.4
-GOFUMPT_VERSION ?= v0.9.2
-KUSTOMIZE_VERSION ?= v5.8.1
 
 #ENVTEST_K8S_VERSION is the version of Kubernetes to use for setting up ENVTEST binaries (i.e. 1.31)
 ENVTEST_K8S_VERSION ?= $(shell v='$(call gomodver,k8s.io/api)'; \
   [ -n "$$v" ] || { echo "Set ENVTEST_K8S_VERSION manually (k8s.io/api replace has no tag)" >&2; exit 1; }; \
   printf '%s\n' "$$v" | sed -E 's/^v?[0-9]+\.([0-9]+).*/1.\1/')
 
-.PHONY: kustomize
-kustomize: $(KUSTOMIZE) ## Install kustomize locally if necessary.
-$(KUSTOMIZE): $(LOCALBIN)
-	$(call download-tarball,$(KUSTOMIZE),https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2F$(KUSTOMIZE_VERSION)/kustomize_$(KUSTOMIZE_VERSION)_$(OS)_$(ARCH).tar.gz,$(KUSTOMIZE_VERSION))
-
-.PHONY: controller-gen
-controller-gen: $(CONTROLLER_GEN) ## Install controller-gen locally if necessary.
-$(CONTROLLER_GEN): $(LOCALBIN)
-	$(call download-binary,$(CONTROLLER_GEN),https://github.com/kubernetes-sigs/controller-tools/releases/download/$(CONTROLLER_GEN_VERSION)/controller-gen-$(OS)-$(ARCH),$(CONTROLLER_GEN_VERSION))
-
-.PHONY: openapi-gen
-openapi-gen: $(OPENAPI_GEN) ## Install openapi-gen locally if necessary.
-$(OPENAPI_GEN): $(LOCALBIN)
-	$(call go-install-tool,$(OPENAPI_GEN),k8s.io/kube-openapi/cmd/openapi-gen,$(OPENAPI_GEN_VERSION))
-
-.PHONY: client-gen
-client-gen: $(CLIENT_GEN) ## Install client-gen locally if necessary.
-$(CLIENT_GEN): $(LOCALBIN)
-	$(call go-install-tool,$(CLIENT_GEN),k8s.io/code-generator/cmd/client-gen,$(CLIENT_GEN_VERSION))
-
 .PHONY: setup-envtest
-setup-envtest: envtest ## Install the binaries required for ENVTEST in the local bin directory.
+setup-envtest: ## Install the binaries required for ENVTEST in the local bin directory.
 	@echo "Setting up envtest binaries for Kubernetes version $(ENVTEST_K8S_VERSION)..."
-	@$(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path || { \
+	@$(call go-tool,setup-envtest,use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path) || { \
 		echo "Error: Failed to set up envtest binaries for version $(ENVTEST_K8S_VERSION)."; \
 		exit 1; \
 	}
 
-.PHONY: envtest
-envtest: $(ENVTEST) ## Install setup-envtest locally if necessary.
-$(ENVTEST): $(LOCALBIN)
-	$(call go-install-tool,$(ENVTEST),sigs.k8s.io/controller-runtime/tools/setup-envtest,$(ENVTEST_VERSION))
-
-.PHONY: golangci-lint
-golangci-lint: $(GOLANGCI_LINT) ## Install golangci-lint locally if necessary.
-$(GOLANGCI_LINT): $(LOCALBIN)
-	$(call download-tarball,$(GOLANGCI_LINT),https://github.com/golangci/golangci-lint/releases/download/$(GOLANGCI_LINT_VERSION)/golangci-lint-$(GOLANGCI_LINT_VERSION:v%=%)-$(OS)-$(ARCH).tar.gz,$(GOLANGCI_LINT_VERSION))
-
-.PHONY: gofumpt
-gofumpt: $(GOFUMPT) ## Install gofumpt locally if necessary.
-$(GOFUMPT): $(LOCALBIN)
-	$(call download-binary,$(GOFUMPT),https://github.com/mvdan/gofumpt/releases/download/$(GOFUMPT_VERSION)/gofumpt_$(GOFUMPT_VERSION)_$(OS)_$(ARCH),$(GOFUMPT_VERSION))
-
-.PHONY: cmctl
-cmctl: $(CMCTL) ## Install cmctl locally if necessary.
-$(CMCTL): $(LOCALBIN)
-	$(call download-binary,$(CMCTL),https://github.com/cert-manager/cmctl/releases/download/$(CMCTL_VERSION)/cmctl_$(OS)_$(ARCH),$(CMCTL_VERSION))
-
-# download-binary downloads a plain binary from a URL.
-# $1 - target tool path
-# $2 - download URL
-# $3 - tool version
-define download-binary
-@[ -f "$(1)-$(3)" ] && [ "$$(readlink -- "$(1)" 2>/dev/null)" = "$(1)-$(3)" ] || { \
-set -e; \
-echo "Downloading $(notdir $(1)) $(3)"; \
-curl -sSfL -o $(1)-$(3) $(2); \
-chmod +x $(1)-$(3); \
-} ;\
-ln -sf "$$(realpath "$(1)-$(3)")" "$(1)"
-endef
-
-# download-tarball downloads and extracts a tool from a tar.gz archive.
-# Handles both flat and nested archives by extracting to a temp dir.
-# $1 - target tool path
-# $2 - download URL
-# $3 - tool version
-define download-tarball
-@[ -f "$(1)-$(3)" ] && [ "$$(readlink -- "$(1)" 2>/dev/null)" = "$(1)-$(3)" ] || { \
-set -e; \
-echo "Downloading $(notdir $(1)) $(3)"; \
-TMP_DIR=$$(mktemp -d); \
-curl -sSfL $(2) | tar xz -C $${TMP_DIR}; \
-mv -f $$(find $${TMP_DIR} -name $(notdir $(1)) -type f) $(1)-$(3); \
-chmod +x $(1)-$(3); \
-rm -rf $${TMP_DIR}; \
-} ;\
-ln -sf "$$(realpath "$(1)-$(3)")" "$(1)"
-endef
-
-# go-install-tool will 'go install' any package with custom target and name of binary, if it doesn't exist
-# $1 - target path with name of binary
-# $2 - package url which can be installed
-# $3 - specific version of package
-define go-install-tool
-@[ -f "$(1)-$(3)" ] && [ "$$(readlink -- "$(1)" 2>/dev/null)" = "$(1)-$(3)" ] || { \
-set -e; \
-package=$(2)@$(3) ;\
-echo "Downloading $${package}" ;\
-rm -f "$(1)" ;\
-GOWORK=off GOBIN="$(LOCALBIN)" go install $${package} ;\
-mv "$(LOCALBIN)/$$(basename "$(1)")" "$(1)-$(3)" ;\
-} ;\
-ln -sf "$$(realpath "$(1)-$(3)")" "$(1)"
+# go-tool runs a build tool declared in tools/go.mod via Go's tool cache.
+# Tool versions are pinned in tools/go.mod; Go's build cache avoids redundant rebuilds.
+# $1 = tool name, $2 = tool arguments, $3 = working directory (default: project root)
+define go-tool
+sh -c 'cd $(or $(3),$(CURDIR)) && $$(GOWORK=off go -C $(CURDIR)/tools tool -n $(1)) $(2)'
 endef
 
 define gomodver
