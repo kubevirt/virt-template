@@ -33,10 +33,13 @@ import (
 	"time"
 
 	"github.com/emicklei/go-restful/v3"
+	apidiscoveryv2 "k8s.io/api/apidiscovery/v2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apiserver/pkg/endpoints"
 	"k8s.io/apiserver/pkg/endpoints/discovery"
+	discoveryendpoint "k8s.io/apiserver/pkg/endpoints/discovery/aggregated"
 	"k8s.io/apiserver/pkg/registry/rest"
 	genericapiserver "k8s.io/apiserver/pkg/server"
 	"k8s.io/klog/v2"
@@ -57,12 +60,13 @@ func getParentResourceNames(resourcesStorage map[string]rest.Storage) []string {
 }
 
 // installFilteredAPIVersionHandler replaces the APIVersionHandler for a GroupVersion
-// to filter out specified parent resources from the returned APIResourceList.
+// to filter out parent resources from both the legacy and aggregated discovery.
 func installFilteredAPIVersionHandler(
 	gv schema.GroupVersion,
 	resourcesToHide []string,
 	container *restful.Container,
 	factory runtime.NegotiatedSerializer,
+	aggregatedDiscovery discoveryendpoint.ResourceManager,
 ) error {
 	wsPath := path.Join(genericapiserver.APIGroupPrefix, gv.Group, gv.Version)
 	var ws *restful.WebService
@@ -101,6 +105,18 @@ func installFilteredAPIVersionHandler(
 
 	handler := discovery.NewAPIVersionHandler(factory, gv, filteringLister)
 	handler.AddToWebService(ws)
+
+	// Re-register the filtered list with the aggregated discovery ResourceManager,
+	// overriding the unfiltered entry that InstallAPIGroup registered.
+	discoveryResources, err := endpoints.ConvertGroupVersionIntoToDiscovery(filteringLister.ListAPIResources())
+	if err != nil {
+		return fmt.Errorf("failed to convert filtered resources to aggregated discovery for %s: %w", gv.String(), err)
+	}
+	aggregatedDiscovery.AddGroupVersion(gv.Group, apidiscoveryv2.APIVersionDiscovery{
+		Freshness: apidiscoveryv2.DiscoveryFreshnessCurrent,
+		Version:   gv.Version,
+		Resources: discoveryResources,
+	})
 
 	return nil
 }
