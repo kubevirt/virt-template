@@ -113,7 +113,9 @@ func (a *apiserver) Run(
 		resourcesToHide := getParentResourceNames(resourcesStorage)
 		if len(resourcesToHide) > 0 {
 			klog.Infof("Hiding parent resources from APIResourceList: %v", resourcesToHide)
-			if err := installFilteredAPIVersionHandler(gv, resourcesToHide, server.Handler.GoRestfulContainer, factory); err != nil {
+			if err := installFilteredAPIVersionHandler(
+				gv, resourcesToHide, server.Handler.GoRestfulContainer, factory, server.AggregatedDiscoveryGroupManager,
+			); err != nil {
 				return err
 			}
 		}
