@@ -2,22 +2,14 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [":gitSignOff"],
   "requireConfig": "ignored",
-  "gitAuthor": "Renovate Bot <renovate@hollyhome.ath.cx>",
   "baseBranchPatterns": [
     "main"
   ],
-  "enabledManagers": ["gomod", "github-actions"],
+  "enabledManagers": ["gomod"],
   "postUpdateOptions": [
     "gomodTidy"
   ],
   "packageRules": [
-    {
-      "description": "Disable openshift/api updates as they may require code changes",
-      "enabled": false,
-      "matchPackageNames": [
-        "github.com/openshift/api"
-      ]
-    },
     {
       "description": "Enable indirect dependency updates",
       "matchManagers": ["gomod"],
