@@ -51,6 +51,9 @@ function kubevirtci::up() {
   ${_kubectl} apply -f "https://github.com/kubevirt/kubevirt/releases/download/${KUBEVIRT_VERSION}/kubevirt-operator.yaml"
   ${_kubectl} apply -f "https://github.com/kubevirt/kubevirt/releases/download/${KUBEVIRT_VERSION}/kubevirt-cr.yaml"
 
+  echo "disabling virt-template deployment in kubevirt"
+  ${_kubectl} patch kv/kubevirt -n kubevirt --type merge -p '{"spec": {"configuration": {"virtTemplateDeployment": {"enabled": false}}}}'
+
   # Get the default storage class to patch vmStateStorageClass
   DEFAULT_STORAGE_CLASS=$(${_kubectl} get storageclass -o jsonpath='{.items[?(@.metadata.annotations.storageclass\.kubernetes\.io/is-default-class=="true")].metadata.name}')
   if [ -n "$DEFAULT_STORAGE_CLASS" ]; then
