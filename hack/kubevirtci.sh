@@ -22,7 +22,15 @@ set -ex
 export KUBEVIRT_MEMORY_SIZE="${KUBEVIRT_MEMORY_SIZE:-16G}"
 export KUBEVIRT_DEPLOY_CDI="true"
 export KUBEVIRT_STORAGE="${KUBEVIRT_STORAGE:-rook-ceph-default}"
-export KUBEVIRT_VERSION=${KUBEVIRT_VERSION:-$(curl -L https://storage.googleapis.com/kubevirt-prow/devel/release/kubevirt/kubevirt/stable.txt)}
+
+function kubevirtci::latest_minor_release() {
+  local minor="$1"
+  curl -sfL https://api.github.com/repos/kubevirt/kubevirt/releases |
+    sed -n 's/.*"tag_name": "\(v'"${minor}"'\.[0-9]*\)".*/\1/p' |
+    head -1
+}
+
+export KUBEVIRT_VERSION=${KUBEVIRT_VERSION:-$(kubevirtci::latest_minor_release "1.8")}
 export KUBEVIRTCI_TAG=${KUBEVIRTCI_TAG:-$(curl -sfL https://raw.githubusercontent.com/kubevirt/kubevirt/"${KUBEVIRT_VERSION}"/kubevirtci/cluster-up/version.txt)}
 
 _base_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
