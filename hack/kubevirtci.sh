@@ -25,9 +25,31 @@ export KUBEVIRT_STORAGE="${KUBEVIRT_STORAGE:-rook-ceph-default}"
 
 function kubevirtci::latest_minor_release() {
   local minor="$1"
-  curl -sfL https://api.github.com/repos/kubevirt/kubevirt/releases |
-    sed -n 's/.*"tag_name": "\(v'"${minor}"'\.[0-9]*\)".*/\1/p' |
-    head -1
+  local latest=""
+  local page=1
+  while true; do
+    local versions
+    versions=$(
+      curl -sfL "https://api.github.com/repos/kubevirt/kubevirt/releases?per_page=100&page=${page}" |
+        jq -r '.[] | select(.prerelease==false) | .tag_name'
+    )
+
+    if [ -z "${versions}" ]; then
+      break
+    fi
+
+    latest=$(
+      echo "${versions} ${latest}" |
+        tr " " "\n" |
+        grep "^v${minor}\." |
+        sort --version-sort |
+        tail -n1
+    )
+
+    ((++page))
+  done
+
+  echo "${latest}"
 }
 
 export KUBEVIRT_VERSION=${KUBEVIRT_VERSION:-$(kubevirtci::latest_minor_release "1.8")}
