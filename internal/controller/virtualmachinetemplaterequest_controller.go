@@ -44,6 +44,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	virtv1 "kubevirt.io/api/core/v1"
+	instancetypeapi "kubevirt.io/api/instancetype"
 	snapshotv1beta1 "kubevirt.io/api/snapshot/v1beta1"
 	cdiv1beta1 "kubevirt.io/containerized-data-importer-api/pkg/apis/core/v1beta1"
 
@@ -61,6 +62,9 @@ const (
 	paramNameName   = "NAME"
 	paramName       = "${" + paramNameName + "}"
 	paramNameSuffix = "-" + paramName
+
+	paramInstancetypeName = "INSTANCETYPE"
+	paramInstancetype     = "${" + paramInstancetypeName + "}"
 
 	logNS              = "ns"
 	logName            = "name"
@@ -433,7 +437,7 @@ func (r *VirtualMachineTemplateRequestReconciler) createTemplate(
 	ctx context.Context, tplReq *v1beta1.VirtualMachineTemplateRequest,
 	snapContent *snapshotv1beta1.VirtualMachineSnapshotContent,
 ) (*v1beta1.VirtualMachineTemplate, error) {
-	vm, err := r.getExpandedVM(ctx, tplReq, snapContent)
+	vm, extraParams, err := r.getExpandedVM(ctx, tplReq, snapContent)
 	if err != nil {
 		return nil, err
 	}
@@ -461,7 +465,7 @@ func (r *VirtualMachineTemplateRequestReconciler) createTemplate(
 		transformOrAddDVT(ctx, &vm.Spec.DataVolumeTemplates, dvName, tplReq.Namespace, getDvName(tplReq, volBackup.VolumeName))
 	}
 
-	tpl := newTemplate(tplReq, &vm.Spec)
+	tpl := newTemplate(tplReq, &vm.Spec, extraParams)
 	logf.FromContext(ctx).Info("Creating VirtualMachineTemplate", logTplNS, tpl.Namespace, logTplName, tpl.Name)
 	if err := r.Client.Create(ctx, tpl); err != nil {
 		if k8serrors.IsAlreadyExists(err) {
@@ -479,10 +483,10 @@ func (r *VirtualMachineTemplateRequestReconciler) createTemplate(
 func (r *VirtualMachineTemplateRequestReconciler) getExpandedVM(
 	ctx context.Context, tplReq *v1beta1.VirtualMachineTemplateRequest,
 	snapContent *snapshotv1beta1.VirtualMachineSnapshotContent,
-) (*virtv1.VirtualMachine, error) {
+) (*virtv1.VirtualMachine, []v1beta1.Parameter, error) {
 	if snapContent.Spec.Source.VirtualMachine == nil {
 		setProgressingCondition(ctx, tplReq, metav1.ConditionFalse, v1beta1.ReasonFailed)
-		return nil, fmt.Errorf("virtualMachineSnapshotContent %s/%s has no source VirtualMachine",
+		return nil, nil, fmt.Errorf("virtualMachineSnapshotContent %s/%s has no source VirtualMachine",
 			snapContent.Namespace, snapContent.Name)
 	}
 
@@ -492,15 +496,53 @@ func (r *VirtualMachineTemplateRequestReconciler) getExpandedVM(
 		Status:     snapContent.Spec.Source.VirtualMachine.Status,
 	}
 
-	// By expanding the VM the instance types and preferences and their revisions are removed
-	// from the VM's definition. This makes handling a lot easier since no ControllerRevisions need to be copied.
-	// TODO: Add support for ControllerRevisions so instance types and preferences can be kept
-	vm, err := r.VirtClient.ExpandSpec(snapContent.Namespace).ForVirtualMachine(vm)
-	if err != nil {
-		return nil, err
+	keepInstancetype, keepPreference := canKeepInstancetypeAndPreference(vm.Spec.Instancetype, vm.Spec.Preference)
+	if keepInstancetype {
+		extraParams := []v1beta1.Parameter{{Name: paramInstancetypeName, Value: vm.Spec.Instancetype.Name}}
+		vm.Spec.Instancetype.Name = paramInstancetype
+		vm.Spec.Instancetype.RevisionName = ""
+		if vm.Spec.Preference != nil {
+			vm.Spec.Preference.RevisionName = ""
+		}
+		return vm, extraParams, nil
+	}
+	if keepPreference {
+		vm.Spec.Preference.RevisionName = ""
+		return vm, nil, nil
 	}
 
-	return vm, nil
+	// By expanding the VM the instance types and preferences and their revisions are removed
+	// from the VM's definition. This makes handling a lot easier since no ControllerRevisions need to be copied.
+	vm, err := r.VirtClient.ExpandSpec(snapContent.Namespace).ForVirtualMachine(vm)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return vm, nil, nil
+}
+
+// canKeepInstancetypeAndPreference returns whether each matcher can stay as a reference
+// instead of being expanded. Keeps when cluster-scoped and fully resolved (no InferFromVolume).
+// All-or-nothing when both are set, since KubeVirt computes some properties (e.g. CPU topology)
+// from their combination.
+func canKeepInstancetypeAndPreference(
+	instancetype *virtv1.InstancetypeMatcher, preference *virtv1.PreferenceMatcher,
+) (keepInstancetype, keepPreference bool) {
+	keepIt := instancetype != nil && isKeepableMatcher(instancetype, instancetypeapi.ClusterSingularResourceName)
+	keepPref := preference != nil && isKeepableMatcher(preference, instancetypeapi.ClusterSingularPreferenceResourceName)
+	if instancetype != nil && preference != nil && keepIt != keepPref {
+		return false, false
+	}
+	return keepIt, keepPref
+}
+
+// isKeepableMatcher reports whether a matcher can be kept as-is: cluster-scoped
+// and fully resolved (no InferFromVolume).
+func isKeepableMatcher(m virtv1.Matcher, clusterKind string) bool {
+	if kind := m.GetKind(); kind != "" && !strings.EqualFold(kind, clusterKind) {
+		return false
+	}
+	return m.GetInferFromVolume() == ""
 }
 
 func (r *VirtualMachineTemplateRequestReconciler) getBackendStoragePVCName(
@@ -813,7 +855,9 @@ func emptyDv(namespace, name string) *cdiv1beta1.DataVolume {
 	}
 }
 
-func newTemplate(tplReq *v1beta1.VirtualMachineTemplateRequest, vmSpec *virtv1.VirtualMachineSpec) *v1beta1.VirtualMachineTemplate {
+func newTemplate(
+	tplReq *v1beta1.VirtualMachineTemplateRequest, vmSpec *virtv1.VirtualMachineSpec, extraParams []v1beta1.Parameter,
+) *v1beta1.VirtualMachineTemplate {
 	tpl := emptyTemplate(tplReq)
 	tpl.Labels = make(map[string]string)
 	// Copy user-provided labels, filtering out reserved system labels
@@ -824,6 +868,16 @@ func newTemplate(tplReq *v1beta1.VirtualMachineTemplateRequest, vmSpec *virtv1.V
 	}
 	// Set system labels
 	tpl.Labels[v1beta1.LabelRequestUID] = string(tplReq.UID)
+
+	params := append([]v1beta1.Parameter{
+		{
+			Name:     paramNameName,
+			Required: true,
+			Generate: "expression",
+			From:     "vm-[a-z0-9]{5}",
+		},
+	}, extraParams...)
+
 	tpl.Spec = v1beta1.VirtualMachineTemplateSpec{
 		VirtualMachine: &runtime.RawExtension{
 			Object: &virtv1.VirtualMachine{
@@ -833,14 +887,7 @@ func newTemplate(tplReq *v1beta1.VirtualMachineTemplateRequest, vmSpec *virtv1.V
 				Spec: *vmSpec,
 			},
 		},
-		Parameters: []v1beta1.Parameter{
-			{
-				Name:     paramNameName,
-				Required: true,
-				Generate: "expression",
-				From:     "vm-[a-z0-9]{5}",
-			},
-		},
+		Parameters: params,
 	}
 
 	return tpl

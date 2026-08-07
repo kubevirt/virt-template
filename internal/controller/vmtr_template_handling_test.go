@@ -397,7 +397,7 @@ var _ = Describe("VirtualMachineTemplateRequest Controller VirtualMachineTemplat
 	})
 
 	It("should strip MAC addresses from interfaces", func() {
-		vm := reconcileWithModifiedContent(k8sClient, reconciler, func(snapContent *snapshotv1beta1.VirtualMachineSnapshotContent) {
+		_, vm := reconcileWithModifiedContent(k8sClient, reconciler, func(snapContent *snapshotv1beta1.VirtualMachineSnapshotContent) {
 			snapContent.Spec.Source.VirtualMachine.Spec.Template.Spec.Domain.Devices.Interfaces = []virtv1.Interface{
 				{Name: testIfaceName, MacAddress: testMACAddress},
 				{Name: testSecondaryIfaceName, MacAddress: testSecondaryMACAddress},
@@ -411,7 +411,7 @@ var _ = Describe("VirtualMachineTemplateRequest Controller VirtualMachineTemplat
 	})
 
 	It("should strip firmware serial", func() {
-		vm := reconcileWithModifiedContent(k8sClient, reconciler, func(snapContent *snapshotv1beta1.VirtualMachineSnapshotContent) {
+		_, vm := reconcileWithModifiedContent(k8sClient, reconciler, func(snapContent *snapshotv1beta1.VirtualMachineSnapshotContent) {
 			snapContent.Spec.Source.VirtualMachine.Spec.Template.Spec.Domain.Firmware = &virtv1.Firmware{
 				Serial: testSerial,
 			}
@@ -421,7 +421,7 @@ var _ = Describe("VirtualMachineTemplateRequest Controller VirtualMachineTemplat
 	})
 
 	It("should strip firmware UUID", func() {
-		vm := reconcileWithModifiedContent(k8sClient, reconciler, func(snapContent *snapshotv1beta1.VirtualMachineSnapshotContent) {
+		_, vm := reconcileWithModifiedContent(k8sClient, reconciler, func(snapContent *snapshotv1beta1.VirtualMachineSnapshotContent) {
 			snapContent.Spec.Source.VirtualMachine.Spec.Template.Spec.Domain.Firmware = &virtv1.Firmware{
 				UUID: testUUID,
 			}
@@ -669,7 +669,7 @@ func setupTestPipeline(cli client.Client, testNamespace, testVMNamespace string)
 func reconcileWithModifiedContent(
 	cli client.Client, reconciler *controller.VirtualMachineTemplateRequestReconciler,
 	modify func(*snapshotv1beta1.VirtualMachineSnapshotContent),
-) *virtv1.VirtualMachine {
+) (*v1beta1.VirtualMachineTemplate, *virtv1.VirtualMachine) {
 	tplReq := createRequest(cli, testNamespace, testVMNamespace)
 	snap := createSnapshot(cli, tplReq)
 	snap = setSnapshotStatus(cli, snap, withPhase(snapshotv1beta1.Succeeded), withReady())
@@ -687,7 +687,7 @@ func reconcileWithModifiedContent(
 
 	tpl := &v1beta1.VirtualMachineTemplate{}
 	ExpectWithOffset(1, cli.Get(context.Background(), client.ObjectKeyFromObject(tplReq), tpl)).To(Succeed())
-	return decodeVM(tpl.Spec.VirtualMachine.Raw)
+	return tpl, decodeVM(tpl.Spec.VirtualMachine.Raw)
 }
 
 func decodeVM(raw []byte) *virtv1.VirtualMachine {

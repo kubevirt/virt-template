@@ -55,19 +55,24 @@ const (
 
 type fakeKubevirtClient struct {
 	kubecli.KubevirtClient
-	err error
+	err    error
+	called *bool
 }
 
 type fakeExpandSpecInterface struct {
 	kubecli.ExpandSpecInterface
-	err error
+	err    error
+	called *bool
 }
 
 func (f *fakeKubevirtClient) ExpandSpec(_ string) kubecli.ExpandSpecInterface {
-	return &fakeExpandSpecInterface{err: f.err}
+	return &fakeExpandSpecInterface{err: f.err, called: f.called}
 }
 
 func (f *fakeExpandSpecInterface) ForVirtualMachine(vm *virtv1.VirtualMachine) (*virtv1.VirtualMachine, error) {
+	if f.called != nil {
+		*f.called = true
+	}
 	if f.err != nil {
 		return nil, f.err
 	}
