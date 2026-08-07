@@ -21,7 +21,7 @@ set -ex
 
 export KUBEVIRT_MEMORY_SIZE="${KUBEVIRT_MEMORY_SIZE:-16G}"
 export KUBEVIRT_STORAGE="${KUBEVIRT_STORAGE:-rook-ceph-default}"
-export KUBEVIRT_TAG="${KUBEVIRT_TAG:-main}"
+export KUBEVIRT_TAG="${KUBEVIRT_TAG:-release-1.9}"
 
 _base_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 _kubevirt_dir="${_base_dir}/_kubevirt"
@@ -41,6 +41,9 @@ function kubevirt::up() {
   make cluster-up -C "${_kubevirt_dir}" && make cluster-sync -C "${_kubevirt_dir}"
   KUBECONFIG=$(kubevirt::kubeconfig)
   export KUBECONFIG
+
+  echo "disabling virt-template deployment in kubevirt"
+  ${_kubectl} patch kv/kubevirt -n kubevirt --type merge -p '{"spec": {"configuration": {"virtTemplateDeployment": {"enabled": false}}}}'
 
   # Get the default storage class to patch vmStateStorageClass
   DEFAULT_STORAGE_CLASS=$(${_kubectl} get storageclass -o jsonpath='{.items[?(@.metadata.annotations.storageclass\.kubernetes\.io/is-default-class=="true")].metadata.name}')
