@@ -46,8 +46,12 @@ import (
 )
 
 const (
-	sourceSerial = "cf5d0f13-7075-48fe-a8e6-108f74e13633"
-	sourceUUID   = "354b1c05-8b0e-446c-8a0d-43d897f96c25"
+	sourceSerial           = "cf5d0f13-7075-48fe-a8e6-108f74e13633"
+	sourceUUID             = "354b1c05-8b0e-446c-8a0d-43d897f96c25"
+	vmParamNameKey         = "NAME"
+	vmParamInstancetypeKey = "INSTANCETYPE"
+	defaultNetworkName     = "default"
+	testInstancetype       = "u1.small"
 )
 
 var macSeq atomic.Uint32
@@ -105,17 +109,30 @@ var _ = Describe("VirtualMachineTemplateRequest", func() {
 			Expect(tplVM.Spec.Template.Spec.Domain.Firmware.UUID).To(BeEmpty(), "firmware UUID should be stripped")
 		}
 
+		Expect(tplVM.Spec.Instancetype).ToNot(BeNil(), "instancetype reference should be kept")
+		Expect(tplVM.Spec.Instancetype.Name).To(Equal("${INSTANCETYPE}"), "instancetype name should be parameterized")
+		Expect(tpl.Spec.Parameters).To(ContainElement(
+			v1beta1.Parameter{Name: vmParamInstancetypeKey, Value: testInstancetype},
+		), "template should have an INSTANCETYPE parameter with the original name as default")
+		Expect(tplVM.Spec.Preference).ToNot(BeNil(), "preference reference should be kept")
+		Expect(tplVM.Spec.Preference.Name).To(Equal("fedora"), "preference name should be kept as-is")
+
+		instancetypeName := "u1.medium"
 		name := "my-created-vm-" + rand.String(5)
 		processedVM, err := tplClient.TemplateV1beta1().VirtualMachineTemplates(NamespaceTest).CreateVirtualMachine(
 			context.Background(), tpl.Name,
 			subresourcesv1beta1.ProcessOptions{
 				Parameters: map[string]string{
-					"NAME": name,
+					vmParamNameKey:         name,
+					vmParamInstancetypeKey: instancetypeName,
 				},
 			},
 		)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(processedVM.VirtualMachine.Name).To(Equal(name))
+		Expect(processedVM.VirtualMachine.Spec.Instancetype).ToNot(BeNil())
+		Expect(processedVM.VirtualMachine.Spec.Instancetype.Name).To(Equal(instancetypeName),
+			"processed VM should use the overridden instancetype name")
 
 		var createdVM *virtv1.VirtualMachine
 		Eventually(func(g Gomega) {
@@ -245,7 +262,7 @@ func newVM() *virtv1.VirtualMachine {
 				},
 			},
 			Instancetype: &virtv1.InstancetypeMatcher{
-				Name: "u1.small",
+				Name: testInstancetype,
 			},
 			Preference: &virtv1.PreferenceMatcher{
 				Name: "fedora",
