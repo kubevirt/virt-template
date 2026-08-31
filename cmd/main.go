@@ -23,6 +23,7 @@ import (
 	"crypto/tls"
 	"flag"
 	"os"
+	"strconv"
 	"strings"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
@@ -63,6 +64,7 @@ func main() {
 	var enableHTTP2 bool
 	var cipherSuites string
 	var minTLSVersion string
+	var tlsCurvePreferences string
 	var tlsOpts []func(*tls.Config)
 	flag.StringVar(&metricsAddr, "metrics-bind-address", "0", "The address the metrics endpoint binds to. "+
 		"Use :8443 for HTTPS or :8080 for HTTP, or leave as 0 to disable the metrics service.")
@@ -93,6 +95,14 @@ func main() {
 	flag.StringVar(&minTLSVersion, "tls-min-version", "",
 		"Minimum TLS version supported. "+
 			"Possible values: "+strings.Join(cliflag.TLSPossibleVersions(), ", "))
+	flag.StringVar(&tlsCurvePreferences, "tls-curve-preferences", "",
+		"Comma-separated list of numeric Go crypto/tls CurveID values, "+
+			"as the allowed key exchange mechanisms for the server. "+
+			"The supported values depend on the Go version used. "+
+			"See https://pkg.go.dev/crypto/tls#CurveID for values supported for each Go version. "+
+			"The order of the list is ignored, and key exchange mechanisms are chosen "+
+			"by Go from this list using an internal preference order. "+
+			"If omitted, the default Go curves will be used.")
 	flag.Parse()
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
@@ -114,6 +124,7 @@ func main() {
 
 	tlsOpts = appendCipherSuites(setupLog, tlsOpts, cipherSuites)
 	tlsOpts = appendMinTLSVersion(setupLog, tlsOpts, minTLSVersion)
+	tlsOpts = appendTLSCurvePreferences(setupLog, tlsOpts, tlsCurvePreferences)
 
 	// Initial webhook TLS options
 	webhookTLSOpts := tlsOpts
@@ -294,4 +305,35 @@ func appendMinTLSVersion(setupLog logr.Logger, tlsOpts []func(*tls.Config), minT
 		c.MinVersion = minTLSVersionID
 	}
 	return append(tlsOpts, setMinTLSVersion)
+}
+
+func appendTLSCurvePreferences(
+	setupLog logr.Logger, tlsOpts []func(*tls.Config), tlsCurvePreferences string,
+) []func(*tls.Config) {
+	if tlsCurvePreferences == "" {
+		return tlsOpts
+	}
+
+	split := strings.Split(tlsCurvePreferences, ",")
+	curveIDs := make([]int32, 0, len(split))
+	for _, s := range split {
+		id, err := strconv.ParseInt(strings.TrimSpace(s), 10, 32)
+		if err != nil {
+			setupLog.Error(err, "failed to parse TLS curve preferences")
+			os.Exit(1)
+		}
+		curveIDs = append(curveIDs, int32(id))
+	}
+
+	curvePreferences, err := cliflag.TLSCurvePreferences(curveIDs)
+	if err != nil {
+		setupLog.Error(err, "failed to parse TLS curve preferences")
+		os.Exit(1)
+	}
+
+	setCurvePreferences := func(c *tls.Config) {
+		setupLog.Info("setting tls curve preferences to " + tlsCurvePreferences)
+		c.CurvePreferences = curvePreferences
+	}
+	return append(tlsOpts, setCurvePreferences)
 }
