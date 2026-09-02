@@ -52,6 +52,7 @@ const (
 	vmParamInstancetypeKey = "INSTANCETYPE"
 	defaultNetworkName     = "default"
 	testInstancetype       = "u1.small"
+	testPreference         = "fedora"
 )
 
 var macSeq atomic.Uint32
@@ -115,7 +116,7 @@ var _ = Describe("VirtualMachineTemplateRequest", func() {
 			v1beta1.Parameter{Name: vmParamInstancetypeKey, Value: testInstancetype},
 		), "template should have an INSTANCETYPE parameter with the original name as default")
 		Expect(tplVM.Spec.Preference).ToNot(BeNil(), "preference reference should be kept")
-		Expect(tplVM.Spec.Preference.Name).To(Equal("fedora"), "preference name should be kept as-is")
+		Expect(tplVM.Spec.Preference.Name).To(Equal(testPreference), "preference name should be kept as-is")
 
 		instancetypeName := "u1.medium"
 		name := "my-created-vm-" + rand.String(5)
@@ -267,7 +268,7 @@ func newVM() *virtv1.VirtualMachine {
 				Name: testInstancetype,
 			},
 			Preference: &virtv1.PreferenceMatcher{
-				Name: "fedora",
+				Name: testPreference,
 			},
 			RunStrategy: ptr.To(virtv1.RunStrategyAlways),
 			Template: &virtv1.VirtualMachineInstanceTemplateSpec{
