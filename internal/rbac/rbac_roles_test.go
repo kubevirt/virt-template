@@ -169,15 +169,16 @@ var _ = Describe("RBAC Roles", func() {
 	// All resource verbs we assert; tests define expected allowed subset per role.
 	allVerbs := []string{verbCreate, verbDelete, verbDeletecollection, verbGet, verbList, verbPatch, verbUpdate, verbWatch}
 
-	checkPermission := func(sa *corev1.ServiceAccount, apiGroup, resource, verb string) bool {
+	checkPermission := func(sa *corev1.ServiceAccount, apiGroup, resource, subresource, verb string) bool {
 		sar := &authorizationv1.SubjectAccessReview{
 			Spec: authorizationv1.SubjectAccessReviewSpec{
 				User: "system:serviceaccount:" + sa.Namespace + ":" + sa.Name,
 				ResourceAttributes: &authorizationv1.ResourceAttributes{
-					Group:     apiGroup,
-					Resource:  resource,
-					Verb:      verb,
-					Namespace: testNamespace,
+					Group:       apiGroup,
+					Resource:    resource,
+					Subresource: subresource,
+					Verb:        verb,
+					Namespace:   testNamespace,
 				},
 			},
 		}
@@ -186,17 +187,17 @@ var _ = Describe("RBAC Roles", func() {
 		return result.Status.Allowed
 	}
 
-	testRBACPermissions := func(roleName, resourceName, apiGroup string, expectedAllowedVerbs []string) {
+	testRBACPermissions := func(roleName, resourceName, subresource, apiGroup string, expectedAllowedVerbs []string) {
 		role := clusterRoles[roleName]
 		Expect(role).NotTo(BeNil())
 
 		sa := createServiceAccount(roleName + "-sa")
-		createClusterRoleBinding(roleName+"-crb", role.Name, sa)
+		createClusterRoleBinding(roleName+"-crb-"+rand.String(5), role.Name, sa)
 
 		expectedAllowed := sets.New(expectedAllowedVerbs...)
 		for _, verb := range allVerbs {
 			expected := expectedAllowed.Has(verb)
-			actual := checkPermission(sa, apiGroup, resourceName, verb)
+			actual := checkPermission(sa, apiGroup, resourceName, subresource, verb)
 			Expect(actual).To(Equal(expected),
 				"Role %s should %s have %s permission on %s",
 				roleName, map[bool]string{true: "", false: "not"}[expected], verb, resourceName)
@@ -207,12 +208,37 @@ var _ = Describe("RBAC Roles", func() {
 	editorVerbs := []string{verbCreate, verbDelete, verbGet, verbList, verbPatch, verbUpdate, verbWatch}
 	viewerVerbs := []string{verbGet, verbList, verbWatch}
 
+	adminRole := "virtualmachinetemplate-admin-role"
+	editorRole := "virtualmachinetemplate-editor-role"
+	viewerRole := "virtualmachinetemplate-viewer-role"
+	subresourceGroup := templateapi.SubresourceGroupName
+	processSubresource := "process"
+	createSubresource := "create"
+	createVerbOnly := []string{verbCreate}
+	noVerbs := []string{}
+
 	Context("VirtualMachineTemplate roles", func() {
 		DescribeTable(
 			"RBAC permissions", testRBACPermissions,
-			Entry("Admin role", "virtualmachinetemplate-admin-role", templateapi.PluralResourceName, templateapi.GroupName, adminVerbs),
-			Entry("Editor role", "virtualmachinetemplate-editor-role", templateapi.PluralResourceName, templateapi.GroupName, editorVerbs),
-			Entry("Viewer role", "virtualmachinetemplate-viewer-role", templateapi.PluralResourceName, templateapi.GroupName, viewerVerbs),
+			Entry("Admin role", adminRole, templateapi.PluralResourceName, "", templateapi.GroupName, adminVerbs),
+			Entry("Editor role", editorRole, templateapi.PluralResourceName, "", templateapi.GroupName, editorVerbs),
+			Entry("Viewer role", viewerRole, templateapi.PluralResourceName, "", templateapi.GroupName, viewerVerbs),
+		)
+
+		DescribeTable(
+			"subresource RBAC permissions", testRBACPermissions,
+			Entry("Admin role process", adminRole, templateapi.PluralResourceName, processSubresource,
+				subresourceGroup, createVerbOnly),
+			Entry("Editor role process", editorRole, templateapi.PluralResourceName, processSubresource,
+				subresourceGroup, createVerbOnly),
+			Entry("Viewer role process", viewerRole, templateapi.PluralResourceName, processSubresource,
+				subresourceGroup, createVerbOnly),
+			Entry("Admin role create", adminRole, templateapi.PluralResourceName, createSubresource,
+				subresourceGroup, createVerbOnly),
+			Entry("Editor role create", editorRole, templateapi.PluralResourceName, createSubresource,
+				subresourceGroup, createVerbOnly),
+			Entry("Viewer role create", viewerRole, templateapi.PluralResourceName, createSubresource,
+				subresourceGroup, noVerbs),
 		)
 	})
 
@@ -220,11 +246,11 @@ var _ = Describe("RBAC Roles", func() {
 		DescribeTable(
 			"RBAC permissions", testRBACPermissions,
 			Entry("Admin role", "virtualmachinetemplaterequest-admin-role",
-				templateapi.PluralRequestResourceName, templateapi.GroupName, adminVerbs),
+				templateapi.PluralRequestResourceName, "", templateapi.GroupName, adminVerbs),
 			Entry("Editor role", "virtualmachinetemplaterequest-editor-role",
-				templateapi.PluralRequestResourceName, templateapi.GroupName, editorVerbs),
+				templateapi.PluralRequestResourceName, "", templateapi.GroupName, editorVerbs),
 			Entry("Viewer role", "virtualmachinetemplaterequest-viewer-role",
-				templateapi.PluralRequestResourceName, templateapi.GroupName, viewerVerbs),
+				templateapi.PluralRequestResourceName, "", templateapi.GroupName, viewerVerbs),
 		)
 	})
 })
