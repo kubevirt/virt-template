@@ -29,3 +29,9 @@ rules:
   - virtualmachinetemplates/status
   verbs:
   - get
+- apiGroups:
+  - subresources.template.kubevirt.io
+  resources:
+  - virtualmachinetemplates/process
+  verbs:
+  - create
