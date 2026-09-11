@@ -228,6 +228,12 @@ var _ = Describe("VirtualMachineTemplate Webhook Unit", func() {
 		Entry("required param with generator on update", validateOnUpdate, invalidVMWithParam, []v1alpha1.Parameter{
 			{Name: param1Name, Required: true, Generate: testGeneratorExpr, From: testGeneratorFrom},
 		}),
+		Entry("optional param with invalid default value on create", validateOnCreate, invalidVMWithParam, []v1alpha1.Parameter{
+			{Name: param1Name, Value: testVMValue},
+		}),
+		Entry("optional param with invalid default value on update", validateOnUpdate, invalidVMWithParam, []v1alpha1.Parameter{
+			{Name: param1Name, Value: testVMValue},
+		}),
 	)
 })
 
@@ -289,6 +295,24 @@ var _ = Describe("VirtualMachineTemplate Webhook Integration", func() {
 
 			Expect(k8sClient.Create(ctx, tpl)).To(MatchError(ContainSubstring("processing validation failed")))
 		})
+
+		It("should reject a template whose default parameter values always produce an invalid VM", func() {
+			tpl := newVirtualMachineTemplateWithSpec(
+				&v1alpha1.VirtualMachineTemplateSpec{
+					Parameters: []v1alpha1.Parameter{
+						{
+							Name:  param1Name,
+							Value: testVMValue,
+						},
+					},
+					VirtualMachine: &runtime.RawExtension{
+						Raw: []byte(invalidVMWithParam),
+					},
+				},
+			)
+
+			Expect(k8sClient.Create(ctx, tpl)).To(MatchError(ContainSubstring("processing validation failed")))
+		})
 	})
 
 	Context("Update", func() {
@@ -343,6 +367,22 @@ var _ = Describe("VirtualMachineTemplate Webhook Integration", func() {
 				Parameters: nil,
 				VirtualMachine: &runtime.RawExtension{
 					Raw: []byte(invalidVMWithoutParam),
+				},
+			}
+
+			Expect(k8sClient.Update(ctx, tpl)).To(MatchError(ContainSubstring("processing validation failed")))
+		})
+
+		It("should reject an update whose default parameter values always produce an invalid VM", func() {
+			tpl.Spec = v1alpha1.VirtualMachineTemplateSpec{
+				Parameters: []v1alpha1.Parameter{
+					{
+						Name:  param1Name,
+						Value: testVMValue,
+					},
+				},
+				VirtualMachine: &runtime.RawExtension{
+					Raw: []byte(invalidVMWithParam),
 				},
 			}
 
