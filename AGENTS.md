@@ -3,10 +3,12 @@
 ## Strict Rules
 
 - Never modify generated files by hand - use `make generate`, `make manifests`, and `make vendor`
+- Never hand-edit generated manifests under `config/` (CRDs, RBAC, webhook configs) - regenerate with `make manifests` instead
 - Never remove or modify Apache 2.0 license headers (see `hack/boilerplate.go.txt`)
 - Never bypass linting or skip `make all` before pushing
 - Never commit vendor changes without running `make vendor`
 - Never modify CRD type definitions without running `make generate` and `make manifests` afterward
+- Treat changes to `VirtualMachineTemplate`/`VirtualMachineTemplateRequest` fields in `api/core/` as potentially breaking the API - all exported fields require kubebuilder validation markers and godoc comments
 
 Several directories also carry their own nested `AGENTS.md` with directory-specific conventions (see "Key directories" below) - read the closest one for the file(s) you're touching, in addition to this file.
 
@@ -126,13 +128,14 @@ Parameter substitution and generation for processing templates into VMs. Two sub
 Two separate enforcement points:
 
 - **`VirtualMachineTemplateRequest` spec immutability** is enforced by a CEL `self == oldSelf` rule declared on the API type, not by a webhook. See `api/core/AGENTS.md`.
-- **`VirtualMachineTemplate` parameter placeholder validity** is enforced by a validating webhook. See `internal/webhook/AGENTS.md`.
+- **Validate parameter placeholder syntax (`${PARAM}` / `${{PARAM}}`) on `VirtualMachineTemplate` writes** — enforced by a validating webhook. See `internal/webhook/AGENTS.md`.
 
 ## API Server
 
 Aggregated API server serving subresources only (no direct storage for the parent CRD):
 - `POST /virtualmachinetemplates/{name}/process` - process template, return VM
 - `POST /virtualmachinetemplates/{name}/create` - process template + create VM in cluster
+- RBAC on the aggregated API is enforced via SubjectAccessReview delegation to the main API server; handlers must surface upstream errors (e.g. from the processing engine or the cluster client) as proper Kubernetes API status errors rather than opaque 500s.
 
 See `internal/apiserver/AGENTS.md` for the dummy REST storage/APIResourceList filtering, RBAC, and error-handling conventions.
 
