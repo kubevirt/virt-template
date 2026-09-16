@@ -363,6 +363,27 @@ kubectl wait vmt my-template --for=condition=Ready
 The created template can then be processed like any other
 `VirtualMachineTemplate`.
 
+### Template Subresources
+
+The `virtualmachinetemplate-admin-role` and `virtualmachinetemplate-editor-role`
+ClusterRoles grant `create` on `virtualmachinetemplates/process` and
+`virtualmachinetemplates/create` (API group
+`subresources.template.kubevirt.io`). The `/process` subresource dry-runs
+template processing and does not persist a VirtualMachine. The `/create`
+subresource processes the template and creates a VirtualMachine in the
+namespace.
+
+Authorization for these endpoints uses the subresource `create` verb. The
+VirtualMachine is created by the virt-template apiserver service account, so
+callers do not need direct `kubevirt.io/virtualmachines` `create` permission.
+Granting `/create` therefore allows users to create VMs via templates even when
+direct VM create RBAC is withheld. In default KubeVirt configurations the
+aggregated `admin` and `edit` roles already include VM management permissions;
+this distinction matters mainly when defining custom roles.
+
+The `virtualmachinetemplate-viewer-role` grants `/process` only (dry-run), not
+`/create`.
+
 ## Distribution
 
 ### Build Installer Bundle
