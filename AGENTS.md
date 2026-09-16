@@ -8,6 +8,8 @@
 - Never commit vendor changes without running `make vendor`
 - Never modify CRD type definitions without running `make generate` and `make manifests` afterward
 
+Several directories also carry their own nested `AGENTS.md` with directory-specific conventions (see "Key directories" below) - read the closest one for the file(s) you're touching, in addition to this file.
+
 ## Project Overview
 
 virt-template is a KubeVirt add-on that provides native VM templating within Kubernetes. Users define reusable VM blueprints as `VirtualMachineTemplate` custom resources with parameter placeholders (`${PARAM}`), then process them server-side or via CLI to create VirtualMachines. A companion `VirtualMachineTemplateRequest` CR creates templates from existing VMs (golden image workflow).
@@ -33,14 +35,13 @@ The project uses `go.work` with four modules:
 ### Key directories
 
 ```
-api/core/v1alpha1/       - CRD type definitions (VirtualMachineTemplate, VirtualMachineTemplateRequest)
-api/core/subresourcesv1alpha1/ - Subresource types (ProcessOptions, CreateOptions)
-internal/controller/     - Reconcilers
-internal/webhook/        - Validation webhooks
-internal/apiserver/      - REST storage and subresource handlers
-staging/.../virt-template-engine/template/ - Parameter substitution, generation, visitor pattern
-config/                  - Kubebuilder-based Kustomize overlays (default, openshift, virt-operator), CRDs, RBAC, webhooks
-tests/                   - Functional/integration tests (Ginkgo)
+api/core/                - CRD type definitions & subresource types - see api/core/AGENTS.md
+internal/controller/     - Reconcilers - see internal/controller/AGENTS.md
+internal/webhook/        - Validation webhooks - see internal/webhook/AGENTS.md
+internal/apiserver/      - REST storage and subresource handlers - see internal/apiserver/AGENTS.md
+staging/.../virt-template-engine/template/ - Parameter substitution/generation - see AGENTS.md there
+config/                  - Kustomize overlays, CRDs, RBAC, webhooks, admission policy - see config/AGENTS.md
+tests/                   - Functional/integration tests (Ginkgo) - see tests/AGENTS.md
 hack/                    - Build scripts, code generation, linting
 ```
 
@@ -88,20 +89,10 @@ Variants `kubevirt-up/sync/functest/down` use KubeVirt from git main instead.
 
 ## Testing
 
-- **Unit tests**: standard Go test + Ginkgo/Gomega. Run with `make test`. Uses envtest (etcd + apiserver binaries).
-- **Functional tests**: Ginkgo in `tests/` directory. Run with `make functest` or `make cluster-functest`. Always randomized (`-ginkgo.randomize-all`). Requires `KUBECONFIG` - skips if not set. Prefer `make cluster-sync cluster-functest` to build, deploy, and test in one step when a cluster is available.
-- Controller tests are split into focused files under `internal/controller/` (e.g. `vmtr_finalizer_test.go`, `vmtr_datavolume_handling_test.go`).
-- Engine tests live in `staging/src/kubevirt.io/virt-template-engine/template/`.
-
-### Test patterns
-
-- Each package has a `suite_test.go` with `BeforeSuite`/`AfterSuite` for envtest setup.
-- Controller tests create random namespaces per test for isolation.
-- Use `fake.NewClientBuilder().WithScheme(testScheme).WithStatusSubresource(...).Build()` for unit tests with fake clients.
-- Helper builders in `vmtr_common_test.go`: `createRequest()`, `createSnapshot()`, `setSnapshotStatus()`, `createDataVolume()`, `expectCondition()`.
-- Functional tests use `Eventually` with 5-minute timeouts for async operations.
-- Prefer `DescribeTable` with `Entry` for parameterized test cases.
-- Webhook tests start a real webhook server with TLS in `BeforeSuite`.
+- **Unit tests**: standard Go test + Ginkgo/Gomega. Run with `make test`. Uses envtest (etcd + apiserver binaries). Each package has a `suite_test.go` with `BeforeSuite`/`AfterSuite` for envtest setup.
+- **Functional tests**: Ginkgo in `tests/` directory. Run with `make functest` or `make cluster-functest`. Prefer `make cluster-sync cluster-functest` to build, deploy, and test in one step when a cluster is available. See `tests/AGENTS.md`.
+- Prefer `DescribeTable` with `Entry` for parameterized test cases, across both unit and functional tests.
+- Package-specific test patterns (namespace isolation, fake client setup, helper builders, webhook TLS server, etc.) live in that package's nested `AGENTS.md` (e.g. `internal/controller/AGENTS.md`, `internal/webhook/AGENTS.md`).
 
 ## Code Generation
 
@@ -124,47 +115,18 @@ Run `make lint` to execute all linters:
 
 ## Template Engine
 
-Two parameter substitution syntaxes:
-
-- `${PARAM}` - string substitution, supports multiple per field (e.g. `"${A}-${B}"`)
-- `${{PARAM}}` - non-string substitution, replaces entire value, drops quotes, result parsed as JSON (numbers, booleans, objects)
-
-Parameter generation uses `"expression"` generator with character classes: `\w`, `\d`, `\a`, `\A`, `[a-z]`, `[0-9]`, etc. Format: `[charset]{length}`.
-
-Processing flow: generate parameter values - remove hardcoded namespace (unless parametrized) - substitute parameters - validate VM.
+Parameter substitution and generation for processing templates into VMs. Two substitution syntaxes (`${PARAM}` string substitution, `${{PARAM}}` non-string substitution) and a strict generate -> strip-namespace -> substitute -> validate processing order. See `staging/src/kubevirt.io/virt-template-engine/template/AGENTS.md` for details.
 
 ## Controller Design
 
-### VirtualMachineTemplate controller
+`VirtualMachineTemplate` controller is minimal (marks templates `Ready`). `VirtualMachineTemplateRequest` controller runs a multi-step snapshot -> clone -> expand -> create pipeline with requeue, tracked via a finalizer, conditions, and deterministic child-object naming. See `internal/controller/AGENTS.md` for the full pipeline and invariants to preserve.
 
-Minimal - marks templates as Ready.
+## Validation Webhooks
 
-### VirtualMachineTemplateRequest controller
+Two separate enforcement points:
 
-Multi-step pipeline with requeue:
-
-1. Create VirtualMachineSnapshot of source VM
-2. Wait for snapshot readiness (requeue after 10s)
-3. Clone snapshot volumes to DataVolumes
-4. Wait for DataVolume readiness (requeue after 10s)
-5. Expand VM spec (remove instance types/preferences)
-6. Create VirtualMachineTemplate
-7. Transfer DataVolume ownership from request to template
-8. Delete snapshot
-
-Key patterns:
-- Finalizer `template.kubevirt.io/SnapshotCleanup` for cleanup on deletion
-- `Progressing=True` + `Ready=False` means in-progress (will requeue). `Progressing=False` + `Ready=False` means permanent failure (stops).
-- Objects tracked by `template.kubevirt.io/RequestUID` label on child resources
-- Deterministic child object names via FNV-32a hash (`internal/apimachinery/naming.go`)
-- VirtualMachineTemplateRequest spec is immutable (CEL rule: `self == oldSelf`)
-
-### Cross-namespace authorization
-
-ValidatingAdmissionPolicy with CEL checks three permissions when creating a VirtualMachineTemplateRequest:
-- `virtualmachinetemplaterequests/source` create in source VM's namespace (skipped if same namespace)
-- `datavolumes` create in target namespace
-- `virtualmachinetemplates` create in target namespace
+- **`VirtualMachineTemplateRequest` spec immutability** is enforced by a CEL `self == oldSelf` rule declared on the API type, not by a webhook. See `api/core/AGENTS.md`.
+- **`VirtualMachineTemplate` parameter placeholder validity** is enforced by a validating webhook. See `internal/webhook/AGENTS.md`.
 
 ## API Server
 
@@ -172,16 +134,11 @@ Aggregated API server serving subresources only (no direct storage for the paren
 - `POST /virtualmachinetemplates/{name}/process` - process template, return VM
 - `POST /virtualmachinetemplates/{name}/create` - process template + create VM in cluster
 
-Parent resource uses a dummy REST storage required by the k8s.io/apiserver framework. The APIResourceList is filtered to hide it.
+See `internal/apiserver/AGENTS.md` for the dummy REST storage/APIResourceList filtering, RBAC, and error-handling conventions.
 
 ## Deployment
 
-Three Kustomize overlays in `config/`:
-- `default` - Kubernetes with cert-manager (self-signed issuer)
-- `openshift` - OpenShift with Service CA operator (different namespace: `openshift-cnv`, different DNS labels)
-- `virt-operator` - certificates managed externally by virt-operator, ingress-only network policies
-
-All overlays set namespace prefix `virt-template-` and deploy to their respective namespace.
+Three Kustomize overlays in `config/` (default, openshift, virt-operator), each setting namespace prefix `virt-template-`. See `config/AGENTS.md` for overlay details and manifest hand-editing rules.
 
 ## Conventions
 
