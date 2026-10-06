@@ -22,6 +22,7 @@ package apiserver
 import (
 	"context"
 	"flag"
+	"net/http"
 	"os/signal"
 	"syscall"
 
@@ -76,6 +77,10 @@ func (a *apiserver) Run(
 	config.EffectiveVersion = compatibility.DefaultBuildEffectiveVersion()
 	config.OpenAPIConfig = openAPIConfig
 	config.OpenAPIV3Config = openapiV3Config
+	buildHandlerChain := config.BuildHandlerChainFunc
+	config.BuildHandlerChainFunc = func(apiHandler http.Handler, c *genericapiserver.Config) http.Handler {
+		return withSecureResponseHeaders(buildHandlerChain(apiHandler, c))
+	}
 
 	a.authzOpts.AlwaysAllowPaths = append(
 		a.authzOpts.AlwaysAllowPaths,
