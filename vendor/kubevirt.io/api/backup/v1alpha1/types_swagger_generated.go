@@ -6,7 +6,6 @@ func (BackupVolumeInfo) SwaggerDoc() map[string]string {
 	return map[string]string{
 		"":             "BackupVolumeInfo contains information about a volume included in a backup",
 		"volumeName":   "VolumeName is the volume name from VMI spec",
-		"diskTarget":   "DiskTarget is the disk target device name at backup time",
 		"dataEndpoint": "DataEndpoint is the URL of the endpoint for read for pull mode",
 		"mapEndpoint":  "MapEndpoint is the URL of the endpoint for map for pull mode",
 	}
@@ -14,7 +13,7 @@ func (BackupVolumeInfo) SwaggerDoc() map[string]string {
 
 func (BackupCheckpoint) SwaggerDoc() map[string]string {
 	return map[string]string{
-		"volumes": "Volumes lists volumes and their disk targets at backup time\n+optional\n+listType=atomic",
+		"volumes": "Volumes lists volumes included in the backup\n+optional\n+listType=atomic",
 	}
 }
 
@@ -83,19 +82,10 @@ func (VirtualMachineBackupStatus) SwaggerDoc() map[string]string {
 	return map[string]string{
 		"":                "VirtualMachineBackupStatus is the status for a VirtualMachineBackup resource",
 		"type":            "+optional\nType indicates if the backup was full or incremental",
-		"conditions":      "+optional\n+listType=atomic",
+		"conditions":      "+listType=map\n+listMapKey=type\n+optional",
 		"checkpointName":  "+optional\nCheckpointName the name of the checkpoint created for the current backup",
 		"endpointCert":    "+optional\nEndpointCert is the raw CACert that is to be used when connecting\nto an exported backup endpoint in pull mode.",
 		"includedVolumes": "+optional\n+listType=atomic\nIncludedVolumes lists the volumes that were included in the backup",
-	}
-}
-
-func (Condition) SwaggerDoc() map[string]string {
-	return map[string]string{
-		"":                   "Condition defines conditions",
-		"lastProbeTime":      "+optional\n+nullable",
-		"lastTransitionTime": "+optional\n+nullable",
-		"reason":             "+optional",
-		"message":            "+optional",
+		"exportUID":       "+optional\nExportUID tracks the UID of the associated VMExport for pull-mode backups\nused to detect VMExport recreation and re-initiate the export handshake",
 	}
 }

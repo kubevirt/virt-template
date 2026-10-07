@@ -24,9 +24,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	templatev1alpha1 "kubevirt.io/virt-template-api/core/v1alpha1"
@@ -37,7 +35,7 @@ import (
 
 // SetupVirtualMachineTemplateWebhookWithManager registers the webhook for VirtualMachineTemplate in the manager.
 func SetupVirtualMachineTemplateWebhookWithManager(mgr ctrl.Manager) error {
-	return ctrl.NewWebhookManagedBy(mgr).For(&templatev1alpha1.VirtualMachineTemplate{}).
+	return ctrl.NewWebhookManagedBy(mgr, &templatev1alpha1.VirtualMachineTemplate{}).
 		WithValidator(&VirtualMachineTemplateCustomValidator{}).
 		Complete()
 }
@@ -51,16 +49,13 @@ func SetupVirtualMachineTemplateWebhookWithManager(mgr ctrl.Manager) error {
 // when it is created, updated, or deleted.
 type VirtualMachineTemplateCustomValidator struct{}
 
-var _ webhook.CustomValidator = &VirtualMachineTemplateCustomValidator{}
+var _ admission.Validator[*templatev1alpha1.VirtualMachineTemplate] = &VirtualMachineTemplateCustomValidator{}
 
-// ValidateCreate implements webhook.CustomValidator so a webhook will be registered for the type VirtualMachineTemplate.
-func (v *VirtualMachineTemplateCustomValidator) ValidateCreate(_ context.Context, obj runtime.Object) (admission.Warnings, error) {
-	tpl, ok := obj.(*templatev1alpha1.VirtualMachineTemplate)
-	if !ok {
-		return nil, fmt.Errorf("expected a VirtualMachineTemplate object but got %T", obj)
-	}
-
-	converted, err := convertToV1Beta1(tpl)
+// ValidateCreate implements admission.Validator so a webhook will be registered for the type VirtualMachineTemplate.
+func (v *VirtualMachineTemplateCustomValidator) ValidateCreate(
+	_ context.Context, obj *templatev1alpha1.VirtualMachineTemplate,
+) (admission.Warnings, error) {
+	converted, err := convertToV1Beta1(obj)
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert VirtualMachineTemplate to v1beta1: %w", err)
 	}
@@ -68,14 +63,11 @@ func (v *VirtualMachineTemplateCustomValidator) ValidateCreate(_ context.Context
 	return webhookv1beta1.ValidateTemplate(converted)
 }
 
-// ValidateUpdate implements webhook.CustomValidator so a webhook will be registered for the type VirtualMachineTemplate.
-func (v *VirtualMachineTemplateCustomValidator) ValidateUpdate(_ context.Context, _, newObj runtime.Object) (admission.Warnings, error) {
-	tpl, ok := newObj.(*templatev1alpha1.VirtualMachineTemplate)
-	if !ok {
-		return nil, fmt.Errorf("expected a VirtualMachineTemplate object for the newObj but got %T", newObj)
-	}
-
-	converted, err := convertToV1Beta1(tpl)
+// ValidateUpdate implements admission.Validator so a webhook will be registered for the type VirtualMachineTemplate.
+func (v *VirtualMachineTemplateCustomValidator) ValidateUpdate(
+	_ context.Context, _, newObj *templatev1alpha1.VirtualMachineTemplate,
+) (admission.Warnings, error) {
+	converted, err := convertToV1Beta1(newObj)
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert VirtualMachineTemplate to v1beta1: %w", err)
 	}
@@ -83,8 +75,10 @@ func (v *VirtualMachineTemplateCustomValidator) ValidateUpdate(_ context.Context
 	return webhookv1beta1.ValidateTemplate(converted)
 }
 
-// ValidateDelete implements webhook.CustomValidator so a webhook will be registered for the type VirtualMachineTemplate.
-func (v *VirtualMachineTemplateCustomValidator) ValidateDelete(_ context.Context, _ runtime.Object) (admission.Warnings, error) {
+// ValidateDelete implements admission.Validator so a webhook will be registered for the type VirtualMachineTemplate.
+func (v *VirtualMachineTemplateCustomValidator) ValidateDelete(
+	_ context.Context, _ *templatev1alpha1.VirtualMachineTemplate,
+) (admission.Warnings, error) {
 	return nil, nil
 }
 
