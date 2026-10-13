@@ -29,6 +29,15 @@ rules:
   verbs:
   - create
 - apiGroups:
+  - instancetype.kubevirt.io
+  resources:
+  - virtualmachineinstancetypes
+  verbs:
+  - create
+  - get
+  - list
+  - watch
+- apiGroups:
   - snapshot.kubevirt.io
   resources:
   - virtualmachinesnapshotcontents
