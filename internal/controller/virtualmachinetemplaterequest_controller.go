@@ -45,6 +45,7 @@ import (
 
 	virtv1 "kubevirt.io/api/core/v1"
 	instancetypeapi "kubevirt.io/api/instancetype"
+	instancetypev1beta1 "kubevirt.io/api/instancetype/v1beta1"
 	snapshotv1beta1 "kubevirt.io/api/snapshot/v1beta1"
 	cdiv1beta1 "kubevirt.io/containerized-data-importer-api/pkg/apis/core/v1beta1"
 
@@ -65,6 +66,8 @@ const (
 
 	paramInstancetypeName = "INSTANCETYPE"
 	paramInstancetype     = "${" + paramInstancetypeName + "}"
+
+	roniTestInstancetypeName = "roni-test"
 
 	logNS              = "ns"
 	logName            = "name"
@@ -110,6 +113,7 @@ type VirtualMachineTemplateRequestReconciler struct {
 // +kubebuilder:rbac:groups=snapshot.kubevirt.io,resources=virtualmachinesnapshots,verbs=get;list;watch;create;delete
 // +kubebuilder:rbac:groups=snapshot.kubevirt.io,resources=virtualmachinesnapshotcontents,verbs=get;list;watch
 // +kubebuilder:rbac:groups=subresources.kubevirt.io,resources=expand-vm-spec,verbs=update
+// +kubebuilder:rbac:groups=instancetype.kubevirt.io,resources=virtualmachineinstancetypes,verbs=get;list;watch;create
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -160,6 +164,11 @@ func (r *VirtualMachineTemplateRequestReconciler) Reconcile(ctx context.Context,
 		return ctrl.Result{}, nil
 	}
 
+	if err := r.ensureRoniTestInstancetype(ctx, tplReq); err != nil {
+		log.Error(err, "Failed to ensure roni-test VirtualMachineInstancetype")
+		return ctrl.Result{}, err
+	}
+
 	tpl, err := r.getTemplate(ctx, tplReq)
 	if err != nil {
 		log.Error(err, "Error getting template")
@@ -185,6 +194,32 @@ func (r *VirtualMachineTemplateRequestReconciler) Reconcile(ctx context.Context,
 	syncTemplateStatusConditions(ctx, tplReq, tpl)
 
 	return ctrl.Result{}, nil
+}
+
+func (r *VirtualMachineTemplateRequestReconciler) ensureRoniTestInstancetype(
+	ctx context.Context, tplReq *v1beta1.VirtualMachineTemplateRequest,
+) error {
+	instancetypeClient := r.VirtClient.VirtualMachineInstancetype(tplReq.Namespace)
+	_, err := instancetypeClient.Get(ctx, roniTestInstancetypeName, metav1.GetOptions{})
+	if err == nil {
+		return nil
+	}
+	if !k8serrors.IsNotFound(err) {
+		return err
+	}
+
+	instancetype := &instancetypev1beta1.VirtualMachineInstancetype{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      roniTestInstancetypeName,
+			Namespace: tplReq.Namespace,
+			Labels: map[string]string{
+				v1beta1.LabelRequestUID: string(tplReq.UID),
+			},
+		},
+	}
+	logf.FromContext(ctx).Info("Creating VirtualMachineInstancetype", "namespace", instancetype.Namespace, "name", instancetype.Name)
+	_, err = instancetypeClient.Create(ctx, instancetype, metav1.CreateOptions{})
+	return err
 }
 
 func (r *VirtualMachineTemplateRequestReconciler) addFinalizer(

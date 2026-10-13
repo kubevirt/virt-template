@@ -26,15 +26,21 @@ import (
 	gomegatypes "github.com/onsi/gomega/types"
 
 	corev1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	virtv1 "kubevirt.io/api/core/v1"
+	instancetypeapi "kubevirt.io/api/instancetype"
+	instancetypev1beta1 "kubevirt.io/api/instancetype/v1beta1"
 	snapshotv1beta1 "kubevirt.io/api/snapshot/v1beta1"
 	"kubevirt.io/client-go/kubecli"
+	instancetypeclient "kubevirt.io/client-go/kubevirt/typed/instancetype/v1beta1"
 	cdiv1beta1 "kubevirt.io/containerized-data-importer-api/pkg/apis/core/v1beta1"
 
 	"kubevirt.io/virt-template-api/core/v1beta1"
@@ -60,8 +66,83 @@ const (
 
 type fakeKubevirtClient struct {
 	kubecli.KubevirtClient
-	err    error
-	called *bool
+	err          error
+	called       *bool
+	instancetypes map[string]map[string]*instancetypev1beta1.VirtualMachineInstancetype
+}
+
+type fakeVMInstancetypeClient struct {
+	namespace string
+	store     map[string]map[string]*instancetypev1beta1.VirtualMachineInstancetype
+}
+
+func (f *fakeKubevirtClient) VirtualMachineInstancetype(namespace string) instancetypeclient.VirtualMachineInstancetypeInterface {
+	if f.instancetypes == nil {
+		f.instancetypes = make(map[string]map[string]*instancetypev1beta1.VirtualMachineInstancetype)
+	}
+	return &fakeVMInstancetypeClient{namespace: namespace, store: f.instancetypes}
+}
+
+func (c *fakeVMInstancetypeClient) Get(
+	_ context.Context, name string, _ metav1.GetOptions,
+) (*instancetypev1beta1.VirtualMachineInstancetype, error) {
+	if nsStore := c.store[c.namespace]; nsStore != nil {
+		if it, ok := nsStore[name]; ok {
+			return it.DeepCopy(), nil
+		}
+	}
+	return nil, k8serrors.NewNotFound(
+		instancetypev1beta1.Resource(instancetypeapi.SingularResourceName), name)
+}
+
+func (c *fakeVMInstancetypeClient) Create(
+	_ context.Context, instancetype *instancetypev1beta1.VirtualMachineInstancetype, _ metav1.CreateOptions,
+) (*instancetypev1beta1.VirtualMachineInstancetype, error) {
+	if c.store[c.namespace] == nil {
+		c.store[c.namespace] = make(map[string]*instancetypev1beta1.VirtualMachineInstancetype)
+	}
+	if _, exists := c.store[c.namespace][instancetype.Name]; exists {
+		return nil, k8serrors.NewAlreadyExists(
+			instancetypev1beta1.Resource(instancetypeapi.SingularResourceName), instancetype.Name)
+	}
+	c.store[c.namespace][instancetype.Name] = instancetype.DeepCopy()
+	return instancetype, nil
+}
+
+func (c *fakeVMInstancetypeClient) Update(
+	_ context.Context, _ *instancetypev1beta1.VirtualMachineInstancetype, _ metav1.UpdateOptions,
+) (*instancetypev1beta1.VirtualMachineInstancetype, error) {
+	panic("not implemented")
+}
+
+func (c *fakeVMInstancetypeClient) Delete(
+	_ context.Context, _ string, _ metav1.DeleteOptions,
+) error {
+	panic("not implemented")
+}
+
+func (c *fakeVMInstancetypeClient) DeleteCollection(
+	_ context.Context, _ metav1.DeleteOptions, _ metav1.ListOptions,
+) error {
+	panic("not implemented")
+}
+
+func (c *fakeVMInstancetypeClient) List(
+	_ context.Context, _ metav1.ListOptions,
+) (*instancetypev1beta1.VirtualMachineInstancetypeList, error) {
+	panic("not implemented")
+}
+
+func (c *fakeVMInstancetypeClient) Watch(
+	_ context.Context, _ metav1.ListOptions,
+) (watch.Interface, error) {
+	panic("not implemented")
+}
+
+func (c *fakeVMInstancetypeClient) Patch(
+	_ context.Context, _ string, _ types.PatchType, _ []byte, _ metav1.PatchOptions, _ ...string,
+) (*instancetypev1beta1.VirtualMachineInstancetype, error) {
+	panic("not implemented")
 }
 
 type fakeExpandSpecInterface struct {
