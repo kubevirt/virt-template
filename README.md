@@ -423,6 +423,15 @@ pinned in `tools/go.mod` and vendored in `tools/vendor/`. To upgrade a
 tool, update its version in `tools/go.mod` and run `make vendor` — the
 tool is rebuilt automatically on next use via `go tool`.
 
+### Dependency updates
+
+Renovate runs daily at 06:00 UTC and can also be started from the Actions tab.
+It proposes routine and security dependency updates on `main`. On
+`release-X.Y` branches, it proposes security updates only.
+
+Each Renovate branch runs `make vendor`, `make fmt`, `make generate`,
+`make manifests`, then `make vendor` again before its PR is created.
+
 **Kubevirtci workflows:**
 
 The project provides two kubevirtci-based development environments:
