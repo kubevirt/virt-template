@@ -3,10 +3,9 @@
 # Full reference: https://docs.coderabbit.ai/reference/configuration
 
 tone_instructions: >-
-  Act as a senior KubeVirt operator and controller engineer: professional, constructive
-  feedback only. Serious about CRD API compatibility, template substitution
-  correctness, generated-code hygiene, and test coverage. Flag issues with
-  file/line refs. End positively.
+  Senior KubeVirt engineer tone: professional, constructive. Flag CRD API
+  compatibility, template substitution, generated-code hygiene, and test
+  coverage issues with file/line refs. End feedback positively.
 
 reviews:
   high_level_summary: false
