@@ -7,7 +7,7 @@ KubeVirt virtual machines.
 
 ```yaml
 cat <<'EOF' | kubectl apply -f -
-apiVersion: template.kubevirt.io/v1alpha1
+apiVersion: template.kubevirt.io/v1beta1
 kind: VirtualMachineTemplate
 metadata:
   name: fedora
@@ -195,8 +195,8 @@ make deploy-openshift IMG_REGISTRY=<registry> VERSION=<tag>
 **Create sample resources:**
 
 ```sh
-kubectl apply -f config/samples/template_v1alpha1_virtualmachinetemplate.yaml
-kubectl apply -f config/samples/template_v1alpha1_virtualmachinetemplaterequest.yaml
+kubectl apply -f config/samples/template_v1beta1_virtualmachinetemplate.yaml
+kubectl apply -f config/samples/template_v1beta1_virtualmachinetemplaterequest.yaml
 ```
 
 ### Uninstall
@@ -225,7 +225,7 @@ The `VirtualMachineTemplate` custom resource allows you to define reusable VM
 blueprints with parameters:
 
 ```yaml
-apiVersion: template.kubevirt.io/v1alpha1
+apiVersion: template.kubevirt.io/v1beta1
 kind: VirtualMachineTemplate
 metadata:
   name: my-template
