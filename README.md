@@ -175,7 +175,7 @@ make container-build container-push \
   VERSION=<tag>
 ```
 
-The build supports multi-arch images (amd64, arm64, s390x). Use
+The build supports multi-arch images (amd64, arm64, s390x, ppc64le). Use
 `CONTAINER_TOOL=docker` or `CONTAINER_TOOL=podman`.
 
 **Deploy on Kubernetes:**
