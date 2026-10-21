@@ -1,6 +1,6 @@
 VERSION ?= latest
 IMG_REGISTRY ?= quay.io/kubevirt
-IMG_PLATFORMS ?= linux/amd64,linux/arm64,linux/s390x
+IMG_PLATFORMS ?= linux/amd64,linux/arm64,linux/s390x,linux/ppc64le
 IMG_CONTROLLER ?= ${IMG_REGISTRY}/virt-template-controller:${VERSION}
 IMG_APISERVER ?= ${IMG_REGISTRY}/virt-template-apiserver:${VERSION}
 

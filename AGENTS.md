@@ -151,6 +151,6 @@ Three Kustomize overlays in `config/` (default, openshift, virt-operator), each 
 - Commits must be signed off (`git commit -s`)
 - PRs and issues must follow the GitHub templates in `.github/` (`.github/PULL_REQUEST_TEMPLATE.md`, `.github/ISSUE_TEMPLATE.md`). Always read the template before creating a PR or issue and fill in all sections.
 - Container images: `quay.io/kubevirt/virt-template-controller` and `virt-template-apiserver`
-- Multi-arch: linux/amd64, linux/arm64, linux/s390x
+- Multi-arch: linux/amd64, linux/arm64, linux/s390x, linux/ppc64le
 - Generated client code lives in `staging/`; expansion interfaces (`*_expansion.go`) are hand-written
 - Logging levels: `V(1)` for debug, `V(2)` for trace
