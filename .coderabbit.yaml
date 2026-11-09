@@ -1,3 +1,5 @@
+inheritance: true
+
 # yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
 # CodeRabbit Configuration
 # Full reference: https://docs.coderabbit.ai/reference/configuration
