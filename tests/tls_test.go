@@ -41,110 +41,218 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-// Only the NIST curves are checked, since they are FIPS-approved and thus
-// guaranteed to be available regardless of whether the cluster runs Go's
-// FIPS-restricted crypto.
+// Only the NIST curves and AES-GCM cipher suites are checked, since they are
+// FIPS-approved and thus guaranteed to be available regardless of whether the
+// cluster runs Go's FIPS-restricted crypto.
+//
+// Each cipher suite set holds the ECDSA and the RSA variant, so the tests do
+// not depend on the key type of the serving certificate.
+func aes128CipherSuites() []uint16 {
+	return []uint16{
+		tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
+		tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+	}
+}
+
+func aes256CipherSuites() []uint16 {
+	return []uint16{
+		tls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
+		tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
+	}
+}
+
 var _ = Describe("TLS", func() {
 	DescribeTable(
-		"negotiating TLS curves",
-		func(controlPlane string, remotePort int, curveID tls.CurveID) {
+		"negotiating TLS by default",
+		func(controlPlane string, remotePort int, config *tls.Config) {
 			localPort := forwardPodPort(controlPlane, remotePort)
-
-			conn, err := tls.Dial("tcp", fmt.Sprintf("127.0.0.1:%d", localPort), &tls.Config{
-				InsecureSkipVerify: true, //nolint:gosec // handshake tests curve negotiation, not certificate validity
-				MinVersion:         tls.VersionTLS13,
-				CurvePreferences:   []tls.CurveID{curveID},
-			})
-			Expect(err).ToNot(HaveOccurred())
-			defer conn.Close()
-
-			Expect(conn.ConnectionState().CurveID).To(Equal(curveID))
+			Expect(dialTLS(localPort, config)).To(Succeed())
 		},
-		Entry("API server should negotiate CurveP256", "apiserver", 9443, tls.CurveP256),
-		Entry("API server should negotiate CurveP384", "apiserver", 9443, tls.CurveP384),
-		Entry("API server should negotiate CurveP521", "apiserver", 9443, tls.CurveP521),
-		Entry("controller manager should negotiate CurveP256", "controller-manager", 8443, tls.CurveP256),
-		Entry("controller manager should negotiate CurveP384", "controller-manager", 8443, tls.CurveP384),
-		Entry("controller manager should negotiate CurveP521", "controller-manager", 8443, tls.CurveP521),
+		Entry("API server should negotiate CurveP256", "apiserver", 9443, curveConfig(tls.CurveP256)),
+		Entry("API server should negotiate CurveP384", "apiserver", 9443, curveConfig(tls.CurveP384)),
+		Entry("API server should negotiate CurveP521", "apiserver", 9443, curveConfig(tls.CurveP521)),
+		Entry("API server should negotiate AES-128-GCM", "apiserver", 9443,
+			cipherSuitesConfig(aes128CipherSuites())),
+		Entry("API server should negotiate AES-256-GCM", "apiserver", 9443,
+			cipherSuitesConfig(aes256CipherSuites())),
+		Entry("controller manager should negotiate CurveP256", "controller-manager", 8443,
+			curveConfig(tls.CurveP256)),
+		Entry("controller manager should negotiate CurveP384", "controller-manager", 8443,
+			curveConfig(tls.CurveP384)),
+		Entry("controller manager should negotiate CurveP521", "controller-manager", 8443,
+			curveConfig(tls.CurveP521)),
+		Entry("controller manager should negotiate AES-128-GCM", "controller-manager", 8443,
+			cipherSuitesConfig(aes128CipherSuites())),
+		Entry("controller manager should negotiate AES-256-GCM", "controller-manager", 8443,
+			cipherSuitesConfig(aes256CipherSuites())),
 	)
 
 	// Serial: these entries mutate the apiserver/controller-manager
 	// deployments in place, so they must not run concurrently with any other
 	// tests that talk to those pods.
 	DescribeTable(
-		"restricting TLS curves via --tls-curve-preferences",
+		"restricting TLS via deployment args",
 		Serial,
-		func(controlPlane string, remotePort int, allowed, excluded []tls.CurveID) {
-			setTLSCurvePreferences(controlPlane, allowed...)
+		func(controlPlane string, remotePort int, flag, value string,
+			accepted, rejected []*tls.Config, rejectedErr string,
+		) {
+			setDeploymentArg(controlPlane, flag, value)
 
 			localPort := forwardPodPort(controlPlane, remotePort)
 
-			for _, curveID := range allowed {
-				conn, err := tls.Dial("tcp", fmt.Sprintf("127.0.0.1:%d", localPort), &tls.Config{
-					InsecureSkipVerify: true, //nolint:gosec // handshake tests curve negotiation, not certificate validity
-					MinVersion:         tls.VersionTLS13,
-					CurvePreferences:   []tls.CurveID{curveID},
-				})
-				Expect(err).ToNot(HaveOccurred())
-				Expect(conn.ConnectionState().CurveID).To(Equal(curveID))
-				Expect(conn.Close()).To(Succeed())
+			for _, config := range accepted {
+				Expect(dialTLS(localPort, config)).To(Succeed())
 			}
-
-			for _, curveID := range excluded {
-				_, err := tls.Dial("tcp", fmt.Sprintf("127.0.0.1:%d", localPort), &tls.Config{
-					InsecureSkipVerify: true, //nolint:gosec // handshake tests curve negotiation, not certificate validity
-					MinVersion:         tls.VersionTLS13,
-					CurvePreferences:   []tls.CurveID{curveID},
-				})
-				Expect(err).To(MatchError(ContainSubstring("handshake failure")))
+			for _, config := range rejected {
+				Expect(dialTLS(localPort, config)).To(MatchError(ContainSubstring(rejectedErr)))
 			}
 		},
 		Entry("API server should only accept CurveP256", "apiserver", 9443,
-			[]tls.CurveID{tls.CurveP256}, []tls.CurveID{tls.CurveP384, tls.CurveP521}),
+			"--tls-curve-preferences", curvePreferencesArg(tls.CurveP256),
+			curveConfigs(tls.CurveP256), curveConfigs(tls.CurveP384, tls.CurveP521), "handshake failure"),
 		Entry("API server should only accept CurveP384", "apiserver", 9443,
-			[]tls.CurveID{tls.CurveP384}, []tls.CurveID{tls.CurveP256, tls.CurveP521}),
+			"--tls-curve-preferences", curvePreferencesArg(tls.CurveP384),
+			curveConfigs(tls.CurveP384), curveConfigs(tls.CurveP256, tls.CurveP521), "handshake failure"),
 		Entry("API server should accept CurveP256 and CurveP521 but not CurveP384", "apiserver", 9443,
-			[]tls.CurveID{tls.CurveP256, tls.CurveP521}, []tls.CurveID{tls.CurveP384}),
+			"--tls-curve-preferences", curvePreferencesArg(tls.CurveP256, tls.CurveP521),
+			curveConfigs(tls.CurveP256, tls.CurveP521), curveConfigs(tls.CurveP384), "handshake failure"),
+		Entry("API server should only accept AES-128-GCM", "apiserver", 9443,
+			"--tls-cipher-suites", cipherSuitesArg(aes128CipherSuites()),
+			[]*tls.Config{cipherSuitesConfig(aes128CipherSuites())},
+			[]*tls.Config{cipherSuitesConfig(aes256CipherSuites())}, "handshake failure"),
+		Entry("API server should only accept AES-256-GCM", "apiserver", 9443,
+			"--tls-cipher-suites", cipherSuitesArg(aes256CipherSuites()),
+			[]*tls.Config{cipherSuitesConfig(aes256CipherSuites())},
+			[]*tls.Config{cipherSuitesConfig(aes128CipherSuites())}, "handshake failure"),
+		Entry("API server should reject TLS 1.2", "apiserver", 9443,
+			"--tls-min-version", "VersionTLS13",
+			[]*tls.Config{versionConfig(tls.VersionTLS13)},
+			[]*tls.Config{versionConfig(tls.VersionTLS12)}, "protocol version not supported"),
 		Entry("controller manager should only accept CurveP256", "controller-manager", 8443,
-			[]tls.CurveID{tls.CurveP256}, []tls.CurveID{tls.CurveP384, tls.CurveP521}),
+			"--tls-curve-preferences", curvePreferencesArg(tls.CurveP256),
+			curveConfigs(tls.CurveP256), curveConfigs(tls.CurveP384, tls.CurveP521), "handshake failure"),
 		Entry("controller manager should only accept CurveP384", "controller-manager", 8443,
-			[]tls.CurveID{tls.CurveP384}, []tls.CurveID{tls.CurveP256, tls.CurveP521}),
+			"--tls-curve-preferences", curvePreferencesArg(tls.CurveP384),
+			curveConfigs(tls.CurveP384), curveConfigs(tls.CurveP256, tls.CurveP521), "handshake failure"),
 		Entry("controller manager should accept CurveP256 and CurveP521 but not CurveP384", "controller-manager", 8443,
-			[]tls.CurveID{tls.CurveP256, tls.CurveP521}, []tls.CurveID{tls.CurveP384}),
+			"--tls-curve-preferences", curvePreferencesArg(tls.CurveP256, tls.CurveP521),
+			curveConfigs(tls.CurveP256, tls.CurveP521), curveConfigs(tls.CurveP384), "handshake failure"),
+		Entry("controller manager should only accept AES-128-GCM", "controller-manager", 8443,
+			"--tls-cipher-suites", cipherSuitesArg(aes128CipherSuites()),
+			[]*tls.Config{cipherSuitesConfig(aes128CipherSuites())},
+			[]*tls.Config{cipherSuitesConfig(aes256CipherSuites())}, "handshake failure"),
+		Entry("controller manager should only accept AES-256-GCM", "controller-manager", 8443,
+			"--tls-cipher-suites", cipherSuitesArg(aes256CipherSuites()),
+			[]*tls.Config{cipherSuitesConfig(aes256CipherSuites())},
+			[]*tls.Config{cipherSuitesConfig(aes128CipherSuites())}, "handshake failure"),
+		Entry("controller manager should reject TLS 1.2", "controller-manager", 8443,
+			"--tls-min-version", "VersionTLS13",
+			[]*tls.Config{versionConfig(tls.VersionTLS13)},
+			[]*tls.Config{versionConfig(tls.VersionTLS12)}, "protocol version not supported"),
 	)
 })
 
-// setTLSCurvePreferences configures custom TLS curves for the deployment and
-// restores its original arguments when the spec finishes.
-func setTLSCurvePreferences(controlPlane string, curveIDs ...tls.CurveID) {
+// dialTLS performs a TLS handshake with config against the forwarded port and
+// closes the connection. The Go client aborts the handshake if the server
+// selects a curve, cipher suite or version that config does not offer, so a
+// successful dial proves that one of the offered parameters was negotiated.
+func dialTLS(localPort uint16, config *tls.Config) error {
+	// The handshake tests negotiation, not certificate validity.
+	config = config.Clone()
+	config.InsecureSkipVerify = true
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	dialer := &tls.Dialer{Config: config}
+	conn, err := dialer.DialContext(ctx, "tcp", fmt.Sprintf("127.0.0.1:%d", localPort))
+	if err != nil {
+		return err
+	}
+	return conn.Close()
+}
+
+// curveConfig offers only curveID, over TLS 1.3.
+func curveConfig(curveID tls.CurveID) *tls.Config {
+	return &tls.Config{
+		MinVersion:       tls.VersionTLS13,
+		CurvePreferences: []tls.CurveID{curveID},
+	}
+}
+
+// curveConfigs returns one curveConfig per curve.
+func curveConfigs(curveIDs ...tls.CurveID) []*tls.Config {
+	configs := make([]*tls.Config, len(curveIDs))
+	for i, curveID := range curveIDs {
+		configs[i] = curveConfig(curveID)
+	}
+	return configs
+}
+
+// cipherSuitesConfig offers only cipherSuites, over TLS 1.2, since TLS 1.3
+// cipher suites are not configurable.
+func cipherSuitesConfig(cipherSuites []uint16) *tls.Config {
+	return &tls.Config{ //nolint:gosec // cipher suites are only configurable up to TLS 1.2
+		MinVersion:   tls.VersionTLS12,
+		MaxVersion:   tls.VersionTLS12,
+		CipherSuites: cipherSuites,
+	}
+}
+
+// versionConfig offers only version.
+func versionConfig(version uint16) *tls.Config {
+	return &tls.Config{
+		MinVersion: version,
+		MaxVersion: version,
+	}
+}
+
+// curvePreferencesArg formats curveIDs as a --tls-curve-preferences value.
+func curvePreferencesArg(curveIDs ...tls.CurveID) string {
+	ids := make([]string, len(curveIDs))
+	for i, curveID := range curveIDs {
+		ids[i] = strconv.Itoa(int(curveID))
+	}
+	return strings.Join(ids, ",")
+}
+
+// cipherSuitesArg formats cipherSuites as a --tls-cipher-suites value.
+func cipherSuitesArg(cipherSuites []uint16) string {
+	names := make([]string, len(cipherSuites))
+	for i, id := range cipherSuites {
+		names[i] = tls.CipherSuiteName(id)
+	}
+	return strings.Join(names, ",")
+}
+
+// setDeploymentArg sets flag to value on the deployment, replacing any
+// existing value, and restores its original arguments when the spec finishes.
+func setDeploymentArg(controlPlane, flag, value string) {
 	GinkgoHelper()
 
 	deployments, err := virtClient.AppsV1().Deployments(metav1.NamespaceAll).List(context.Background(), metav1.ListOptions{
 		LabelSelector: fmt.Sprintf("app.kubernetes.io/name=virt-template,control-plane=%s", controlPlane),
 	})
 	Expect(err).ToNot(HaveOccurred())
-	Expect(deployments.Items).To(HaveLen(1), fmt.Sprintf("expected exactly one %s deployment", controlPlane))
+	Expect(deployments.Items).To(HaveLen(1), "expected exactly one %s deployment", controlPlane)
 	deployment := &deployments.Items[0]
 	originalArgs := slices.Clone(deployment.Spec.Template.Spec.Containers[0].Args)
 	DeferCleanup(patchDeploymentArgsAndWait, deployment, originalArgs)
 
+	// Drop the flag in both its "--flag value" and "--flag=value" forms.
 	args := make([]string, 0, len(originalArgs)+1)
-	for i := 0; i < len(originalArgs); i++ {
-		arg := originalArgs[i]
-		if arg == "--tls-curve-preferences" {
-			i++
-			continue
-		}
-		if !strings.HasPrefix(arg, "--tls-curve-preferences=") {
+	skipValue := false
+	for _, arg := range originalArgs {
+		switch {
+		case skipValue:
+			skipValue = false
+		case arg == flag:
+			skipValue = true
+		case !strings.HasPrefix(arg, flag+"="):
 			args = append(args, arg)
 		}
 	}
-
-	ids := make([]string, len(curveIDs))
-	for i, curveID := range curveIDs {
-		ids[i] = strconv.Itoa(int(curveID))
-	}
-	args = append(args, "--tls-curve-preferences="+strings.Join(ids, ","))
+	args = append(args, flag+"="+value)
 
 	patchDeploymentArgsAndWait(deployment, args)
 }
