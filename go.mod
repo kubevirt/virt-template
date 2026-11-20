@@ -16,8 +16,8 @@ require (
 	k8s.io/klog/v2 v2.140.0
 	k8s.io/kube-openapi v0.31.0
 	k8s.io/utils v0.0.0-20260319190234-28399d86e0b5
-	kubevirt.io/api v1.10.0-alpha.0
-	kubevirt.io/client-go v1.10.0-alpha.0
+	kubevirt.io/api v1.10.0
+	kubevirt.io/client-go v1.10.0
 	kubevirt.io/containerized-data-importer-api v1.64.0
 	kubevirt.io/qe-tools v0.1.8
 	kubevirt.io/virt-template-api v0.0.0-00010101000000-000000000000
