@@ -48,8 +48,8 @@ function kubevirtci::up() {
   ${_kubectl} patch cdis/cdi --type merge -p '{"spec": {"config": {"insecureRegistries": ["registry:5000"]}}}'
 
   echo "installing kubevirt..."
-  ${_kubectl} apply -f "https://github.com/kubevirt/kubevirt/releases/download/${KUBEVIRT_VERSION}/kubevirt-operator.yaml"
-  ${_kubectl} apply -f "https://github.com/kubevirt/kubevirt/releases/download/${KUBEVIRT_VERSION}/kubevirt-cr.yaml"
+  ${_kubectl} create -f "https://github.com/kubevirt/kubevirt/releases/download/${KUBEVIRT_VERSION}/kubevirt-operator.yaml"
+  ${_kubectl} create -f "https://github.com/kubevirt/kubevirt/releases/download/${KUBEVIRT_VERSION}/kubevirt-cr.yaml"
 
   echo "disabling virt-template deployment in kubevirt"
   ${_kubectl} patch kv/kubevirt -n kubevirt --type merge -p '{"spec": {"configuration": {"virtTemplateDeployment": {"enabled": false}}}}'
