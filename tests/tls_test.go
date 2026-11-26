@@ -36,9 +36,14 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/portforward"
 	"k8s.io/client-go/transport/spdy"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"kubevirt.io/virt-template-api/core/subresourcesv1beta1"
+	"kubevirt.io/virt-template-api/core/v1beta1"
 )
 
 // Only the NIST curves and AES-GCM cipher suites are checked, since they are
@@ -287,6 +292,25 @@ func patchDeploymentArgsAndWait(deployment *appsv1.Deployment, args []string) {
 		// The new pod needs to pass its startup and readiness probes, and the
 		// old pod needs to terminate, before the rollout is considered done.
 	}, 90*time.Second, 2*time.Second).Should(Succeed())
+
+	// The aggregated APIService and the webhook endpoints lag behind the rollout.
+	probe := &v1beta1.VirtualMachineTemplate{
+		ObjectMeta: metav1.ObjectMeta{GenerateName: "serving-probe-", Namespace: NamespaceTest},
+		Spec: v1beta1.VirtualMachineTemplateSpec{
+			Parameters:     []v1beta1.Parameter{{Name: cpuCountParam, Value: "2"}},
+			VirtualMachine: &runtime.RawExtension{Object: &unstructured.Unstructured{Object: vmCPUCountTemplateUnstructured()}},
+		},
+	}
+	Eventually(func() error {
+		if _, err := tplClient.Discovery().ServerResourcesForGroupVersion(subresourcesv1beta1.GroupVersion.String()); err != nil {
+			return err
+		}
+		// A dry-run create still calls the validating webhook.
+		_, err := tplClient.TemplateV1beta1().VirtualMachineTemplates(NamespaceTest).Create(
+			context.Background(), probe, metav1.CreateOptions{DryRun: []string{metav1.DryRunAll}},
+		)
+		return err
+	}, 90*time.Second, time.Second).Should(Succeed())
 }
 
 // forwardPodPort port-forwards to the given port of a running pod matching
