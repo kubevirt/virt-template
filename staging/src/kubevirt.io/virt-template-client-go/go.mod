@@ -3,10 +3,7 @@ module kubevirt.io/virt-template-client-go
 go 1.24.0
 
 require (
-	k8s.io/api v0.34.3
-	k8s.io/apimachinery v0.34.3
 	k8s.io/client-go v0.34.3
-	k8s.io/kube-openapi v0.0.0-20250710124328-f3f2b991d03b
 	kubevirt.io/virt-template-api v0.0.0-00010101000000-00000000000
 )
 
@@ -41,6 +38,7 @@ require (
 	github.com/x448/float16 v0.8.4 // indirect
 	go.yaml.in/yaml/v2 v2.4.3 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
+	golang.org/x/mod v0.31.0 // indirect
 	golang.org/x/net v0.48.0 // indirect
 	golang.org/x/oauth2 v0.34.0 // indirect
 	golang.org/x/sys v0.39.0 // indirect
@@ -50,8 +48,11 @@ require (
 	google.golang.org/protobuf v1.36.11 // indirect
 	gopkg.in/evanphx/json-patch.v4 v4.13.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
+	k8s.io/api v0.34.3 // indirect
 	k8s.io/apiextensions-apiserver v0.34.3 // indirect
+	k8s.io/apimachinery v0.34.3 // indirect
 	k8s.io/klog/v2 v2.130.1 // indirect
+	k8s.io/kube-openapi v0.0.0-20250710124328-f3f2b991d03b // indirect
 	k8s.io/utils v0.0.0-20251002143259-bc988d571ff4 // indirect
 	kubevirt.io/api v1.7.0 // indirect
 	kubevirt.io/containerized-data-importer-api v1.64.0 // indirect
