@@ -303,7 +303,7 @@ func DeleteDecl(tokFile *token.File, curDecl inspector.Cursor) []Edit {
 		//    var (...) // comment
 		var (
 			file        = curDecl.Parent().Node().(*ast.File)
-			lineOf      = tokFile.Line
+			lineOf      = func(pos token.Pos) int { return safeLineOf(tokFile, pos) }
 			declEndLine = lineOf(decl.End())
 		)
 		for _, cg := range file.Comments {
@@ -381,7 +381,7 @@ func DeleteStmt(file *token.File, curStmt inspector.Cursor) []Edit {
 	var (
 		stmt          = curStmt.Node().(ast.Stmt)
 		tokFile       = file
-		lineOf        = tokFile.Line
+		lineOf        = func(pos token.Pos) int { return safeLineOf(tokFile, pos) }
 		stmtStartLine = lineOf(stmt.Pos())
 		stmtEndLine   = lineOf(stmt.End())
 
@@ -439,7 +439,7 @@ Big:
 		inStmtList = true
 	case *ast.ForStmt:
 		use(parent.For, parent.Body.Lbrace)
-		// special handling, as init;cond;post BlockStmt is not a statment list
+		// special handling, as init;cond;post BlockStmt is not a statement list
 		if parent.Init != nil && parent.Cond != nil && stmt == parent.Init && lineOf(parent.Cond.Pos()) == lineOf(stmt.End()) {
 			rightStmt = parent.Cond.Pos()
 		} else if parent.Post != nil && parent.Cond != nil && stmt == parent.Post && lineOf(parent.Cond.End()) == lineOf(stmt.Pos()) {
@@ -531,8 +531,7 @@ func DeleteUnusedVars(index *typeindex.Index, info *types.Info, tokFile *token.F
 	delcount := make(map[*types.Var]int)
 	for curId := range curDelend.Preorder((*ast.Ident)(nil)) {
 		id := curId.Node().(*ast.Ident)
-		if v, ok := info.Uses[id].(*types.Var); ok &&
-			typesinternal.GetVarKind(v) == typesinternal.LocalVar { // always false before go1.25
+		if v, ok := info.Uses[id].(*types.Var); ok && v.Kind() == types.LocalVar {
 			delcount[v]++
 		}
 	}
@@ -563,4 +562,10 @@ func eolComment(n ast.Node) *ast.CommentGroup {
 		return n.Comment
 	}
 	return nil
+}
+
+// safeLineOf is like token.File.Line but ignores //line directives.
+// (See also gopls' safetoken package.)
+func safeLineOf(f *token.File, pos token.Pos) int {
+	return f.PositionFor(pos, false).Line
 }

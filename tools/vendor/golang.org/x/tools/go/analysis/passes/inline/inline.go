@@ -150,11 +150,11 @@ func (a *analyzer) inline() {
 			a.inlineCall(n, cur)
 
 		case *ast.Ident:
-			switch t := a.pass.TypesInfo.Uses[n].(type) {
+			switch obj := a.pass.TypesInfo.Uses[n].(type) {
 			case *types.TypeName:
-				a.inlineAlias(t, cur)
+				a.inlineAlias(obj, cur)
 			case *types.Const:
-				a.inlineConst(t, cur)
+				a.inlineConst(obj, cur)
 			}
 		}
 	}
@@ -206,8 +206,7 @@ func (a *analyzer) inlineCall(call *ast.CallExpr, cur inspector.Cursor) {
 				Fset:  a.pass.Fset,
 				Types: a.pass.Pkg,
 				Info:  a.pass.TypesInfo,
-				File:  astutil.EnclosingFile(cur),
-				Call:  call,
+				Call:  cur,
 				CountUses: func(pkgname *types.PkgName) int {
 					return moreiters.Len(a.index.Uses(pkgname))
 				},
@@ -252,11 +251,22 @@ func (a *analyzer) inlineCall(call *ast.CallExpr, cur inspector.Cursor) {
 	}
 }
 
-// withinTestOf reports whether cur is within a dedicated test
-// function for the inlinable target function.
+// withinTestOf reports whether curUse is within a dedicated test
+// function for the inlinable target symbol.
 // A call within its dedicated test should not be inlined.
-func (a *analyzer) withinTestOf(cur inspector.Cursor, target *types.Func) bool {
-	curFuncDecl, ok := moreiters.First(cur.Enclosing((*ast.FuncDecl)(nil)))
+func (a *analyzer) withinTestOf(curUse inspector.Cursor, target types.Object) bool {
+	// x_test.go -> x
+	useFileBase, isTest := strings.CutSuffix(a.pass.Fset.File(curUse.Node().Pos()).Name(), "_test.go")
+	if !isTest {
+		return false // not a test file
+	}
+
+	// Suppress fixes for uses in x_test.go of target symbol defined in x.go (#79272).
+	if useFileBase == strings.TrimSuffix(a.pass.Fset.File(target.Pos()).Name(), ".go") {
+		return true
+	}
+
+	curFuncDecl, ok := moreiters.First(curUse.Enclosing((*ast.FuncDecl)(nil)))
 	if !ok {
 		return false // not in a function
 	}
@@ -267,23 +277,21 @@ func (a *analyzer) withinTestOf(cur inspector.Cursor, target *types.Func) bool {
 	if strings.TrimSuffix(a.pass.Pkg.Path(), "_test") != target.Pkg().Path() {
 		return false // different package
 	}
-	if !strings.HasSuffix(a.pass.Fset.File(funcDecl.Pos()).Name(), "_test.go") {
-		return false // not a test file
-	}
 
-	// Computed expected SYMBOL portion of "TestSYMBOL_comment"
-	// for the target symbol.
-	symbol := target.Name()
-	if recv := target.Signature().Recv(); recv != nil {
-		_, named := typesinternal.ReceiverNamed(recv)
-		symbol = named.Obj().Name() + "_" + symbol
-	}
-
+	// Computed expected SYMBOL portion of "ExampleSYMBOL_comment"
+	// for the target symbol. (Strictly, this convention applies
+	// only to Example functions.)
 	// TODO(adonovan): use a proper Test function parser.
+	symbol := target.Name()
+	if fn, ok := target.(*types.Func); ok {
+		if _, named := typesinternal.RecvBase(fn); named != nil {
+			symbol = named.Obj().Name() + "_" + symbol
+		}
+	}
 	fname := funcDecl.Name.Name
-	for _, pre := range []string{"Test", "Example", "Bench"} {
+	for _, pre := range []string{"Test", "Example", "Bench", "Fuzz"} {
 		if fname == pre+symbol || strings.HasPrefix(fname, pre+symbol+"_") {
-			return true
+			return true // use of X within TestX
 		}
 	}
 
@@ -304,6 +312,10 @@ func (a *analyzer) inlineAlias(tn *types.TypeName, curId inspector.Cursor) {
 		return // nope
 	}
 
+	if a.withinTestOf(curId, tn) {
+		return // don't inline a type alias from within its own test
+	}
+
 	alias := tn.Type().(*types.Alias)
 	// Remember the names of the alias's type params. When we check for shadowing
 	// later, we'll ignore these because they won't appear in the replacement text.
@@ -313,7 +325,6 @@ func (a *analyzer) inlineAlias(tn *types.TypeName, curId inspector.Cursor) {
 	}
 	rhs := alias.Rhs()
 	curPath := a.pass.Pkg.Path()
-	curFile := astutil.EnclosingFile(curId)
 	id := curId.Node().(*ast.Ident)
 
 	// Find the complete identifier, which may take any of these forms:
@@ -339,23 +350,19 @@ func (a *analyzer) inlineAlias(tn *types.TypeName, curId inspector.Cursor) {
 		expr = curId.Node().(*ast.IndexListExpr)
 	}
 
-	fieldType := curId
-	if fieldType.ParentEdgeKind() == edge.StarExpr_X {
-		fieldType = fieldType.Parent()
-	}
-	if fieldType.ParentEdgeKind() == edge.Field_Type {
-		field := fieldType.Parent().Node().(*ast.Field)
-		if len(field.Names) == 0 {
-			identicalName := false
-			if rhs, ok := alias.Rhs().(*types.Named); ok {
-				identicalName = alias.Obj().Name() == rhs.Obj().Name()
-			}
-			if !identicalName {
-				// Type is embedded, inlining the alias will cause
-				// the field name to be changed, which might break
-				// programs in terms of backwards compatibility.
-				return
-			}
+	// Reject inlining of a type alias used to declare an embedded
+	// struct field if doing so would change the field's name.
+	if v, ok := a.pass.TypesInfo.Defs[id].(*types.Var); ok && v.Embedded() {
+		identicalName := false
+		// TODO(adonovan): should we allow a pointer (type A = *pkg.A)?
+		if rhs, ok := alias.Rhs().(*types.Named); ok {
+			identicalName = alias.Obj().Name() == rhs.Obj().Name()
+		}
+		if !identicalName {
+			// Type is embedded, inlining the alias will cause
+			// the field name to be changed, which might break
+			// programs in terms of backwards compatibility.
+			return
 		}
 	}
 
@@ -378,6 +385,7 @@ func (a *analyzer) inlineAlias(tn *types.TypeName, curId inspector.Cursor) {
 	var (
 		importPrefixes = map[string]string{curPath: ""} // from pkg path to prefix
 		edits          []analysis.TextEdit
+		file           = astutil.EnclosingFile(curId)
 	)
 	for _, tn := range typenames(rhs) {
 		// Ignore the type parameters of the alias: they won't appear in the result.
@@ -393,8 +401,8 @@ func (a *analyzer) inlineAlias(tn *types.TypeName, curId inspector.Cursor) {
 			// The name is in the current package or the universe scope, so no import
 			// is required. Check that it is not shadowed (that is, that the type
 			// it refers to in rhs is the same one it refers to at n).
-			scope := a.pass.TypesInfo.Scopes[curFile].Innermost(id.Pos()) // n's scope
-			_, obj := scope.LookupParent(tn.Name(), id.Pos())             // what qn.name means in n's scope
+			scope := a.pass.TypesInfo.Scopes[file].Innermost(id.Pos()) // n's scope
+			_, obj := scope.LookupParent(tn.Name(), id.Pos())          // what qn.name means in n's scope
 			if obj != tn {
 				return
 			}
@@ -406,7 +414,7 @@ func (a *analyzer) inlineAlias(tn *types.TypeName, curId inspector.Cursor) {
 			// with the prefix it assigns
 			// with the package path for use by the TypeString qualifier below.
 			prefix, eds := refactor.AddImport(
-				a.pass.TypesInfo, curFile, pkgName, pkgPath, tn.Name(), id.Pos())
+				a.pass.TypesInfo, file, pkgName, pkgPath, tn.Name(), id.Pos())
 			importPrefixes[pkgPath] = strings.TrimSuffix(prefix, ".")
 			edits = append(edits, eds...)
 		}
@@ -512,8 +520,11 @@ func (a *analyzer) inlineConst(con *types.Const, cur inspector.Cursor) {
 		return // nope
 	}
 
+	if a.withinTestOf(cur, con) {
+		return // don't inline a type alias from within its own test
+	}
+
 	// If n is qualified by a package identifier, we'll need the full selector expression.
-	curFile := astutil.EnclosingFile(cur)
 	n := cur.Node().(*ast.Ident)
 
 	// We have an identifier A here (n), possibly qualified by a package identifier (sel.X,
@@ -525,10 +536,11 @@ func (a *analyzer) inlineConst(con *types.Const, cur inspector.Cursor) {
 	// If the RHS is not in the current package, AddImport will handle
 	// shadowing, so we only need to worry about when both expressions
 	// are in the current package.
+	file := astutil.EnclosingFile(cur)
 	if a.pass.Pkg.Path() == incon.RHSPkgPath {
 		// incon.rhsObj is the object referred to by B in the definition of A.
-		scope := a.pass.TypesInfo.Scopes[curFile].Innermost(n.Pos()) // n's scope
-		_, obj := scope.LookupParent(incon.RHSName, n.Pos())         // what "B" means in n's scope
+		scope := a.pass.TypesInfo.Scopes[file].Innermost(n.Pos()) // n's scope
+		_, obj := scope.LookupParent(incon.RHSName, n.Pos())      // what "B" means in n's scope
 		if obj == nil {
 			// Should be impossible: if code at n can refer to the LHS,
 			// it can refer to the RHS.
@@ -548,7 +560,7 @@ func (a *analyzer) inlineConst(con *types.Const, cur inspector.Cursor) {
 	)
 	if incon.RHSPkgPath != a.pass.Pkg.Path() {
 		importPrefix, edits = refactor.AddImport(
-			a.pass.TypesInfo, curFile, incon.RHSPkgName, incon.RHSPkgPath, incon.RHSName, n.Pos())
+			a.pass.TypesInfo, file, incon.RHSPkgName, incon.RHSPkgPath, incon.RHSName, n.Pos())
 	}
 	// If n is qualified by a package identifier, we'll need the full selector expression.
 	var expr ast.Expr = n

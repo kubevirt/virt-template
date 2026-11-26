@@ -17,24 +17,18 @@ import (
 	"golang.org/x/tools/internal/analysis/analyzerutil"
 	typeindexanalyzer "golang.org/x/tools/internal/analysis/typeindex"
 	"golang.org/x/tools/internal/astutil"
-	"golang.org/x/tools/internal/goplsexport"
 	"golang.org/x/tools/internal/stdlib"
 	"golang.org/x/tools/internal/typesinternal/typeindex"
 )
 
-var stditeratorsAnalyzer = &analysis.Analyzer{
+var StdIteratorsAnalyzer = &analysis.Analyzer{
 	Name: "stditerators",
 	Doc:  analyzerutil.MustExtractDoc(doc, "stditerators"),
 	Requires: []*analysis.Analyzer{
 		typeindexanalyzer.Analyzer,
 	},
 	Run: stditerators,
-	URL: "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/modernize#stditerators",
-}
-
-func init() {
-	// Export to gopls until this is a published modernizer.
-	goplsexport.StdIteratorsModernizer = stditeratorsAnalyzer
+	URL: "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/modernize#hdr-Analyzer_stditerators",
 }
 
 // stditeratorsTable records std types that have legacy T.{Len,At}
@@ -308,6 +302,7 @@ func stditerators(pass *analysis.Pass) (any, error) {
 			// treatment impossible.
 
 			// Check that all uses of var i within loop body are x.At(i).
+			used := false
 			for curUse := range index.Uses(indexVar) {
 				if !curBody.Contains(curUse) {
 					continue
@@ -346,6 +341,15 @@ func stditerators(pass *analysis.Pass) (any, error) {
 					End:     atCall.End(),
 					NewText: []byte(elem),
 				})
+				used = true
+			}
+
+			// The body does not call x.At(i), so the new loop
+			// variable would be unused and the fix would not compile.
+			// (A "for range" loop would compile, but would compute
+			// each element only to discard it.)
+			if !used {
+				continue nextCall
 			}
 
 			// Check file Go version is new enough for the iterator method.
