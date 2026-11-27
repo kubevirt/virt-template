@@ -36,4 +36,5 @@ Cross-namespace authorization is enforced by a `ValidatingAdmissionPolicy` in `c
 - Tests create a random namespace per test for isolation
 - Use `fake.NewClientBuilder().WithScheme(testScheme).WithStatusSubresource(...).Build()` for unit tests with fake clients, registering `WithStatusSubresource` for any type whose status is updated
 - Shared helper builders live in `vmtr_common_test.go`: `createRequest()`, `createSnapshot()`, `setSnapshotStatus()`, `createDataVolume()`, `expectCondition()`
+- `config/crd/testing/` holds the CDI `DataVolume` and KubeVirt snapshot CRDs, pulled from a cluster by `make cluster-envtest-crds` or `make kubevirt-envtest-crds`. Do not edit them by hand
 - Prefer `DescribeTable` with `Entry` for parameterized test cases
