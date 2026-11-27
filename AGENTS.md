@@ -40,6 +40,7 @@ The project uses `go.work` with four modules:
 api/core/                - CRD type definitions & subresource types - see api/core/AGENTS.md
 internal/controller/     - Reconcilers - see internal/controller/AGENTS.md
 internal/webhook/        - Validation webhooks - see internal/webhook/AGENTS.md
+internal/metricsauth/    - Metrics client certificate auth (--metrics-client-ca-configmap, --metrics-allowed-client-cn, unset by default)
 internal/apiserver/      - REST storage and subresource handlers - see internal/apiserver/AGENTS.md
 staging/.../virt-template-engine/template/ - Parameter substitution/generation - see AGENTS.md there
 config/                  - Kustomize overlays, CRDs, RBAC, webhooks, admission policy - see config/AGENTS.md
