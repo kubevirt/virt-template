@@ -56,6 +56,7 @@ func NewConfig(scheme *runtime.Scheme) *common.Config {
 				Description: defaultResponseDescription,
 			},
 		},
+		//nolint:staticcheck // No Route-based helper exists, k8s.io/apiserver uses it the same way.
 		GetOperationIDAndTags: openapi.GetOperationIDAndTags,
 		GetDefinitionName:     openapi.NewDefinitionNamer(scheme).GetDefinitionName,
 		GetDefinitions:        api.GetOpenAPIDefinitions,
@@ -70,6 +71,7 @@ func NewV3Config(scheme *runtime.Scheme) *common.OpenAPIV3Config {
 				Description: defaultResponseDescription,
 			},
 		},
+		//nolint:staticcheck // No Route-based helper exists, k8s.io/apiserver uses it the same way.
 		GetOperationIDAndTags: openapi.GetOperationIDAndTags,
 		GetDefinitionName:     openapi.NewDefinitionNamer(scheme).GetDefinitionName,
 		GetDefinitions:        api.GetOpenAPIDefinitions,
