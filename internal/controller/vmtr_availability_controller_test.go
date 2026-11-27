@@ -31,8 +31,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/rest"
+	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/config"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 
 	"kubevirt.io/virt-template-api/core/v1beta1"
@@ -77,6 +79,26 @@ var _ = Describe("VMTRAvailabilityController", func() {
 		})
 		Expect(err).ToNot(HaveOccurred())
 
+		Eventually(done, 60*time.Second).Should(Receive(BeNil()))
+	})
+
+	It("should keep waiting while a required CRD of a served group is missing", func() {
+		installTestingCRD := func(file string) {
+			_, err := envtest.InstallCRDs(env.Config, envtest.CRDInstallOptions{
+				Paths:  []string{filepath.Join("..", "..", "config", "crd", "testing", file)},
+				Scheme: testScheme,
+			})
+			Expect(err).ToNot(HaveOccurred())
+		}
+
+		done, ctrlCancel := startController()
+		DeferCleanup(ctrlCancel)
+
+		installTestingCRD("cdi.kubevirt.io_datavolumes.yaml")
+		installTestingCRD("snapshot.kubevirt.io_virtualmachinesnapshots.yaml")
+		Consistently(done, 3*time.Second).ShouldNot(Receive())
+
+		installTestingCRD("snapshot.kubevirt.io_virtualmachinesnapshotcontents.yaml")
 		Eventually(done, 60*time.Second).Should(Receive(BeNil()))
 	})
 
@@ -139,6 +161,8 @@ func startNoCRDEnv() *envtest.Environment {
 func startManager(cfg *rest.Config) ctrl.Manager {
 	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
 		Scheme: testScheme,
+		// Several specs start the VMTR controller, whose name must otherwise be unique per process.
+		Controller: config.Controller{SkipNameValidation: ptr.To(true)},
 	})
 	Expect(err).NotTo(HaveOccurred())
 
