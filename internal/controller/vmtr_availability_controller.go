@@ -22,11 +22,14 @@ package controller
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
+	"k8s.io/apimachinery/pkg/api/equality"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/client-go/discovery"
 	snapshotv1beta1 "kubevirt.io/api/snapshot/v1beta1"
@@ -40,17 +43,20 @@ import (
 	"kubevirt.io/virt-template-api/core/v1beta1"
 )
 
-const (
-	defaultPollInterval = 1 * time.Minute
+const defaultPollInterval = 1 * time.Minute
 
-	cdiGroupVersion      = "cdi.kubevirt.io/v1beta1"
-	snapshotGroupVersion = "snapshot.kubevirt.io/v1beta1"
+var (
+	dataVolumesResource      = cdiv1beta1.SchemeGroupVersion.WithResource("datavolumes")
+	snapshotsResource        = snapshotv1beta1.SchemeGroupVersion.WithResource("virtualmachinesnapshots")
+	snapshotContentsResource = snapshotv1beta1.SchemeGroupVersion.WithResource("virtualmachinesnapshotcontents")
+
+	// CRDs of a group are registered one by one, so each resource is checked, not the group.
+	requiredResources = []schema.GroupVersionResource{
+		dataVolumesResource,
+		snapshotsResource,
+		snapshotContentsResource,
+	}
 )
-
-var requiredGroups = []string{
-	cdiGroupVersion,
-	snapshotGroupVersion,
-}
 
 // VMTRAvailabilityController polls for required external CRDs and
 // starts the VMTR controller once all are available. While waiting,
@@ -70,7 +76,8 @@ func (c *VMTRAvailabilityController) SetPollInterval(d time.Duration) {
 }
 
 func (c *VMTRAvailabilityController) Start(ctx context.Context) error {
-	if len(c.missingGroups()) == 0 {
+	missing := c.missingResources()
+	if len(missing) == 0 {
 		return c.startController(ctx)
 	}
 
@@ -78,7 +85,7 @@ func (c *VMTRAvailabilityController) Start(ctx context.Context) error {
 		return fmt.Errorf("failed to add VMTR informer: %w", err)
 	}
 
-	logf.FromContext(ctx).Info("Waiting for required CRDs to become available", "groups", requiredGroups)
+	logf.FromContext(ctx).Info("Waiting for required CRDs to become available", "missing", missing)
 
 	if c.pollInterval == 0 {
 		c.SetPollInterval(defaultPollInterval)
@@ -87,7 +94,7 @@ func (c *VMTRAvailabilityController) Start(ctx context.Context) error {
 	defer ticker.Stop()
 
 	for {
-		missing := c.missingGroups()
+		missing = c.missingResources()
 		if len(missing) == 0 {
 			return c.startController(ctx)
 		}
@@ -132,6 +139,9 @@ func (c *VMTRAvailabilityController) setMissingCRDStatus(ctx context.Context, mi
 		tplReqCopy := tplReq.DeepCopy()
 		setReadyCondition(ctx, tplReq, metav1.ConditionFalse, v1beta1.ReasonWaiting, "%s", message)
 		setProgressingCondition(ctx, tplReq, metav1.ConditionTrue, v1beta1.ReasonWaiting)
+		if equality.Semantic.DeepEqual(tplReq.Status, tplReqCopy.Status) {
+			continue
+		}
 
 		if err := cl.Status().Patch(ctx, tplReq, client.MergeFrom(tplReqCopy)); err != nil {
 			log.Error(err, "Failed to update VirtualMachineTemplateRequest status",
@@ -140,21 +150,28 @@ func (c *VMTRAvailabilityController) setMissingCRDStatus(ctx context.Context, mi
 	}
 }
 
-func (c *VMTRAvailabilityController) missingGroups() []string {
+func (c *VMTRAvailabilityController) missingResources() []string {
 	var missing []string
-	for _, group := range requiredGroups {
-		if !isAPIGroupAvailable(c.DiscoveryClient, group) {
-			missing = append(missing, group)
+	for _, resource := range requiredResources {
+		if !isResourceServed(c.DiscoveryClient, resource) {
+			missing = append(missing, resource.GroupResource().String())
 		}
 	}
 	return missing
 }
 
-func isAPIGroupAvailable(dc discovery.DiscoveryInterface, groupVersion string) bool {
-	_, err := dc.ServerResourcesForGroupVersion(groupVersion)
-	return err == nil
+func isResourceServed(dc discovery.DiscoveryInterface, resource schema.GroupVersionResource) bool {
+	list, err := dc.ServerResourcesForGroupVersion(resource.GroupVersion().String())
+	if err != nil {
+		return false
+	}
+	return slices.ContainsFunc(list.APIResources, func(r metav1.APIResource) bool {
+		return r.Name == resource.Resource
+	})
 }
 
+// ExternalCRDCacheConfig only adds entries for served resources, since a cache.ByObject for a
+// missing CRD fails manager construction.
 func ExternalCRDCacheConfig(dc discovery.DiscoveryInterface) (map[client.Object]cache.ByObject, []client.Object) {
 	uidReq, _ := labels.NewRequirement(v1beta1.LabelRequestUID, selection.Exists, nil)
 	uidSelector := labels.NewSelector().Add(*uidReq)
@@ -162,11 +179,13 @@ func ExternalCRDCacheConfig(dc discovery.DiscoveryInterface) (map[client.Object]
 	cacheByObject := map[client.Object]cache.ByObject{}
 	var clientDisableFor []client.Object
 
-	if isAPIGroupAvailable(dc, cdiGroupVersion) {
+	if isResourceServed(dc, dataVolumesResource) {
 		cacheByObject[&cdiv1beta1.DataVolume{}] = cache.ByObject{Label: uidSelector}
 	}
-	if isAPIGroupAvailable(dc, snapshotGroupVersion) {
+	if isResourceServed(dc, snapshotsResource) {
 		cacheByObject[&snapshotv1beta1.VirtualMachineSnapshot{}] = cache.ByObject{Label: uidSelector}
+	}
+	if isResourceServed(dc, snapshotContentsResource) {
 		clientDisableFor = append(clientDisableFor, &snapshotv1beta1.VirtualMachineSnapshotContent{})
 	}
 
