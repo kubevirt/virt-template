@@ -81,6 +81,9 @@ vendor: ## Update vendored modules
 	go mod tidy
 	go work sync
 	go work vendor
+	# Load the full module graph, as IDEs do with -mod=readonly, to record the go.mod checksums of
+	# unvendored dependencies in go.work.sum.
+	go list -m -mod=readonly all > /dev/null
 	cd tools && GOWORK=off go mod tidy && GOWORK=off go mod vendor
 
 .PHONY: check-uncommitted
