@@ -20,7 +20,7 @@
 set -exuo pipefail
 
 GH_CLI_DIR=""
-GH_CLI_VERSION="${GH_CLI_VERSION:-2.83.2}"
+GH_CLI_VERSION="${GH_CLI_VERSION:-2.101.0}"
 GITHUB_REPOSITORY="${GITHUB_REPOSITORY:-kubevirt/virt-template}"
 
 : "${GPG_USER_ID:?GPG_USER_ID must be set}"

@@ -658,7 +658,7 @@ func matchIgnore(ignore, relPath string) bool {
 // A nil entry means the directory is not part of a Go module,
 // or a go.mod file was found but it's invalid.
 // A non-nil entry means this directory, or a parent, is in a valid Go module.
-var cachedModuleByDir sync.Map // map[dirString]*cachedModfile
+var cachedModuleByDir sync.Map // map[string]*cachedModule
 
 type cachedModule struct {
 	absDir string // the directory where the go.mod file was found
