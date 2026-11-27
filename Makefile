@@ -247,8 +247,8 @@ undeploy: ## Undeploy controller and apiserver from the K8s cluster. Call with i
 undeploy-openshift: ## Undeploy controller and apiserver from the OpenShift cluster. Call with ignore-not-found=true to ignore resource not found errors during deletion.
 	$(call go-tool,kustomize,build $(CURDIR)/config/openshift) | $(KUBECTL) delete --ignore-not-found=$(IGNORE_NOT_FOUND) -f -
 
-CERT_MANAGER_VERSION ?= v1.20.0
-.PHONE: deploy-cert-manager
+CERT_MANAGER_VERSION ?= v1.21.2
+.PHONY: deploy-cert-manager
 deploy-cert-manager:
 	$(KUBECTL) apply -f "https://github.com/cert-manager/cert-manager/releases/download/$(CERT_MANAGER_VERSION)/cert-manager.yaml"
 	$(call go-tool,cmctl,check api --wait=5m)
