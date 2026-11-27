@@ -2,3 +2,10 @@
 # Ignore build and test binaries.
 bin/
 dist/
+# Ignore the cluster checkouts, which are large and not needed by any image.
+_cluster-up/
+_kubevirt/
+.git/
+# Keep only the version file the apiserver image needs from the build output.
+_out/*
+!_out/version
