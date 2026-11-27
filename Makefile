@@ -239,12 +239,21 @@ deploy-openshift: manifests ## Deploy controller and apiserver to the OpenShift 
 	$(call go-tool,kustomize,edit set image apiserver=${IMG_APISERVER},$(CURDIR)/config/apiserver)
 	$(call go-tool,kustomize,build $(CURDIR)/config/openshift) | $(KUBECTL) apply -f -
 
+# Deletes the VirtualMachineTemplateRequests first, while the controller still runs to remove their finalizers.
+define delete-requests
+	if $(KUBECTL) get crd virtualmachinetemplaterequests.template.kubevirt.io >/dev/null 2>&1; then \
+		$(KUBECTL) delete virtualmachinetemplaterequests.template.kubevirt.io --all --all-namespaces --timeout=5m; \
+	fi
+endef
+
 .PHONY: undeploy
 undeploy: ## Undeploy controller and apiserver from the K8s cluster. Call with ignore-not-found=true to ignore resource not found errors during deletion.
+	$(delete-requests)
 	$(call go-tool,kustomize,build $(CURDIR)/config/default) | $(KUBECTL) delete --ignore-not-found=$(IGNORE_NOT_FOUND) -f -
 
 .PHONY: undeploy-openshift
 undeploy-openshift: ## Undeploy controller and apiserver from the OpenShift cluster. Call with ignore-not-found=true to ignore resource not found errors during deletion.
+	$(delete-requests)
 	$(call go-tool,kustomize,build $(CURDIR)/config/openshift) | $(KUBECTL) delete --ignore-not-found=$(IGNORE_NOT_FOUND) -f -
 
 CERT_MANAGER_VERSION ?= v1.21.2
