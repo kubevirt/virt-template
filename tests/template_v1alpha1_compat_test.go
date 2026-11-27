@@ -45,7 +45,7 @@ var _ = Describe("v1alpha1 backward compatibility", Ordered, func() {
 		template := &v1alpha1.VirtualMachineTemplate{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "v1alpha1-compat-template",
-				Namespace: NamespaceTest,
+				Namespace: testNamespace,
 			},
 			Spec: v1alpha1.VirtualMachineTemplateSpec{
 				Parameters: []v1alpha1.Parameter{
@@ -61,14 +61,14 @@ var _ = Describe("v1alpha1 backward compatibility", Ordered, func() {
 				},
 			},
 		}
-		_, err := tplClient.TemplateV1alpha1().VirtualMachineTemplates(NamespaceTest).
+		_, err := tplClient.TemplateV1alpha1().VirtualMachineTemplates(testNamespace).
 			Create(context.Background(), template, metav1.CreateOptions{})
 		Expect(err).NotTo(HaveOccurred())
 
 		opts := subresourcesv1alpha1.ProcessOptions{
 			Parameters: map[string]string{cpuCountParam: fmt.Sprintf("%d", desiredCPUs)},
 		}
-		processed, err := tplClient.TemplateV1alpha1().VirtualMachineTemplates(NamespaceTest).
+		processed, err := tplClient.TemplateV1alpha1().VirtualMachineTemplates(testNamespace).
 			Process(context.Background(), template.Name, opts)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(processed.VirtualMachine).NotTo(BeNil())
@@ -79,7 +79,7 @@ var _ = Describe("v1alpha1 backward compatibility", Ordered, func() {
 		template := &v1alpha1.VirtualMachineTemplate{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "v1alpha1-compat-create-template",
-				Namespace: NamespaceTest,
+				Namespace: testNamespace,
 			},
 			Spec: v1alpha1.VirtualMachineTemplateSpec{
 				VirtualMachine: &runtime.RawExtension{
@@ -95,39 +95,36 @@ var _ = Describe("v1alpha1 backward compatibility", Ordered, func() {
 				},
 			},
 		}
-		_, err := tplClient.TemplateV1alpha1().VirtualMachineTemplates(NamespaceTest).
+		_, err := tplClient.TemplateV1alpha1().VirtualMachineTemplates(testNamespace).
 			Create(context.Background(), template, metav1.CreateOptions{})
 		Expect(err).NotTo(HaveOccurred())
 
 		opts := subresourcesv1alpha1.ProcessOptions{}
-		processed, err := tplClient.TemplateV1alpha1().VirtualMachineTemplates(NamespaceTest).
+		processed, err := tplClient.TemplateV1alpha1().VirtualMachineTemplates(testNamespace).
 			CreateVirtualMachine(context.Background(), template.Name, opts)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(processed).NotTo(BeNil())
 		Expect(processed.VirtualMachine.RunStrategy()).To(Equal(virtv1.RunStrategyHalted))
-
-		err = virtClient.VirtualMachine(NamespaceTest).Delete(context.Background(), processed.VirtualMachine.Name, metav1.DeleteOptions{})
-		Expect(err).NotTo(HaveOccurred())
 	})
 
 	It("should create a VirtualMachineTemplateRequest via v1alpha1 API", func() {
 		tplReq := &v1alpha1.VirtualMachineTemplateRequest{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "v1alpha1-compat-request",
-				Namespace: NamespaceTest,
+				Namespace: testNamespace,
 			},
 			Spec: v1alpha1.VirtualMachineTemplateRequestSpec{
 				VirtualMachineRef: v1alpha1.VirtualMachineReference{
-					Namespace: NamespaceTest,
+					Namespace: testNamespace,
 					Name:      "nonexistent-vm",
 				},
 			},
 		}
-		_, err := tplClient.TemplateV1alpha1().VirtualMachineTemplateRequests(NamespaceTest).
+		_, err := tplClient.TemplateV1alpha1().VirtualMachineTemplateRequests(testNamespace).
 			Create(context.Background(), tplReq, metav1.CreateOptions{})
 		Expect(err).NotTo(HaveOccurred())
 
-		fetched, err := tplClient.TemplateV1alpha1().VirtualMachineTemplateRequests(NamespaceTest).
+		fetched, err := tplClient.TemplateV1alpha1().VirtualMachineTemplateRequests(testNamespace).
 			Get(context.Background(), tplReq.Name, metav1.GetOptions{})
 		Expect(err).NotTo(HaveOccurred())
 		Expect(fetched.Spec.VirtualMachineRef.Name).To(Equal("nonexistent-vm"))

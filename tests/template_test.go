@@ -68,7 +68,7 @@ var _ = Describe("VirtualMachineTemplate", Ordered, func() {
 		template := &v1beta1.VirtualMachineTemplate{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "simple-template",
-				Namespace: NamespaceTest,
+				Namespace: testNamespace,
 			},
 			Spec: v1beta1.VirtualMachineTemplateSpec{
 				Parameters: []v1beta1.Parameter{
@@ -84,7 +84,7 @@ var _ = Describe("VirtualMachineTemplate", Ordered, func() {
 				},
 			},
 		}
-		_, err := tplClient.TemplateV1beta1().VirtualMachineTemplates(NamespaceTest).
+		_, err := tplClient.TemplateV1beta1().VirtualMachineTemplates(testNamespace).
 			Create(context.Background(), template, metav1.CreateOptions{})
 		Expect(err).NotTo(HaveOccurred())
 
@@ -92,7 +92,7 @@ var _ = Describe("VirtualMachineTemplate", Ordered, func() {
 		opts := subresourcesv1beta1.ProcessOptions{
 			Parameters: map[string]string{cpuCountParam: fmt.Sprintf("%d", desiredCPUs)},
 		}
-		processed, err := tplClient.TemplateV1beta1().VirtualMachineTemplates(NamespaceTest).Process(context.Background(), template.Name, opts)
+		processed, err := tplClient.TemplateV1beta1().VirtualMachineTemplates(testNamespace).Process(context.Background(), template.Name, opts)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(processed.VirtualMachine).NotTo(BeNil())
 		Expect(processed.VirtualMachine.Spec.Template.Spec.Domain.CPU.Cores).To(Equal(uint32(desiredCPUs)))
@@ -102,7 +102,7 @@ var _ = Describe("VirtualMachineTemplate", Ordered, func() {
 		template := &v1beta1.VirtualMachineTemplate{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "create-template",
-				Namespace: NamespaceTest,
+				Namespace: testNamespace,
 			},
 			Spec: v1beta1.VirtualMachineTemplateSpec{
 				VirtualMachine: &runtime.RawExtension{
@@ -124,12 +124,12 @@ var _ = Describe("VirtualMachineTemplate", Ordered, func() {
 				},
 			},
 		}
-		createdTemplate, err := tplClient.TemplateV1beta1().VirtualMachineTemplates(NamespaceTest).
+		createdTemplate, err := tplClient.TemplateV1beta1().VirtualMachineTemplates(testNamespace).
 			Create(context.Background(), template, metav1.CreateOptions{})
 		Expect(err).NotTo(HaveOccurred())
 
 		// The template should be placed in the expected namespace.
-		Expect(createdTemplate.Namespace).To(Equal(NamespaceTest))
+		Expect(createdTemplate.Namespace).To(Equal(testNamespace))
 
 		// The stored template should reference the selected common instance type and preference correctly.
 		templateVM := decodeFunctestVM(createdTemplate.Spec.VirtualMachine.Raw)
@@ -140,7 +140,7 @@ var _ = Describe("VirtualMachineTemplate", Ordered, func() {
 
 		// Create VM from template
 		opts := subresourcesv1beta1.ProcessOptions{}
-		processed, err := tplClient.TemplateV1beta1().VirtualMachineTemplates(NamespaceTest).CreateVirtualMachine(
+		processed, err := tplClient.TemplateV1beta1().VirtualMachineTemplates(testNamespace).CreateVirtualMachine(
 			context.Background(),
 			createdTemplate.Name,
 			opts,
@@ -154,16 +154,12 @@ var _ = Describe("VirtualMachineTemplate", Ordered, func() {
 		Expect(processed.VirtualMachine.Spec.Preference.Name).To(Equal(testPreference))
 
 		// The created VM should exist in the expected namespace and keep the instance type and preference references.
-		createdVM, err := virtClient.VirtualMachine(NamespaceTest).Get(context.Background(), processed.VirtualMachine.Name, metav1.GetOptions{})
+		createdVM, err := virtClient.VirtualMachine(testNamespace).Get(context.Background(), processed.VirtualMachine.Name, metav1.GetOptions{})
 		Expect(err).NotTo(HaveOccurred())
-		Expect(createdVM.Namespace).To(Equal(NamespaceTest))
+		Expect(createdVM.Namespace).To(Equal(testNamespace))
 		Expect(createdVM.Spec.Instancetype).NotTo(BeNil())
 		Expect(createdVM.Spec.Instancetype.Name).To(Equal(testInstancetype))
 		Expect(createdVM.Spec.Preference).NotTo(BeNil())
 		Expect(createdVM.Spec.Preference.Name).To(Equal(testPreference))
-
-		// Clean up created VM
-		err = virtClient.VirtualMachine(NamespaceTest).Delete(context.Background(), processed.VirtualMachine.Name, metav1.DeleteOptions{})
-		Expect(err).NotTo(HaveOccurred())
 	})
 })
