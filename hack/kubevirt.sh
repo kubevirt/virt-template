@@ -38,7 +38,8 @@ function kubevirt::fetch_kubevirt() {
 }
 
 function kubevirt::up() {
-  make cluster-up -C "${_kubevirt_dir}" && make cluster-sync -C "${_kubevirt_dir}"
+  make cluster-up -C "${_kubevirt_dir}"
+  make cluster-sync -C "${_kubevirt_dir}"
   KUBECONFIG=$(kubevirt::kubeconfig)
   export KUBECONFIG
 
