@@ -59,13 +59,13 @@ var macSeq atomic.Uint32
 
 var _ = Describe("VirtualMachineTemplateRequest", func() {
 	It("should create a VirtualMachineTemplate from an existing VirtualMachine", func() {
-		vm, err := virtClient.VirtualMachine(NamespaceSecondaryTest).Create(context.Background(), newVM(), metav1.CreateOptions{})
+		vm, err := virtClient.VirtualMachine(testSecondaryNamespace).Create(context.Background(), newVM(), metav1.CreateOptions{})
 		Expect(err).ToNot(HaveOccurred())
 		Expect(vm.Spec.Template.Spec.Domain.Devices.Interfaces).NotTo(BeEmpty())
 		sourceMACAddress := vm.Spec.Template.Spec.Domain.Devices.Interfaces[0].MacAddress
 
 		Eventually(func(g Gomega) {
-			vm, err = virtClient.VirtualMachine(NamespaceSecondaryTest).Get(context.Background(), vm.Name, metav1.GetOptions{})
+			vm, err = virtClient.VirtualMachine(testSecondaryNamespace).Get(context.Background(), vm.Name, metav1.GetOptions{})
 			g.Expect(err).ToNot(HaveOccurred())
 			g.Expect(vm.Status.Ready).To(BeTrue())
 		}, 5*time.Minute, 1*time.Second).Should(Succeed())
@@ -73,7 +73,7 @@ var _ = Describe("VirtualMachineTemplateRequest", func() {
 		tplReq := &v1beta1.VirtualMachineTemplateRequest{
 			ObjectMeta: metav1.ObjectMeta{
 				GenerateName: "virt-template-",
-				Namespace:    NamespaceTest,
+				Namespace:    testNamespace,
 			},
 			Spec: v1beta1.VirtualMachineTemplateRequestSpec{
 				VirtualMachineRef: v1beta1.VirtualMachineReference{
@@ -87,13 +87,13 @@ var _ = Describe("VirtualMachineTemplateRequest", func() {
 			},
 		}
 
-		tplReq, err = tplClient.TemplateV1beta1().VirtualMachineTemplateRequests(NamespaceTest).
+		tplReq, err = tplClient.TemplateV1beta1().VirtualMachineTemplateRequests(testNamespace).
 			Create(context.Background(), tplReq, metav1.CreateOptions{})
 		Expect(err).ToNot(HaveOccurred())
 
 		tplReq = waitForTemplateRequestReady(tplReq.Name)
 
-		tpl, err := tplClient.TemplateV1beta1().VirtualMachineTemplates(NamespaceTest).
+		tpl, err := tplClient.TemplateV1beta1().VirtualMachineTemplates(testNamespace).
 			Get(context.Background(), tplReq.Status.TemplateRef.Name, metav1.GetOptions{})
 		Expect(err).ToNot(HaveOccurred())
 
@@ -120,7 +120,7 @@ var _ = Describe("VirtualMachineTemplateRequest", func() {
 
 		instancetypeName := "u1.medium"
 		name := "my-created-vm-" + rand.String(5)
-		processedVM, err := tplClient.TemplateV1beta1().VirtualMachineTemplates(NamespaceTest).CreateVirtualMachine(
+		processedVM, err := tplClient.TemplateV1beta1().VirtualMachineTemplates(testNamespace).CreateVirtualMachine(
 			context.Background(), tpl.Name,
 			subresourcesv1beta1.ProcessOptions{
 				Parameters: map[string]string{
@@ -137,7 +137,7 @@ var _ = Describe("VirtualMachineTemplateRequest", func() {
 
 		var createdVM *virtv1.VirtualMachine
 		Eventually(func(g Gomega) {
-			createdVM, err = virtClient.VirtualMachine(NamespaceTest).Get(context.Background(), processedVM.VirtualMachine.Name, metav1.GetOptions{})
+			createdVM, err = virtClient.VirtualMachine(testNamespace).Get(context.Background(), processedVM.VirtualMachine.Name, metav1.GetOptions{})
 			g.Expect(err).ToNot(HaveOccurred())
 			g.Expect(createdVM.Status.Ready).To(BeTrue())
 		}, 5*time.Minute, 1*time.Second).Should(Succeed())
@@ -155,13 +155,13 @@ var _ = Describe("VirtualMachineTemplateRequest", func() {
 	})
 
 	It("should create a VirtualMachineTemplate from a VM with backend storage", func() {
-		vm, err := virtClient.VirtualMachine(NamespaceSecondaryTest).Create(
+		vm, err := virtClient.VirtualMachine(testSecondaryNamespace).Create(
 			context.Background(), newVMWithPersistentEFI(), metav1.CreateOptions{},
 		)
 		Expect(err).ToNot(HaveOccurred())
 
 		Eventually(func(g Gomega) {
-			vm, err = virtClient.VirtualMachine(NamespaceSecondaryTest).Get(context.Background(), vm.Name, metav1.GetOptions{})
+			vm, err = virtClient.VirtualMachine(testSecondaryNamespace).Get(context.Background(), vm.Name, metav1.GetOptions{})
 			g.Expect(err).ToNot(HaveOccurred())
 			g.Expect(vm.Status.Ready).To(BeTrue())
 		}, 5*time.Minute, 1*time.Second).Should(Succeed())
@@ -169,7 +169,7 @@ var _ = Describe("VirtualMachineTemplateRequest", func() {
 		tplReq := &v1beta1.VirtualMachineTemplateRequest{
 			ObjectMeta: metav1.ObjectMeta{
 				GenerateName: "virt-template-efi-",
-				Namespace:    NamespaceTest,
+				Namespace:    testNamespace,
 			},
 			Spec: v1beta1.VirtualMachineTemplateRequestSpec{
 				VirtualMachineRef: v1beta1.VirtualMachineReference{
@@ -179,13 +179,13 @@ var _ = Describe("VirtualMachineTemplateRequest", func() {
 			},
 		}
 
-		tplReq, err = tplClient.TemplateV1beta1().VirtualMachineTemplateRequests(NamespaceTest).
+		tplReq, err = tplClient.TemplateV1beta1().VirtualMachineTemplateRequests(testNamespace).
 			Create(context.Background(), tplReq, metav1.CreateOptions{})
 		Expect(err).ToNot(HaveOccurred())
 
 		tplReq = waitForTemplateRequestReady(tplReq.Name)
 
-		tpl, err := tplClient.TemplateV1beta1().VirtualMachineTemplates(NamespaceTest).
+		tpl, err := tplClient.TemplateV1beta1().VirtualMachineTemplates(testNamespace).
 			Get(context.Background(), tplReq.Status.TemplateRef.Name, metav1.GetOptions{})
 		Expect(err).ToNot(HaveOccurred())
 
@@ -196,7 +196,7 @@ var _ = Describe("VirtualMachineTemplateRequest", func() {
 
 		// Create a VM from the template
 		name := "my-created-vm-efi-" + rand.String(5)
-		processedResult, err := tplClient.TemplateV1beta1().VirtualMachineTemplates(NamespaceTest).CreateVirtualMachine(
+		processedResult, err := tplClient.TemplateV1beta1().VirtualMachineTemplates(testNamespace).CreateVirtualMachine(
 			context.Background(), tpl.Name,
 			subresourcesv1beta1.ProcessOptions{
 				Parameters: map[string]string{
@@ -208,7 +208,7 @@ var _ = Describe("VirtualMachineTemplateRequest", func() {
 		Expect(processedResult.VirtualMachine.Name).To(Equal(name))
 
 		Eventually(func(g Gomega) {
-			newVM, err := virtClient.VirtualMachine(NamespaceTest).Get(
+			newVM, err := virtClient.VirtualMachine(testNamespace).Get(
 				context.Background(), processedResult.VirtualMachine.Name, metav1.GetOptions{},
 			)
 			g.Expect(err).ToNot(HaveOccurred())
@@ -221,7 +221,7 @@ func waitForTemplateRequestReady(name string) *v1beta1.VirtualMachineTemplateReq
 	var tplReq *v1beta1.VirtualMachineTemplateRequest
 	Eventually(func(g Gomega) {
 		var err error
-		tplReq, err = tplClient.TemplateV1beta1().VirtualMachineTemplateRequests(NamespaceTest).
+		tplReq, err = tplClient.TemplateV1beta1().VirtualMachineTemplateRequests(testNamespace).
 			Get(context.Background(), name, metav1.GetOptions{})
 		g.Expect(err).ToNot(HaveOccurred())
 		cond := meta.FindStatusCondition(tplReq.Status.Conditions, v1beta1.ConditionReady)
@@ -242,7 +242,7 @@ func newVM() *virtv1.VirtualMachine {
 	return &virtv1.VirtualMachine{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "my-test-vm-" + suffix,
-			Namespace: NamespaceSecondaryTest,
+			Namespace: testSecondaryNamespace,
 		},
 		Spec: virtv1.VirtualMachineSpec{
 			DataVolumeTemplates: []virtv1.DataVolumeTemplateSpec{

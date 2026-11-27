@@ -29,7 +29,6 @@ import (
 	authorizationv1 "k8s.io/api/authorization/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
-	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/rest"
 
@@ -53,42 +52,20 @@ var _ = Describe("VirtualMachineTemplateRequest Authorization", func() {
 
 	var (
 		serviceAccount *corev1.ServiceAccount
-		roles          []*rbacv1.Role
-		roleBindings   []*rbacv1.RoleBinding
 		tplReq         *v1beta1.VirtualMachineTemplateRequest
 	)
 
 	BeforeEach(func() {
 		serviceAccount = &corev1.ServiceAccount{
 			ObjectMeta: metav1.ObjectMeta{
-				Namespace:    NamespaceTest,
+				Namespace:    testNamespace,
 				GenerateName: vmtrAuthzTest,
 			},
 		}
 		var err error
-		serviceAccount, err = virtClient.CoreV1().ServiceAccounts(NamespaceTest).
+		serviceAccount, err = virtClient.CoreV1().ServiceAccounts(testNamespace).
 			Create(context.Background(), serviceAccount, metav1.CreateOptions{})
 		Expect(err).ToNot(HaveOccurred())
-	})
-
-	AfterEach(func() {
-		if serviceAccount != nil {
-			Expect(virtClient.CoreV1().ServiceAccounts(NamespaceTest).Delete(context.Background(), serviceAccount.Name, metav1.DeleteOptions{})).
-				To(Or(Succeed(), MatchError(k8serrors.IsNotFound, "k8serrors.IsNotFound")))
-		}
-		if tplReq != nil && tplReq.Name != "" {
-			Expect(tplClient.TemplateV1beta1().VirtualMachineTemplateRequests(NamespaceTest).
-				Delete(context.Background(), tplReq.Name, metav1.DeleteOptions{})).
-				To(Or(Succeed(), MatchError(k8serrors.IsNotFound, "k8serrors.IsNotFound")))
-		}
-		for _, role := range roles {
-			Expect(virtClient.RbacV1().Roles(role.Namespace).Delete(context.Background(), role.Name, metav1.DeleteOptions{})).
-				To(Or(Succeed(), MatchError(k8serrors.IsNotFound, "k8serrors.IsNotFound")))
-		}
-		for _, roleBinding := range roleBindings {
-			Expect(virtClient.RbacV1().RoleBindings(roleBinding.Namespace).Delete(context.Background(), roleBinding.Name, metav1.DeleteOptions{})).
-				To(Or(Succeed(), MatchError(k8serrors.IsNotFound, "k8serrors.IsNotFound")))
-		}
 	})
 
 	createRole := func(namespace string, rules []rbacv1.PolicyRule) *rbacv1.Role {
@@ -101,7 +78,6 @@ var _ = Describe("VirtualMachineTemplateRequest Authorization", func() {
 		}
 		role, err := virtClient.RbacV1().Roles(namespace).Create(context.Background(), role, metav1.CreateOptions{})
 		ExpectWithOffset(1, err).ToNot(HaveOccurred())
-		roles = append(roles, role)
 		return role
 	}
 
@@ -148,9 +124,8 @@ var _ = Describe("VirtualMachineTemplateRequest Authorization", func() {
 				Name:     roleName,
 			},
 		}
-		rb, err := virtClient.RbacV1().RoleBindings(namespace).Create(context.Background(), rb, metav1.CreateOptions{})
+		_, err := virtClient.RbacV1().RoleBindings(namespace).Create(context.Background(), rb, metav1.CreateOptions{})
 		ExpectWithOffset(1, err).ToNot(HaveOccurred())
-		roleBindings = append(roleBindings, rb)
 		waitForPermission(namespace, apiGroup, resource, subresource, resourceName)
 	}
 
@@ -165,7 +140,7 @@ var _ = Describe("VirtualMachineTemplateRequest Authorization", func() {
 		tplReq = &v1beta1.VirtualMachineTemplateRequest{
 			ObjectMeta: metav1.ObjectMeta{
 				GenerateName: vmtrAuthzTest,
-				Namespace:    NamespaceTest,
+				Namespace:    testNamespace,
 			},
 			Spec: v1beta1.VirtualMachineTemplateRequestSpec{
 				VirtualMachineRef: v1beta1.VirtualMachineReference{
@@ -174,30 +149,30 @@ var _ = Describe("VirtualMachineTemplateRequest Authorization", func() {
 				},
 			},
 		}
-		tplReq, err = saClient.TemplateV1beta1().VirtualMachineTemplateRequests(NamespaceTest).
+		tplReq, err = saClient.TemplateV1beta1().VirtualMachineTemplateRequests(testNamespace).
 			Create(context.Background(), tplReq, metav1.CreateOptions{})
 		return err
 	}
 
 	Context("when user lacks source permissions for cross namespace clone", func() {
 		BeforeEach(func() {
-			requestRole := createRole(NamespaceTest, []rbacv1.PolicyRule{
+			requestRole := createRole(testNamespace, []rbacv1.PolicyRule{
 				{
 					APIGroups: []string{templateapi.GroupName},
 					Resources: []string{templateapi.PluralRequestResourceName},
 					Verbs:     []string{verbCreate},
 				},
 			})
-			createRoleBinding(NamespaceTest, roleKind, requestRole.Name,
+			createRoleBinding(testNamespace, roleKind, requestRole.Name,
 				templateapi.GroupName, templateapi.PluralRequestResourceName, "", "")
 		})
 
 		It("should deny when user has no source role", func() {
-			Expect(createTemplateRequest(NamespaceSecondaryTest)).To(MatchError(ContainSubstring("User is not allowed to use VirtualMachine")))
+			Expect(createTemplateRequest(testSecondaryNamespace)).To(MatchError(ContainSubstring("User is not allowed to use VirtualMachine")))
 		})
 
 		It("should deny when source role restricts to a different resourceName", func() {
-			sourceRole := createRole(NamespaceSecondaryTest, []rbacv1.PolicyRule{
+			sourceRole := createRole(testSecondaryNamespace, []rbacv1.PolicyRule{
 				{
 					APIGroups:     []string{templateapi.GroupName},
 					Resources:     []string{sourceSubresource},
@@ -205,21 +180,21 @@ var _ = Describe("VirtualMachineTemplateRequest Authorization", func() {
 					Verbs:         []string{verbCreate},
 				},
 			})
-			createRoleBinding(NamespaceSecondaryTest, roleKind, sourceRole.Name,
+			createRoleBinding(testSecondaryNamespace, roleKind, sourceRole.Name,
 				templateapi.GroupName, templateapi.PluralRequestResourceName, "source", "other-vm")
 
-			Expect(createTemplateRequest(NamespaceSecondaryTest)).To(MatchError(ContainSubstring("User is not allowed to use VirtualMachine")))
+			Expect(createTemplateRequest(testSecondaryNamespace)).To(MatchError(ContainSubstring("User is not allowed to use VirtualMachine")))
 		})
 	})
 
 	Context("when user lacks permissions in request namespace", func() {
 		BeforeEach(func() {
-			createRoleBinding(NamespaceSecondaryTest, clusterRoleKind, sourceRoleName,
+			createRoleBinding(testSecondaryNamespace, clusterRoleKind, sourceRoleName,
 				templateapi.GroupName, templateapi.PluralRequestResourceName, "source", "")
 		})
 
 		It("should deny when user cannot create DataVolumes", func() {
-			role := createRole(NamespaceTest, []rbacv1.PolicyRule{
+			role := createRole(testNamespace, []rbacv1.PolicyRule{
 				{
 					APIGroups: []string{templateapi.GroupName},
 					Resources: []string{templateapi.PluralRequestResourceName},
@@ -231,14 +206,14 @@ var _ = Describe("VirtualMachineTemplateRequest Authorization", func() {
 					Verbs:     []string{verbCreate},
 				},
 			})
-			createRoleBinding(NamespaceTest, roleKind, role.Name,
+			createRoleBinding(testNamespace, roleKind, role.Name,
 				templateapi.GroupName, templateapi.PluralResourceName, "", "")
 
-			Expect(createTemplateRequest(NamespaceSecondaryTest)).To(MatchError(ContainSubstring("User is not allowed to create DataVolumes")))
+			Expect(createTemplateRequest(testSecondaryNamespace)).To(MatchError(ContainSubstring("User is not allowed to create DataVolumes")))
 		})
 
 		It("should deny when user cannot create VirtualMachineTemplates", func() {
-			role := createRole(NamespaceTest, []rbacv1.PolicyRule{
+			role := createRole(testNamespace, []rbacv1.PolicyRule{
 				{
 					APIGroups: []string{templateapi.GroupName},
 					Resources: []string{templateapi.PluralRequestResourceName},
@@ -250,17 +225,17 @@ var _ = Describe("VirtualMachineTemplateRequest Authorization", func() {
 					Verbs:     []string{verbCreate},
 				},
 			})
-			createRoleBinding(NamespaceTest, roleKind, role.Name,
+			createRoleBinding(testNamespace, roleKind, role.Name,
 				cdiAPIGroup, dataVolumesResource, "", "")
 
-			Expect(createTemplateRequest(NamespaceSecondaryTest)).
+			Expect(createTemplateRequest(testSecondaryNamespace)).
 				To(MatchError(ContainSubstring("User is not allowed to create VirtualMachineTemplates")))
 		})
 	})
 
 	Context("when user has all required permissions", func() {
 		BeforeEach(func() {
-			requestRole := createRole(NamespaceTest, []rbacv1.PolicyRule{
+			requestRole := createRole(testNamespace, []rbacv1.PolicyRule{
 				{
 					APIGroups: []string{templateapi.GroupName},
 					Resources: []string{templateapi.PluralRequestResourceName},
@@ -277,12 +252,12 @@ var _ = Describe("VirtualMachineTemplateRequest Authorization", func() {
 					Verbs:     []string{verbCreate},
 				},
 			})
-			createRoleBinding(NamespaceTest, roleKind, requestRole.Name,
+			createRoleBinding(testNamespace, roleKind, requestRole.Name,
 				templateapi.GroupName, templateapi.PluralRequestResourceName, "", "")
 		})
 
 		It("should allow when source role restricts to the referenced resourceName", func() {
-			sourceRole := createRole(NamespaceSecondaryTest, []rbacv1.PolicyRule{
+			sourceRole := createRole(testSecondaryNamespace, []rbacv1.PolicyRule{
 				{
 					APIGroups:     []string{templateapi.GroupName},
 					Resources:     []string{sourceSubresource},
@@ -290,23 +265,23 @@ var _ = Describe("VirtualMachineTemplateRequest Authorization", func() {
 					Verbs:         []string{verbCreate},
 				},
 			})
-			createRoleBinding(NamespaceSecondaryTest, roleKind, sourceRole.Name,
+			createRoleBinding(testSecondaryNamespace, roleKind, sourceRole.Name,
 				templateapi.GroupName, templateapi.PluralRequestResourceName, "source", testVMName)
 
-			Expect(createTemplateRequest(NamespaceSecondaryTest)).To(Succeed())
+			Expect(createTemplateRequest(testSecondaryNamespace)).To(Succeed())
 			Expect(tplReq.Name).ToNot(BeEmpty())
 		})
 
 		It("should allow when source role does not restrict resourceName", func() {
-			createRoleBinding(NamespaceSecondaryTest, clusterRoleKind, sourceRoleName,
+			createRoleBinding(testSecondaryNamespace, clusterRoleKind, sourceRoleName,
 				templateapi.GroupName, templateapi.PluralRequestResourceName, "source", "")
 
-			Expect(createTemplateRequest(NamespaceSecondaryTest)).To(Succeed())
+			Expect(createTemplateRequest(testSecondaryNamespace)).To(Succeed())
 			Expect(tplReq.Name).ToNot(BeEmpty())
 		})
 
 		It("should allow same namespace clone without source role", func() {
-			Expect(createTemplateRequest(NamespaceTest)).To(Succeed())
+			Expect(createTemplateRequest(testNamespace)).To(Succeed())
 			Expect(tplReq.Name).ToNot(BeEmpty())
 		})
 	})

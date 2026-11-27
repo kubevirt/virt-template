@@ -83,7 +83,7 @@ var _ = Describe("Security headers", func() {
 		),
 		Entry(
 			"a real subresource endpoint hit with the wrong HTTP method",
-			"/apis/subresources.template.kubevirt.io/v1beta1/namespaces/"+NamespaceTest+"/"+
+			"/apis/subresources.template.kubevirt.io/v1beta1/namespaces/default/"+
 				templateapi.PluralResourceName+"/does-not-exist/process",
 			http.StatusMethodNotAllowed,
 		),

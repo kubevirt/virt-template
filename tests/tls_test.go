@@ -295,7 +295,7 @@ func patchDeploymentArgsAndWait(deployment *appsv1.Deployment, args []string) {
 
 	// The aggregated APIService and the webhook endpoints lag behind the rollout.
 	probe := &v1beta1.VirtualMachineTemplate{
-		ObjectMeta: metav1.ObjectMeta{GenerateName: "serving-probe-", Namespace: NamespaceTest},
+		ObjectMeta: metav1.ObjectMeta{GenerateName: "serving-probe-", Namespace: testNamespace},
 		Spec: v1beta1.VirtualMachineTemplateSpec{
 			Parameters:     []v1beta1.Parameter{{Name: cpuCountParam, Value: "2"}},
 			VirtualMachine: &runtime.RawExtension{Object: &unstructured.Unstructured{Object: vmCPUCountTemplateUnstructured()}},
@@ -306,7 +306,7 @@ func patchDeploymentArgsAndWait(deployment *appsv1.Deployment, args []string) {
 			return err
 		}
 		// A dry-run create still calls the validating webhook.
-		_, err := tplClient.TemplateV1beta1().VirtualMachineTemplates(NamespaceTest).Create(
+		_, err := tplClient.TemplateV1beta1().VirtualMachineTemplates(testNamespace).Create(
 			context.Background(), probe, metav1.CreateOptions{DryRun: []string{metav1.DryRunAll}},
 		)
 		return err

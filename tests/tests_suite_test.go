@@ -30,6 +30,7 @@ import (
 	ginkgo_reporters "github.com/onsi/ginkgo/v2/reporters"
 
 	corev1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/clientcmd"
 
@@ -39,12 +40,12 @@ import (
 	templateclient "kubevirt.io/virt-template-client-go/virttemplate"
 )
 
-const (
-	NamespaceTest          = "vm-template-test"
-	NamespaceSecondaryTest = "vm-template-test-secondary"
-)
-
 var (
+	// testNamespace and testSecondaryNamespace are created for every spec and deleted after it,
+	// with everything in them.
+	testNamespace          string
+	testSecondaryNamespace string
+
 	virtClient kubecli.KubevirtClient
 	tplClient  templateclient.Interface
 
@@ -65,27 +66,11 @@ var _ = BeforeSuite(func() {
 
 	tplClient, err = templateclient.NewForConfig(virtClient.Config())
 	Expect(err).NotTo(HaveOccurred())
-
-	namespaceTest := &corev1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: NamespaceTest,
-		},
-	}
-	_, err = virtClient.CoreV1().Namespaces().Create(context.Background(), namespaceTest, metav1.CreateOptions{})
-	Expect(err).NotTo(HaveOccurred())
-
-	namespaceTestSecondary := &corev1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: NamespaceSecondaryTest,
-		},
-	}
-	_, err = virtClient.CoreV1().Namespaces().Create(context.Background(), namespaceTestSecondary, metav1.CreateOptions{})
-	Expect(err).NotTo(HaveOccurred())
 })
 
-var _ = AfterSuite(func() {
-	Expect(virtClient.CoreV1().Namespaces().Delete(context.Background(), NamespaceTest, metav1.DeleteOptions{})).To(Succeed())
-	Expect(virtClient.CoreV1().Namespaces().Delete(context.Background(), NamespaceSecondaryTest, metav1.DeleteOptions{})).To(Succeed())
+var _ = BeforeEach(func() {
+	testNamespace = createNamespace()
+	testSecondaryNamespace = createNamespace()
 })
 
 var _ = ReportAfterSuite("TestFunctional", func(report Report) {
@@ -105,4 +90,18 @@ func TestFunctional(t *testing.T) {
 
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "Functional test suite")
+}
+
+// createNamespace creates a namespace that is deleted, with everything in it, after the spec.
+func createNamespace() string {
+	GinkgoHelper()
+	namespace, err := virtClient.CoreV1().Namespaces().Create(context.Background(), &corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{GenerateName: "vm-template-test-"},
+	}, metav1.CreateOptions{})
+	Expect(err).NotTo(HaveOccurred())
+	DeferCleanup(func() {
+		Expect(virtClient.CoreV1().Namespaces().Delete(context.Background(), namespace.Name, metav1.DeleteOptions{})).
+			To(Or(Succeed(), MatchError(k8serrors.IsNotFound, "k8serrors.IsNotFound")))
+	})
+	return namespace.Name
 }
