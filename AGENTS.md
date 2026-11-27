@@ -74,7 +74,7 @@ make lint                - golangci-lint + hack/lint.sh + license header check
 make fmt                 - gofumpt formatting
 make manifests           - Generate CRDs, RBAC, webhook configs via controller-gen
 make generate            - Generate DeepCopy, OpenAPI, client code
-make vendor              - Tidy all modules + go work vendor
+make vendor              - Tidy all modules + go work vendor + go.work.sum checksums
 make container-build     - Build multi-arch container images (restrict to single arch with IMG_PLATFORMS=linux/amd64)
 ```
 

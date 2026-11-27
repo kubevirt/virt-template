@@ -31,6 +31,8 @@ _kubevirtcicli="${_base_dir}/_kubevirt/kubevirtci/cluster-up/cli.sh"
 _action=$1
 shift
 
+source "${_base_dir}/hack/cluster.sh"
+
 function kubevirt::fetch_kubevirt() {
   if [[ ! -d ${_kubevirt_dir} ]]; then
     git clone --depth 1 --branch "${KUBEVIRT_TAG}" https://github.com/kubevirt/kubevirt.git "${_kubevirt_dir}"
@@ -38,7 +40,8 @@ function kubevirt::fetch_kubevirt() {
 }
 
 function kubevirt::up() {
-  make cluster-up -C "${_kubevirt_dir}" && make cluster-sync -C "${_kubevirt_dir}"
+  make cluster-up -C "${_kubevirt_dir}"
+  make cluster-sync -C "${_kubevirt_dir}"
   KUBECONFIG=$(kubevirt::kubeconfig)
   export KUBECONFIG
 
@@ -53,8 +56,7 @@ function kubevirt::up() {
     ${_kubectl} patch -n kubevirt kubevirt kubevirt --type merge -p '{"spec": {"configuration": { "vmStateStorageClass": "'"$DEFAULT_STORAGE_CLASS"'" }}}'
   fi
 
-  echo "enabling snapshot feature gate"
-  ${_kubectl} patch kv/kubevirt -n kubevirt --type merge -p '{"spec": {"configuration": {"developerConfiguration": {"featureGates": ["Snapshot"]}}}}'
+  cluster::enable_feature_gate "${_kubectl}" Snapshot
 
   echo "waiting for kubevirt to become ready, this can take a few minutes..."
   ${_kubectl} -n kubevirt wait kv kubevirt --for condition=Available --timeout=15m

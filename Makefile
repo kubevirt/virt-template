@@ -81,6 +81,9 @@ vendor: ## Update vendored modules
 	go mod tidy
 	go work sync
 	go work vendor
+	# Load the full module graph, as IDEs do with -mod=readonly, to record the go.mod checksums of
+	# unvendored dependencies in go.work.sum.
+	go list -m -mod=readonly all > /dev/null
 	cd tools && GOWORK=off go mod tidy && GOWORK=off go mod vendor
 
 .PHONY: check-uncommitted
@@ -239,16 +242,25 @@ deploy-openshift: manifests ## Deploy controller and apiserver to the OpenShift 
 	$(call go-tool,kustomize,edit set image apiserver=${IMG_APISERVER},$(CURDIR)/config/apiserver)
 	$(call go-tool,kustomize,build $(CURDIR)/config/openshift) | $(KUBECTL) apply -f -
 
+# Deletes the VirtualMachineTemplateRequests first, while the controller still runs to remove their finalizers.
+define delete-requests
+	if $(KUBECTL) get crd virtualmachinetemplaterequests.template.kubevirt.io >/dev/null 2>&1; then \
+		$(KUBECTL) delete virtualmachinetemplaterequests.template.kubevirt.io --all --all-namespaces --timeout=5m; \
+	fi
+endef
+
 .PHONY: undeploy
 undeploy: ## Undeploy controller and apiserver from the K8s cluster. Call with ignore-not-found=true to ignore resource not found errors during deletion.
+	$(delete-requests)
 	$(call go-tool,kustomize,build $(CURDIR)/config/default) | $(KUBECTL) delete --ignore-not-found=$(IGNORE_NOT_FOUND) -f -
 
 .PHONY: undeploy-openshift
 undeploy-openshift: ## Undeploy controller and apiserver from the OpenShift cluster. Call with ignore-not-found=true to ignore resource not found errors during deletion.
+	$(delete-requests)
 	$(call go-tool,kustomize,build $(CURDIR)/config/openshift) | $(KUBECTL) delete --ignore-not-found=$(IGNORE_NOT_FOUND) -f -
 
-CERT_MANAGER_VERSION ?= v1.20.0
-.PHONE: deploy-cert-manager
+CERT_MANAGER_VERSION ?= v1.21.2
+.PHONY: deploy-cert-manager
 deploy-cert-manager:
 	$(KUBECTL) apply -f "https://github.com/cert-manager/cert-manager/releases/download/$(CERT_MANAGER_VERSION)/cert-manager.yaml"
 	$(call go-tool,cmctl,check api --wait=5m)
