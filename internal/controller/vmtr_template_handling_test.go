@@ -33,6 +33,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	virtv1 "kubevirt.io/api/core/v1"
@@ -313,6 +314,37 @@ var _ = Describe("VirtualMachineTemplateRequest Controller VirtualMachineTemplat
 
 		Expect(k8sClient.Get(context.Background(), client.ObjectKeyFromObject(tplReq), tplReq)).To(Succeed())
 		expectCondition(tplReq, v1beta1.ConditionReady, metav1.ConditionFalse, v1beta1.ReasonFailed, matcher)
+		expectCondition(tplReq, v1beta1.ConditionProgressing, metav1.ConditionFalse, v1beta1.ReasonFailed)
+	})
+
+	It("should fail permanently when the template create is invalid", func() {
+		tplReq := createRequest(k8sClient, testNamespace, testVMNamespace)
+		snap := createSnapshot(k8sClient, tplReq)
+		snap = setSnapshotStatus(k8sClient, snap, withPhase(snapshotv1beta1.Succeeded), withReady())
+		snapContent := createSnapshotContent(k8sClient, snap)
+		setSnapshotContentStatus(k8sClient, snapContent, true)
+		dv := createDataVolume(k8sClient, tplReq)
+		setDataVolumeStatus(k8sClient, dv, cdiv1beta1.Succeeded, true, false)
+
+		createErr := k8serrors.NewInvalid(v1beta1.GroupVersion.WithKind("VirtualMachineTemplate").GroupKind(), tplReq.Name, nil)
+		watchClient, err := client.NewWithWatch(cfg, client.Options{Scheme: testScheme})
+		Expect(err).ToNot(HaveOccurred())
+		reconciler.Client = interceptor.NewClient(watchClient, interceptor.Funcs{
+			Create: func(ctx context.Context, cli client.WithWatch, obj client.Object, opts ...client.CreateOption) error {
+				if _, ok := obj.(*v1beta1.VirtualMachineTemplate); ok {
+					return createErr
+				}
+				return cli.Create(ctx, obj, opts...)
+			},
+		})
+
+		_, err = reconciler.Reconcile(ctx, reconcile.Request{
+			NamespacedName: client.ObjectKeyFromObject(tplReq),
+		})
+		Expect(err).To(MatchError(createErr))
+
+		Expect(k8sClient.Get(context.Background(), client.ObjectKeyFromObject(tplReq), tplReq)).To(Succeed())
+		expectCondition(tplReq, v1beta1.ConditionReady, metav1.ConditionFalse, v1beta1.ReasonFailed, Equal(createErr.Error()))
 		expectCondition(tplReq, v1beta1.ConditionProgressing, metav1.ConditionFalse, v1beta1.ReasonFailed)
 	})
 

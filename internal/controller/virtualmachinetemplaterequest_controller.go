@@ -468,7 +468,8 @@ func (r *VirtualMachineTemplateRequestReconciler) createTemplate(
 	tpl := newTemplate(tplReq, &vm.Spec, extraParams)
 	logf.FromContext(ctx).Info("Creating VirtualMachineTemplate", logTplNS, tpl.Namespace, logTplName, tpl.Name)
 	if err := r.Client.Create(ctx, tpl); err != nil {
-		if k8serrors.IsAlreadyExists(err) {
+		// An Invalid template never succeeds on a retry, so the request fails instead of requeueing forever.
+		if k8serrors.IsAlreadyExists(err) || k8serrors.IsInvalid(err) {
 			setReadyCondition(ctx, tplReq, metav1.ConditionFalse, v1beta1.ReasonFailed, "%s", err.Error())
 			setProgressingCondition(ctx, tplReq, metav1.ConditionFalse, v1beta1.ReasonFailed)
 		}
