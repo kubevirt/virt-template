@@ -86,7 +86,7 @@ traditional virtualization experience within Kubernetes.
 
 **For development:**
 
-- Go version v1.24.0+
+- Go version v1.25.0+
 - Container tool: Podman (default) or Docker
 - kubectl
 
