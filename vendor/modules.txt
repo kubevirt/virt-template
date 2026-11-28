@@ -325,8 +325,8 @@ go.etcd.io/etcd/api/v3/mvccpb
 go.etcd.io/etcd/api/v3/v3rpc/rpctypes
 go.etcd.io/etcd/api/v3/version
 go.etcd.io/etcd/api/v3/versionpb
-# go.etcd.io/etcd/client/pkg/v3 v3.6.6
-## explicit; go 1.24
+# go.etcd.io/etcd/client/pkg/v3 v3.6.14
+## explicit; go 1.25.0
 go.etcd.io/etcd/client/pkg/v3/fileutil
 go.etcd.io/etcd/client/pkg/v3/logutil
 go.etcd.io/etcd/client/pkg/v3/systemd
@@ -476,8 +476,8 @@ golang.org/x/oauth2/internal
 ## explicit; go 1.24.0
 golang.org/x/sync/errgroup
 golang.org/x/sync/singleflight
-# golang.org/x/sys v0.40.0
-## explicit; go 1.24.0
+# golang.org/x/sys v0.45.0
+## explicit; go 1.25.0
 golang.org/x/sys/cpu
 golang.org/x/sys/plan9
 golang.org/x/sys/unix
@@ -1471,13 +1471,13 @@ kubevirt.io/controller-lifecycle-operator-sdk/api
 kubevirt.io/qe-tools/pkg/ginkgo-reporters
 kubevirt.io/qe-tools/pkg/polarion-xml
 # kubevirt.io/virt-template-api v0.0.0-00010101000000-00000000000 => ./api
-## explicit; go 1.24.0
+## explicit; go 1.25.0
 # kubevirt.io/virt-template-api v0.0.0-00010101000000-000000000000 => ./api
-## explicit; go 1.24.0
+## explicit; go 1.25.0
 # kubevirt.io/virt-template-client-go v0.0.0-00010101000000-000000000000 => ./staging/src/kubevirt.io/virt-template-client-go
-## explicit; go 1.24.0
+## explicit; go 1.25.0
 # kubevirt.io/virt-template-engine v0.0.0-00010101000000-000000000000 => ./staging/src/kubevirt.io/virt-template-engine
-## explicit; go 1.24.0
+## explicit; go 1.25.0
 # sigs.k8s.io/apiserver-network-proxy/konnectivity-client v0.34.0
 ## explicit; go 1.21
 sigs.k8s.io/apiserver-network-proxy/konnectivity-client/pkg/client
