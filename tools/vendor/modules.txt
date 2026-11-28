@@ -207,7 +207,7 @@ github.com/ccojocar/zxcvbn-go/match
 github.com/ccojocar/zxcvbn-go/matching
 github.com/ccojocar/zxcvbn-go/scoring
 github.com/ccojocar/zxcvbn-go/utils/math
-# github.com/cert-manager/cert-manager v1.20.2
+# github.com/cert-manager/cert-manager v1.20.3
 ## explicit; go 1.25.0
 github.com/cert-manager/cert-manager/internal/pem
 github.com/cert-manager/cert-manager/pkg/acme/webhook/apis/acme

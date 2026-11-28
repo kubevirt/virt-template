@@ -118,8 +118,8 @@ github.com/ccojocar/zxcvbn-go v1.0.4 h1:FWnCIRMXPj43ukfX000kvBZvV6raSxakYr1nzyNr
 github.com/ccojocar/zxcvbn-go v1.0.4/go.mod h1:3GxGX+rHmueTUMvm5ium7irpyjmm7ikxYFOSJB21Das=
 github.com/cenkalti/backoff/v5 v5.0.3 h1:ZN+IMa753KfX5hd8vVaMixjnqRZ3y8CuJKRKj1xcsSM=
 github.com/cenkalti/backoff/v5 v5.0.3/go.mod h1:rkhZdG3JZukswDf7f0cwqPNk4K0sa+F97BxZthm/crw=
-github.com/cert-manager/cert-manager v1.20.2 h1:CimnY00nLqB2lmxhoSuEC4GDMFDK7JCXqyjwMM9ndIQ=
-github.com/cert-manager/cert-manager v1.20.2/go.mod h1:1g/+a/WK5zWH/dXPZa3dMD3aJQJNRXQu+PN17C6WrOw=
+github.com/cert-manager/cert-manager v1.20.3 h1:7zgThbjfRBNjN2/cM/Wdo/vl/oeFQybIMNzxd1Ocipc=
+github.com/cert-manager/cert-manager v1.20.3/go.mod h1:Aqf5P0xRh9aey1p10m2c3UAk/Vb/FBPyH3WQxJRm+7Y=
 github.com/cert-manager/cmctl/v2 v2.5.0 h1:s+Cu1ca0mX7yJH0ow3rmEr5ibrH1B4Ke+tyqr8e739Y=
 github.com/cert-manager/cmctl/v2 v2.5.0/go.mod h1:eq4goO+wgqqrVxk6F14voGn4wJzfgxbTeyAP1RQcbHM=
 github.com/cespare/xxhash/v2 v2.3.0 h1:UL815xU9SqsFlibzuggzjXhog7bL6oX9BbNZnL2UFvs=

@@ -64,7 +64,7 @@ require (
 	github.com/butuzov/mirror v1.3.0 // indirect
 	github.com/catenacyber/perfsprint v0.10.1 // indirect
 	github.com/ccojocar/zxcvbn-go v1.0.4 // indirect
-	github.com/cert-manager/cert-manager v1.20.2 // indirect
+	github.com/cert-manager/cert-manager v1.20.3 // indirect
 	github.com/cert-manager/cmctl/v2 v2.5.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/chai2010/gettext-go v1.0.2 // indirect
