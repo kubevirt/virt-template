@@ -12,7 +12,7 @@ import (
 	"strings"
 
 	"golang.org/x/tools/go/ast/inspector"
-	"golang.org/x/tools/internal/moreiters"
+	"golang.org/x/tools/internal/cursorutil"
 )
 
 // NodeContains reports whether the Pos/End range of node n encloses
@@ -39,11 +39,8 @@ func NodeContainsPos(n ast.Node, pos token.Pos) bool {
 }
 
 // EnclosingFile returns the syntax tree for the file enclosing c.
-//
-// TODO(adonovan): promote this to a method of Cursor.
 func EnclosingFile(c inspector.Cursor) *ast.File {
-	c, _ = moreiters.First(c.Enclosing((*ast.File)(nil)))
-	return c.Node().(*ast.File)
+	return cursorutil.EnclosingFile(c).Node().(*ast.File)
 }
 
 // DocComment returns the doc comment for a node, if any.
@@ -147,6 +144,10 @@ func (r Range) IsValid() bool { return r.Start.IsValid() && r.Start <= r.EndPos 
 // extraneous whitespace and comments. Use it in new code instead of
 // PathEnclosingInterval. When the exact extent of a node is known,
 // use [Cursor.FindByPos] instead.
+//
+// TODO(hxjiang): Consider refactoring the function signature. It is currently
+// confusing that an error is returned even when a valid enclosing node is
+// successfully found. Consider grouping all cursors into one struct.
 func Select(curFile inspector.Cursor, start, end token.Pos) (_enclosing, _start, _end inspector.Cursor, _ error) {
 	curEnclosing, ok := curFile.FindByPos(start, end)
 	if !ok {
@@ -249,4 +250,9 @@ func needsParens(parentNode ast.Node, old, new ast.Expr) bool {
 		return parent.Fun == old
 	}
 	return false
+}
+
+func is[T any](n any) bool {
+	_, ok := n.(T)
+	return ok
 }
