@@ -9,15 +9,15 @@ import (
 	"go/ast"
 	"go/token"
 	"go/types"
+	"log"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
-	"golang.org/x/tools/go/ast/edge"
-	"golang.org/x/tools/go/ast/inspector"
 	"golang.org/x/tools/go/types/typeutil"
 	"golang.org/x/tools/internal/analysis/analyzerutil"
 	typeindexanalyzer "golang.org/x/tools/internal/analysis/typeindex"
 	"golang.org/x/tools/internal/astutil"
+	"golang.org/x/tools/internal/typeparams"
 	"golang.org/x/tools/internal/typesinternal"
 	"golang.org/x/tools/internal/typesinternal/typeindex"
 	"golang.org/x/tools/internal/versions"
@@ -31,7 +31,7 @@ var RangeIntAnalyzer = &analysis.Analyzer{
 		typeindexanalyzer.Analyzer,
 	},
 	Run: rangeint,
-	URL: "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/modernize#rangeint",
+	URL: "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/modernize#hdr-Analyzer_rangeint",
 }
 
 // rangeint offers a fix to replace a 3-clause 'for' loop:
@@ -110,7 +110,7 @@ func rangeint(pass *analysis.Pass) (any, error) {
 							// limit is a local or unexported global var.
 							// (An exported global may have uses we can't see.)
 							for cur := range typeindex.Uses(v) {
-								if isScalarLvalue(info, cur) {
+								if typesinternal.IsAssignedOrAddressTaken(info, cur) {
 									// Limit var is assigned or address-taken.
 									continue nextLoop
 								}
@@ -159,7 +159,7 @@ func rangeint(pass *analysis.Pass) (any, error) {
 								// Reject if any is an l-value (assigned or address-taken):
 								// a "for range int" loop does not respect assignments to
 								// the loop variable.
-								if isScalarLvalue(info, curId) {
+								if typesinternal.IsAssignedOrAddressTaken(info, curId) {
 									continue nextLoop
 								}
 							}
@@ -210,6 +210,36 @@ func rangeint(pass *analysis.Pass) (any, error) {
 											continue nextLoop
 										}
 									}
+								}
+							}
+						}
+
+						// The loop index (v) must not be a type parameter constrained by
+						// multiple distinct integer types, or a type parameter constrained
+						// by non-integer types. Transforming such instances to a range loop
+						// would result in a compiler error.
+						// See golang/go#78571.
+						terms, err := typeparams.NormalTerms(v.Type()) // NormalTerms works for any type
+						if err != nil {
+							log.Fatalf("internal error: cannot compute type set of loop var %v: %v", v, err)
+						}
+						if len(terms) != 0 {
+							// From the spec (https://go.dev/ref/spec#For_range):
+							// "If the type of the range expression is a type parameter, all
+							// types in its type set must have the same underlying type and the
+							// range expression must be valid for that type."
+							//
+							// Check if all terms have the same underlying type by comparing
+							// them to the first term.
+							u := terms[0].Type().Underlying()
+							// If the constraint has any non-integer terms, skip. (Range over
+							// float is not allowed.)
+							if !isInteger(u) {
+								continue nextLoop
+							}
+							for _, term := range terms[1:] {
+								if !types.Identical(u, term.Type().Underlying()) {
+									continue nextLoop
 								}
 							}
 						}
@@ -312,69 +342,4 @@ func rangeint(pass *analysis.Pass) (any, error) {
 		}
 	}
 	return nil, nil
-}
-
-// isScalarLvalue reports whether the specified identifier is
-// address-taken or appears on the left side of an assignment.
-//
-// This function is valid only for scalars (x = ...),
-// not for aggregates (x.a[i] = ...)
-func isScalarLvalue(info *types.Info, curId inspector.Cursor) bool {
-	// Unfortunately we can't simply use info.Types[e].Assignable()
-	// as it is always true for a variable even when that variable is
-	// used only as an r-value. So we must inspect enclosing syntax.
-
-	cur := curId
-
-	// Strip enclosing parens.
-	ek := cur.ParentEdgeKind()
-	for ek == edge.ParenExpr_X {
-		cur = cur.Parent()
-		ek = cur.ParentEdgeKind()
-	}
-
-	switch ek {
-	case edge.AssignStmt_Lhs:
-		assign := cur.Parent().Node().(*ast.AssignStmt)
-		if assign.Tok != token.DEFINE {
-			return true // i = j or i += j
-		}
-		id := curId.Node().(*ast.Ident)
-		if v, ok := info.Defs[id]; ok && v.Pos() != id.Pos() {
-			return true // reassignment of i (i, j := 1, 2)
-		}
-	case edge.RangeStmt_Key:
-		rng := cur.Parent().Node().(*ast.RangeStmt)
-		if rng.Tok == token.ASSIGN {
-			return true // "for k, v = range x" is like an AssignStmt to k, v
-		}
-	case edge.IncDecStmt_X:
-		return true // i++, i--
-	case edge.UnaryExpr_X:
-		if cur.Parent().Node().(*ast.UnaryExpr).Op == token.AND {
-			return true // &i
-		}
-	}
-	return false
-}
-
-// enclosingSignature returns the signature of the innermost
-// function enclosing the syntax node denoted by cur
-// or nil if the node is not within a function.
-//
-// TODO(adonovan): factor with gopls/internal/util/typesutil.EnclosingSignature.
-func enclosingSignature(cur inspector.Cursor, info *types.Info) *types.Signature {
-	if c, ok := enclosingFunc(cur); ok {
-		switch n := c.Node().(type) {
-		case *ast.FuncDecl:
-			if f, ok := info.Defs[n.Name]; ok {
-				return f.Type().(*types.Signature)
-			}
-		case *ast.FuncLit:
-			if f, ok := info.Types[n]; ok {
-				return f.Type.(*types.Signature)
-			}
-		}
-	}
-	return nil
 }
